@@ -24,6 +24,8 @@ extern U8 syskbd_pause;
 extern U8 syskbd_end;
 extern U8 syskbd_xtra;
 extern U8 syskbd_fire;
+extern U8 syskbd_shoot; /* modern controls only, see control.h */
+extern U8 syskbd_bomb;	 /* modern controls only, see control.h */
 
 #endif /* _SYSKBD_H */
 

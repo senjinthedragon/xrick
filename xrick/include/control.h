@@ -25,6 +25,14 @@
 #define CONTROL_EXIT 0x20
 #define CONTROL_FIRE 0x10
 
+/*
+ * classic: shoot/bomb only via the original fire+up / fire+down combo.
+ * modern: adds dedicated shoot/bomb keys (see syskbd_shoot/syskbd_bomb),
+ * each just synthesizing that same combo -- classic's combo keeps
+ * working either way, this only adds an alternative on top of it.
+ */
+typedef enum { CONTROLS_CLASSIC = 0, CONTROLS_MODERN = 1 } controlsMode_t;
+
 extern U8 control_status;
 extern U8 control_last;
 extern U8 control_active;

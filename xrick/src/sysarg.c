@@ -55,6 +55,7 @@ int sysarg_args_upscale = 0;	 /* 0=none, 1=fsr1 */
 int sysarg_args_crt = 0;	 /* 0=none, 1=easymode, 2=royale */
 int sysarg_args_bezel = 0;	 /* 0=none, 1=1084s */
 int sysarg_args_royale_mask = 0; /* 0=slot, 1=grille, 2=shadow */
+int sysarg_args_controls = 0;	 /* 0=classic, 1=modern -- see control.h */
 
 /*
  * Fail
@@ -63,9 +64,9 @@ void
 sysarg_fail(char *msg)
 {
 #ifdef ENABLE_SOUND
-	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -nosound : Disable sounds. The default is to play with sounds enabled.\n  -vol <vol> : Play sounds at volume <vol>. <vol> must be an integer\n    between 0 (silence) and %d (max). The default is to play sounds\n    at maximal volume (%d).\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS - 1, MAP_NBR_SUBMAPS, SYSSND_MAXVOL, SYSSND_MAXVOL);
+	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -nosound : Disable sounds. The default is to play with sounds enabled.\n  -vol <vol> : Play sounds at volume <vol>. <vol> must be an integer\n    between 0 (silence) and %d (max). The default is to play sounds\n    at maximal volume (%d).\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n  -controls <classic|modern> : classic is fire+up/fire+down to shoot/drop\n    a bomb, as in the original game. modern adds dedicated shoot/bomb\n    keys (A/S by default) on top of that. Default: classic.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS - 1, MAP_NBR_SUBMAPS, SYSSND_MAXVOL, SYSSND_MAXVOL);
 #else
-	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS - 1, MAP_NBR_SUBMAPS);
+	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n  -controls <classic|modern> : classic is fire+up/fire+down to shoot/drop\n    a bomb, as in the original game. modern adds dedicated shoot/bomb\n    keys (A/S by default) on top of that. Default: classic.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS - 1, MAP_NBR_SUBMAPS);
 #endif
 	exit(1);
 }
@@ -259,6 +260,16 @@ sysarg_init(int argc, char **argv)
 				sysarg_args_royale_mask = 2;
 			else
 				sysarg_fail("invalid royale mask type");
+		}
+
+		else if (!strcmp(argv[i], "-controls")) {
+			if (++i == argc) sysarg_fail("missing controls mode");
+			if (!strcasecmp(argv[i], "classic"))
+				sysarg_args_controls = 0;
+			else if (!strcasecmp(argv[i], "modern"))
+				sysarg_args_controls = 1;
+			else
+				sysarg_fail("invalid controls mode");
 		}
 
 		else {

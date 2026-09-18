@@ -30,5 +30,7 @@ U8 syskbd_pause = SDL_SCANCODE_P;
 U8 syskbd_end = SDL_SCANCODE_E;
 U8 syskbd_xtra = SDL_SCANCODE_ESCAPE;
 U8 syskbd_fire = SDL_SCANCODE_SPACE;
+U8 syskbd_shoot = SDL_SCANCODE_A; /* modern controls only, see control.h */
+U8 syskbd_bomb = SDL_SCANCODE_S;  /* modern controls only, see control.h */
 
 /* eof */

@@ -56,12 +56,17 @@ Produces `build/xrick`. Requires SDL3 and libvorbisfile.
 -crt <none|easymode|royale>
 -bezel <none|1084s>
 -royale-mask <slot|grille|shadow>
+-controls <classic|modern>
 -vol <n> / -nosound
 -speed <n>            game speed
 ```
 
 Upscale/CRT/bezel modes can also be cycled live with **F10**/**F11**/**F12**. F1 toggles
 fullscreen, F2/F3 zoom, F4-F6 sound mute/volume, F7-F9 cheats.
+
+`-controls classic` (the default) is the original game: hold **fire** and press **up**/**down**
+to shoot/drop a bomb. `-controls modern` adds dedicated shoot/bomb keys (**A**/**S** by default)
+on top of that, without removing the classic combo.
 
 ### Credits
 

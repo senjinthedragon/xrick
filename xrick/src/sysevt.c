@@ -21,6 +21,7 @@
 #include "system.h"
 #include "syskbd.h"
 #include "sysvid.h"
+#include "sysarg.h"
 #include "game.h"
 #include "debug.h"
 
@@ -68,6 +69,14 @@ processEvent()
 			control_last = CONTROL_EXIT;
 		} else if (key == syskbd_fire) {
 			SETBIT(control_status, CONTROL_FIRE);
+			control_last = CONTROL_FIRE;
+		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+			/* dedicated shoot key: same fire+up combo e_rick.c already
+			 * looks for, just synthesized from one key instead of two */
+			SETBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+			control_last = CONTROL_FIRE;
+		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+			SETBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
 			control_last = CONTROL_FIRE;
 		} else if (key == SDL_SCANCODE_F1) {
 			sysvid_toggleFullscreen();
@@ -124,6 +133,12 @@ processEvent()
 			control_last = CONTROL_EXIT;
 		} else if (key == syskbd_fire) {
 			CLRBIT(control_status, CONTROL_FIRE);
+			control_last = CONTROL_FIRE;
+		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+			CLRBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+			control_last = CONTROL_FIRE;
+		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+			CLRBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
 			control_last = CONTROL_FIRE;
 		}
 		break;
