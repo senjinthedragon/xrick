@@ -58,14 +58,14 @@ static U8 ent_creat2(U8 *, U16);
 void
 ent_reset(void)
 {
-  U8 i;
+	U8 i;
 
-  E_RICK_STRST(E_RICK_STSTOP);
-  e_bomb_lethal = FALSE;
+	E_RICK_STRST(E_RICK_STSTOP);
+	e_bomb_lethal = FALSE;
 
-  ent_ents[0].n = 0;
-  for (i = 2; ent_ents[i].n != 0xff; i++)
-    ent_ents[i].n = 0;
+	ent_ents[0].n = 0;
+	for (i = 2; ent_ents[i].n != 0xff; i++)
+		ent_ents[i].n = 0;
 }
 
 
@@ -82,14 +82,14 @@ ent_reset(void)
 static U8
 ent_creat1(U8 *e)
 {
-  /* look for a slot */
-  for (*e = 0x04; *e < 0x09; (*e)++)
-    if (ent_ents[*e].n == 0) {  /* if slot available, use it */
-      ent_ents[*e].c1 = 0;
-      return TRUE;
-    }
+	/* look for a slot */
+	for (*e = 0x04; *e < 0x09; (*e)++)
+		if (ent_ents[*e].n == 0) { /* if slot available, use it */
+			ent_ents[*e].c1 = 0;
+			return TRUE;
+		}
 
-  return FALSE;
+	return FALSE;
 }
 
 
@@ -107,19 +107,19 @@ ent_creat1(U8 *e)
 static U8
 ent_creat2(U8 *e, U16 m)
 {
-  /* make sure the entity created by this mark is not active already */
-  for (*e = 0x09; *e < 0x0c; (*e)++)
-    if (ent_ents[*e].n != 0 && ent_ents[*e].mark == m)
-      return FALSE;
+	/* make sure the entity created by this mark is not active already */
+	for (*e = 0x09; *e < 0x0c; (*e)++)
+		if (ent_ents[*e].n != 0 && ent_ents[*e].mark == m)
+			return FALSE;
 
-  /* look for a slot */
-  for (*e = 0x09; *e < 0x0c; (*e)++)
-    if (ent_ents[*e].n == 0) {  /* if slot available, use it */
-      ent_ents[*e].c1 = 2;
-      return TRUE;
-    }
+	/* look for a slot */
+	for (*e = 0x09; *e < 0x0c; (*e)++)
+		if (ent_ents[*e].n == 0) { /* if slot available, use it */
+			ent_ents[*e].c1 = 2;
+			return TRUE;
+		}
 
-  return FALSE;
+	return FALSE;
 }
 
 
@@ -143,25 +143,26 @@ ent_actvis(U8 frow, U8 lrow)
 	U16 y;
 
 	/*
-	* go through the list and find the first mark that
-	* is visible, i.e. which has a row greater than the
-	* first row (marks being ordered by row number).
-	*/
+	 * go through the list and find the first mark that
+	 * is visible, i.e. which has a row greater than the
+	 * first row (marks being ordered by row number).
+	 */
 	for (m = map_submaps[env_submap].mark;
-		map_marks[m].row != 0xff && map_marks[m].row < frow;
-		m++);
+	     map_marks[m].row != 0xff && map_marks[m].row < frow;
+	     m++)
+		;
 
-	if (map_marks[m].row == 0xff)  /* none found */
+	if (map_marks[m].row == 0xff) /* none found */
 		return;
 
 	/*
-	* go through the list and process all marks that are
-	* visible, i.e. which have a row lower than the last
-	* row (marks still being ordered by row number).
-	*/
+	 * go through the list and process all marks that are
+	 * visible, i.e. which have a row lower than the last
+	 * row (marks still being ordered by row number).
+	 */
 	for (;
-		map_marks[m].row != 0xff && map_marks[m].row < lrow;
-		m++) {
+	     map_marks[m].row != 0xff && map_marks[m].row < lrow;
+	     m++) {
 
 		/* ignore marks that are not active */
 		if (map_marks[m].ent & MAP_MARK_NACT)
@@ -202,85 +203,81 @@ ent_actvis(U8 frow, U8 lrow)
 				/* boxes, bonuses and type 3 e_them go to slot 4-8 */
 				/* (c1 set to 0 -> all type 3 e_them are sleeping) */
 				if (!ent_creat1(&e)) continue;
-			}
-			else {
+			} else {
 				/* type 1 and 2 e_them go to slot 9-c */
 				/* (c1 set to 2) */
 				if (!ent_creat2(&e, m)) continue;
 			}
-		}
-		else {
+		} else {
 			/* entities stopping rick (e.g. blocks) go to slot 0 */
 			if (ent_ents[0].n) continue;
 			e = 0;
 			ent_ents[0].c1 = 0;
 		}
 
-    /*
-     * initialize the entity
-     */
-    ent_ents[e].mark = m;
-    ent_ents[e].flags = map_marks[m].flags;
-    ent_ents[e].n = map_marks[m].ent;
+		/*
+		 * initialize the entity
+		 */
+		ent_ents[e].mark = m;
+		ent_ents[e].flags = map_marks[m].flags;
+		ent_ents[e].n = map_marks[m].ent;
 
-    /*
-     * if entity is to be already running (i.e. not asleep and waiting
-     * for some trigger to move), then use LETHALR i.e. restart flag, right
-     * from the beginning
-     */
-    if (ent_ents[e].flags & ENT_FLG_LETHALR)
-      ent_ents[e].n |= ENT_LETHAL;
+		/*
+		 * if entity is to be already running (i.e. not asleep and waiting
+		 * for some trigger to move), then use LETHALR i.e. restart flag, right
+		 * from the beginning
+		 */
+		if (ent_ents[e].flags & ENT_FLG_LETHALR)
+			ent_ents[e].n |= ENT_LETHAL;
 
-    ent_ents[e].x = map_marks[m].xy & 0xf8;
+		ent_ents[e].x = map_marks[m].xy & 0xf8;
 
-    y = (map_marks[m].xy & 0x07) + (map_marks[m].row & 0xf8) - map_frow;
-    y <<= 3;
-    if (!(ent_ents[e].flags & ENT_FLG_STOPRICK))
-      y += 3;
-    ent_ents[e].y = y;
+		y = (map_marks[m].xy & 0x07) + (map_marks[m].row & 0xf8) - map_frow;
+		y <<= 3;
+		if (!(ent_ents[e].flags & ENT_FLG_STOPRICK))
+			y += 3;
+		ent_ents[e].y = y;
 
-    ent_ents[e].xsave = ent_ents[e].x;
-    ent_ents[e].ysave = ent_ents[e].y;
+		ent_ents[e].xsave = ent_ents[e].x;
+		ent_ents[e].ysave = ent_ents[e].y;
 
-    /*ent_ents[e].w0C = 0;*/  /* in ASM code but never used */
+		/*ent_ents[e].w0C = 0;*/ /* in ASM code but never used */
 
-    ent_ents[e].w = ent_entdata[map_marks[m].ent].w;
-    ent_ents[e].h = ent_entdata[map_marks[m].ent].h;
-    ent_ents[e].sprbase = ent_entdata[map_marks[m].ent].spr;
-    ent_ents[e].sprite = (U8)ent_entdata[map_marks[m].ent].spr;
-    ent_ents[e].step_no_i = ent_entdata[map_marks[m].ent].sni;
-    ent_ents[e].trigsnd = (U8)ent_entdata[map_marks[m].ent].snd;
+		ent_ents[e].w = ent_entdata[map_marks[m].ent].w;
+		ent_ents[e].h = ent_entdata[map_marks[m].ent].h;
+		ent_ents[e].sprbase = ent_entdata[map_marks[m].ent].spr;
+		ent_ents[e].sprite = (U8)ent_entdata[map_marks[m].ent].spr;
+		ent_ents[e].step_no_i = ent_entdata[map_marks[m].ent].sni;
+		ent_ents[e].trigsnd = (U8)ent_entdata[map_marks[m].ent].snd;
 
-    /*
-     * FIXME what is this? when all trigger flags are up, then
-     * use .sni for sprbase. Why? What is the point? (This is
-     * for type 1 and 2 e_them, ...)
-     *
-     * This also means that as long as sprite has not been
-     * recalculated, a wrong value is used. This is normal, see
-     * what happens to the falling guy on the right on submap 3:
-     * it changes when hitting the ground.
-     */
+		/*
+		 * FIXME what is this? when all trigger flags are up, then
+		 * use .sni for sprbase. Why? What is the point? (This is
+		 * for type 1 and 2 e_them, ...)
+		 *
+		 * This also means that as long as sprite has not been
+		 * recalculated, a wrong value is used. This is normal, see
+		 * what happens to the falling guy on the right on submap 3:
+		 * it changes when hitting the ground.
+		 */
 #define ENT_FLG_TRIGGERS \
-(ENT_FLG_TRIGBOMB|ENT_FLG_TRIGBULLET|ENT_FLG_TRIGSTOP|ENT_FLG_TRIGRICK)
-    if ((ent_ents[e].flags & ENT_FLG_TRIGGERS) == ENT_FLG_TRIGGERS
-	&& e >= 0x09)
-      ent_ents[e].sprbase = (U8)(ent_entdata[map_marks[m].ent].sni & 0x00ff);
+	(ENT_FLG_TRIGBOMB | ENT_FLG_TRIGBULLET | ENT_FLG_TRIGSTOP | ENT_FLG_TRIGRICK)
+		if ((ent_ents[e].flags & ENT_FLG_TRIGGERS) == ENT_FLG_TRIGGERS && e >= 0x09)
+			ent_ents[e].sprbase = (U8)(ent_entdata[map_marks[m].ent].sni & 0x00ff);
 #undef ENT_FLG_TRIGGERS
 
-    ent_ents[e].trig_x = map_marks[m].lt & 0xf8;
-    ent_ents[e].latency = (map_marks[m].lt & 0x07) << 5;  /* <<5 eq *32 */
+		ent_ents[e].trig_x = map_marks[m].lt & 0xf8;
+		ent_ents[e].latency = (map_marks[m].lt & 0x07) << 5; /* <<5 eq *32 */
 
-    ent_ents[e].trig_y = 3 + 8 * ((map_marks[m].row & 0xf8) - map_frow +
-				  (map_marks[m].lt & 0x07));
+		ent_ents[e].trig_y = 3 + 8 * ((map_marks[m].row & 0xf8) - map_frow +
+					      (map_marks[m].lt & 0x07));
 
-    ent_ents[e].c2 = 0;
-    ent_ents[e].offsy = 0;
-    ent_ents[e].ylow = 0;
+		ent_ents[e].c2 = 0;
+		ent_ents[e].offsy = 0;
+		ent_ents[e].ylow = 0;
 
-    ent_ents[e].front = FALSE;
-
-  }
+		ent_ents[e].front = FALSE;
+	}
 }
 
 
@@ -292,37 +289,37 @@ ent_actvis(U8 frow, U8 lrow)
 static void
 ent_addrect(U16 x, U16 y, U16 width, U16 height)
 {
-  U16 x0, y0;
-  U16 w0, h0;
+	U16 x0, y0;
+	U16 w0, h0;
 
-  /*sys_printf("rect %#04x,%#04x %#04x %#04x ", x, y, width, height);*/
+	/*sys_printf("rect %#04x,%#04x %#04x %#04x ", x, y, width, height);*/
 
-  /* align to tiles */
-  x0 = x & 0xfff8;
-  y0 = y & 0xfff8;
-  w0 = width;
-  h0 = height;
-  if (x - x0) w0 = (w0 + (x - x0)) | 0x0007;
-  if (y - y0) h0 = (h0 + (y - y0)) | 0x0007;
+	/* align to tiles */
+	x0 = x & 0xfff8;
+	y0 = y & 0xfff8;
+	w0 = width;
+	h0 = height;
+	if (x - x0) w0 = (w0 + (x - x0)) | 0x0007;
+	if (y - y0) h0 = (h0 + (y - y0)) | 0x0007;
 
-  /* clip */
-  if (maps_clip(&x0, &y0, &w0, &h0)) {  /* do not add if fully clipped */
-    /*sys_printf("-> [clipped]\n");*/
-    return;
-  }
+	/* clip */
+	if (maps_clip(&x0, &y0, &w0, &h0)) { /* do not add if fully clipped */
+		/*sys_printf("-> [clipped]\n");*/
+		return;
+	}
 
-  /*sys_printf("-> %#04x,%#04x %#04x %#04x\n", x0, y0, w0, h0);*/
+	/*sys_printf("-> %#04x,%#04x %#04x %#04x\n", x0, y0, w0, h0);*/
 
 #ifdef GFXST
-  y0 += 8;
+	y0 += 8;
 #endif
 
-  /* get to screen */
-  x0 -= DRAW_XYMAP_SCRLEFT;
-  y0 -= DRAW_XYMAP_SCRTOP;
+	/* get to screen */
+	x0 -= DRAW_XYMAP_SCRLEFT;
+	y0 -= DRAW_XYMAP_SCRTOP;
 
-  /* add rectangle to the list */
-  ent_rects = rects_new(x0, y0, w0, h0, ent_rects);
+	/* add rectangle to the list */
+	ent_rects = rects_new(x0, y0, w0, h0, ent_rects);
 }
 
 
@@ -334,7 +331,8 @@ ent_addrect(U16 x, U16 y, U16 width, U16 height)
  * NOTE This may need to be part of draw.c. Also needs better comments,
  * NOTE and probably better rectangles management.
  */
-void ents_paintAll()
+void
+ents_paintAll()
 {
 	U8 i;
 	U16 dx, dy;
@@ -347,68 +345,51 @@ void ents_paintAll()
 	ent_rects = NULL;
 
 	/* background loop : erase all entities that were visible */
-	for (i = 0; ent_ents[i].n != 0xff; i++)
-	{
-	    if (ent_ents[i].prev_n && (prev_h || ent_ents[i].prev_s))
-	    {
+	for (i = 0; ent_ents[i].n != 0xff; i++) {
+		if (ent_ents[i].prev_n && (prev_h || ent_ents[i].prev_s)) {
 			/* if entity was active, then erase it (redraw the map) */
 			maps_paintRect(ent_ents[i].prev_x, ent_ents[i].prev_y, 0x20, 0x15);
 		}
 	}
 
 	/* foreground loop : draw all entities that are visible */
-	for (i = 0; ent_ents[i].n != 0xff; i++)
-	{
-		if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite))
-		{
+	for (i = 0; ent_ents[i].n != 0xff; i++) {
+		if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite)) {
 			/* if entitiy is active, draw the sprite. */
 			sprites_paint2(ent_ents[i].sprite,
-				ent_ents[i].x, ent_ents[i].y,
-				ent_ents[i].front);
+				       ent_ents[i].x, ent_ents[i].y,
+				       ent_ents[i].front);
 		}
 	}
 
 	/*
-	* rectangles loop : figure out which parts of the screen have been
-	* impacted and need to be refreshed, then save state
-	*/
-	for (i = 0; ent_ents[i].n != 0xff; i++)
-	{
-		if (ent_ents[i].prev_n && (prev_h || ent_ents[i].prev_s))
-		{
+	 * rectangles loop : figure out which parts of the screen have been
+	 * impacted and need to be refreshed, then save state
+	 */
+	for (i = 0; ent_ents[i].n != 0xff; i++) {
+		if (ent_ents[i].prev_n && (prev_h || ent_ents[i].prev_s)) {
 			/* (1) if entity was active and has been painted... */
-			if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite))
-			{
+			if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite)) {
 				/* (1.1) ... and is still active now and still needs to be */
 				/*       painted, then check if rectangles intersect */
 				dx = abs(ent_ents[i].x - ent_ents[i].prev_x);
 				dy = abs(ent_ents[i].y - ent_ents[i].prev_y);
-				if (dx < 0x20 && dy < 0x16)
-				{
+				if (dx < 0x20 && dy < 0x16) {
 					/* (1.1.1) if they do, then create one rectangle */
-					ent_addrect((ent_ents[i].prev_x < ent_ents[i].x) ?
-						ent_ents[i].prev_x : ent_ents[i].x,
-						(ent_ents[i].prev_y < ent_ents[i].y) ?
-						ent_ents[i].prev_y : ent_ents[i].y,
-						dx + 0x20, dy + 0x15);
-				}
-				else
-				{
+					ent_addrect((ent_ents[i].prev_x < ent_ents[i].x) ? ent_ents[i].prev_x : ent_ents[i].x,
+						    (ent_ents[i].prev_y < ent_ents[i].y) ? ent_ents[i].prev_y : ent_ents[i].y,
+						    dx + 0x20, dy + 0x15);
+				} else {
 					/* (1.1.2) else, create two rectangles */
 					ent_addrect(ent_ents[i].x, ent_ents[i].y, 0x20, 0x15);
 					ent_addrect(ent_ents[i].prev_x, ent_ents[i].prev_y, 0x20, 0x15);
 				}
-			}
-			else
-			{
+			} else {
 				/* (1.2) ... and is not active anymore or does not need to be */
 				/*       painted then create one single rectangle */
 				ent_addrect(ent_ents[i].prev_x, ent_ents[i].prev_y, 0x20, 0x15);
 			}
-		}
-		else
-		if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite))
-		{
+		} else if (ent_ents[i].n && (env_highlight || ent_ents[i].sprite)) {
 			/* (2) if entity is active and needs to be painted, */
 			/*     then create one rectangle */
 			ent_addrect(ent_ents[i].x, ent_ents[i].y, 0x20, 0x15);
@@ -432,40 +413,40 @@ void ents_paintAll()
 void
 ent_clprev(void)
 {
-  U8 i;
+	U8 i;
 
-  for (i = 0; ent_ents[i].n != 0xff; i++)
-    ent_ents[i].prev_n = 0;
+	for (i = 0; ent_ents[i].n != 0xff; i++)
+		ent_ents[i].prev_n = 0;
 }
 
 /*
  * Table containing entity action function pointers.
  */
 void (*ent_actf[])(U8) = {
-  NULL,        /* 00 - zero means that the slot is free */
-  e_rick_action,   /* 01 - 12CA */
-  e_bullet_action,  /* 02 - 1883 */
-  e_bomb_action,  /* 03 - 18CA */
-  e_them_t1a_action,  /* 04 - 2452 */
-  e_them_t1b_action,  /* 05 - 21CA */
-  e_them_t2_action,  /* 06 - 2718 */
-  e_them_t1a_action,  /* 07 - 2452 */
-  e_them_t1b_action,  /* 08 - 21CA */
-  e_them_t2_action,  /* 09 - 2718 */
-  e_them_t1a_action,  /* 0A - 2452 */
-  e_them_t1b_action,  /* 0B - 21CA */
-  e_them_t2_action,  /* 0C - 2718 */
-  e_them_t1a_action,  /* 0D - 2452 */
-  e_them_t1b_action,  /* 0E - 21CA */
-  e_them_t2_action,  /* 0F - 2718 */
-  e_box_action,  /* 10 - 245A */
-  e_box_action,  /* 11 - 245A */
-  e_bonus_action,  /* 12 - 242C */
-  e_bonus_action,  /* 13 - 242C */
-  e_bonus_action,  /* 14 - 242C */
-  e_bonus_action,  /* 15 - 242C */
-  e_sbonus_start,  /* 16 - 2182 */
-  e_sbonus_stop  /* 17 - 2143 */
+    NULL,	       /* 00 - zero means that the slot is free */
+    e_rick_action,     /* 01 - 12CA */
+    e_bullet_action,   /* 02 - 1883 */
+    e_bomb_action,     /* 03 - 18CA */
+    e_them_t1a_action, /* 04 - 2452 */
+    e_them_t1b_action, /* 05 - 21CA */
+    e_them_t2_action,  /* 06 - 2718 */
+    e_them_t1a_action, /* 07 - 2452 */
+    e_them_t1b_action, /* 08 - 21CA */
+    e_them_t2_action,  /* 09 - 2718 */
+    e_them_t1a_action, /* 0A - 2452 */
+    e_them_t1b_action, /* 0B - 21CA */
+    e_them_t2_action,  /* 0C - 2718 */
+    e_them_t1a_action, /* 0D - 2452 */
+    e_them_t1b_action, /* 0E - 21CA */
+    e_them_t2_action,  /* 0F - 2718 */
+    e_box_action,      /* 10 - 245A */
+    e_box_action,      /* 11 - 245A */
+    e_bonus_action,    /* 12 - 242C */
+    e_bonus_action,    /* 13 - 242C */
+    e_bonus_action,    /* 14 - 242C */
+    e_bonus_action,    /* 15 - 242C */
+    e_sbonus_start,    /* 16 - 2182 */
+    e_sbonus_stop      /* 17 - 2143 */
 };
 
 
@@ -476,29 +457,27 @@ void (*ent_actf[])(U8) = {
 void
 ent_action(void)
 {
-  U8 i, k;
+	U8 i, k;
 
-  IFDEBUG_ENTS(
-    sys_printf("xrick/ents: --------- action ----------------\n");
-    for (i = 0; ent_ents[i].n != 0xff; i++)
-      if (ent_ents[i].n) {
-	sys_printf("xrick/ents: slot %#04x, entity %#04x", i, ent_ents[i].n);
-	sys_printf(" (%#06x, %#06x), sprite %#04x.\n",
-		   ent_ents[i].x, ent_ents[i].y, ent_ents[i].sprite);
-      }
-    );
+	IFDEBUG_ENTS(
+	    sys_printf("xrick/ents: --------- action ----------------\n");
+	    for (i = 0; ent_ents[i].n != 0xff; i++) if (ent_ents[i].n) {
+		    sys_printf("xrick/ents: slot %#04x, entity %#04x", i, ent_ents[i].n);
+		    sys_printf(" (%#06x, %#06x), sprite %#04x.\n",
+			       ent_ents[i].x, ent_ents[i].y, ent_ents[i].sprite);
+	    });
 
-  for (i = 0; ent_ents[i].n != 0xff; i++) {
-    if (ent_ents[i].n) {
-      k = ent_ents[i].n & 0x7f;
-      if (k == 0x47)
-	e_them_z_action(i);
-      else if (k >= 0x18)
-        e_them_t3_action(i);
-      else
-	ent_actf[k](i);
-    }
-  }
+	for (i = 0; ent_ents[i].n != 0xff; i++) {
+		if (ent_ents[i].n) {
+			k = ent_ents[i].n & 0x7f;
+			if (k == 0x47)
+				e_them_z_action(i);
+			else if (k >= 0x18)
+				e_them_t3_action(i);
+			else
+				ent_actf[k](i);
+		}
+	}
 }
 
 

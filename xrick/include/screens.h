@@ -22,28 +22,28 @@
 #define SCREEN_EXIT 2
 
 typedef struct {
-  U16 count;  /* number of loops */
-  U16 dx, dy;  /* sprite x and y deltas */
-  U16 base;  /* base for sprite numbers table */
-} screen_imapsteps_t;  /* description of one step */
+	U16 count;    /* number of loops */
+	U16 dx, dy;   /* sprite x and y deltas */
+	U16 base;     /* base for sprite numbers table */
+} screen_imapsteps_t; /* description of one step */
 
-extern U8 screen_imapsl[];  /* sprite lists */
-extern screen_imapsteps_t screen_imapsteps[];  /* map intro steps */
-extern U8 screen_imapsofs[];  /* first step for each map */
-extern U8 *screen_imaptext[];  /* map intro texts */
-extern U8 screen_imainhoft[];  /* hall of fame title */
-extern U8 screen_imainrdt[];  /* rick dangerous title */
-extern U8 screen_imaincdc[];  /* core design copyright text */
-extern U8 screen_gameovertxt[];  /* game over */
-extern U8 screen_pausedtxt[];  /* paused */
-extern U8 screen_congrats[];  /* congratulations */
+extern U8 screen_imapsl[];		      /* sprite lists */
+extern screen_imapsteps_t screen_imapsteps[]; /* map intro steps */
+extern U8 screen_imapsofs[];		      /* first step for each map */
+extern U8 *screen_imaptext[];		      /* map intro texts */
+extern U8 screen_imainhoft[];		      /* hall of fame title */
+extern U8 screen_imainrdt[];		      /* rick dangerous title */
+extern U8 screen_imaincdc[];		      /* core design copyright text */
+extern U8 screen_gameovertxt[];		      /* game over */
+extern U8 screen_pausedtxt[];		      /* paused */
+extern U8 screen_congrats[];		      /* congratulations */
 
-extern U8 screen_xrick(void);  /* splash */
-extern U8 screen_introMain(void);  /* main intro */
+extern U8 screen_xrick(void);	  /* splash */
+extern U8 screen_introMain(void); /* main intro */
 extern U8 screen_introMap(void);  /* map intro */
 extern U8 screen_gameover(void);  /* gameover */
-extern U8 screen_getname(void);  /* enter you name */
-extern void screen_pause(U8);  /* pause indicator */
+extern U8 screen_getname(void);	  /* enter you name */
+extern void screen_pause(U8);	  /* pause indicator */
 
 #endif
 

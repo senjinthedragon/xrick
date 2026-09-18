@@ -17,9 +17,9 @@
 #include "system.h"
 
 typedef struct rect_s {
-  U16 x, y;
-  U16 width, height;
-  struct rect_s *next;
+	U16 x, y;
+	U16 width, height;
+	struct rect_s *next;
 } rect_t;
 
 extern void rects_free(rect_t *);

@@ -18,31 +18,29 @@
 
 #ifdef ENABLE_SOUND
 
-extern sound_t* WAV_GAMEOVER;
-extern sound_t* WAV_SBONUS2;
-extern sound_t* WAV_BULLET;
-extern sound_t* WAV_BOMBSHHT;
-extern sound_t* WAV_EXPLODE;
-extern sound_t* WAV_STICK;
-extern sound_t* WAV_WALK;
-extern sound_t* WAV_CRAWL;
-extern sound_t* WAV_JUMP;
-extern sound_t* WAV_PAD;
-extern sound_t* WAV_BOX;
-extern sound_t* WAV_BONUS;
-extern sound_t* WAV_SBONUS1;
-extern sound_t* WAV_DIE;
-extern sound_t* WAV_ENTITY[];
+extern sound_t *WAV_GAMEOVER;
+extern sound_t *WAV_SBONUS2;
+extern sound_t *WAV_BULLET;
+extern sound_t *WAV_BOMBSHHT;
+extern sound_t *WAV_EXPLODE;
+extern sound_t *WAV_STICK;
+extern sound_t *WAV_WALK;
+extern sound_t *WAV_CRAWL;
+extern sound_t *WAV_JUMP;
+extern sound_t *WAV_PAD;
+extern sound_t *WAV_BOX;
+extern sound_t *WAV_BONUS;
+extern sound_t *WAV_SBONUS1;
+extern sound_t *WAV_DIE;
+extern sound_t *WAV_ENTITY[];
 
 extern void sounds_load(void);
 extern void sounds_free(void);
 extern void sounds_stopMusic(void);
-extern void sounds_setMusic(char* name, U8 loop);
+extern void sounds_setMusic(char *name, U8 loop);
 
 #endif /* ENABLE_SOUND */
 
 #endif /* _SOUNDS_H */
 
 /* eof */
-
-

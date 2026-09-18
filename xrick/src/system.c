@@ -13,9 +13,9 @@
 
 #include <SDL3/SDL.h>
 
-#include <stdarg.h>   /* args for sys_panic */
-#include <fcntl.h>    /* fcntl in sys_panic */
-#include <stdio.h>    /* printf */
+#include <stdarg.h> /* args for sys_panic */
+#include <fcntl.h>  /* fcntl in sys_panic */
+#include <stdio.h>  /* printf */
 #include <stdlib.h>
 
 #include "system.h"

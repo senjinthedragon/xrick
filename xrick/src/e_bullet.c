@@ -32,19 +32,18 @@ U16 e_bullet_xc, e_bullet_yc;
 void
 e_bullet_init(U16 x, U16 y)
 {
-  E_BULLET_ENT.n = 0x02;
-  E_BULLET_ENT.x = x;
-  E_BULLET_ENT.y = y + 0x0006;
-  if (game_dir == LEFT) {
-    e_bullet_offsx = -0x08;
-    E_BULLET_ENT.sprite = 0x21;
-  }
-  else {
-    e_bullet_offsx = 0x08;
-    E_BULLET_ENT.sprite = 0x20;
-  }
+	E_BULLET_ENT.n = 0x02;
+	E_BULLET_ENT.x = x;
+	E_BULLET_ENT.y = y + 0x0006;
+	if (game_dir == LEFT) {
+		e_bullet_offsx = -0x08;
+		E_BULLET_ENT.sprite = 0x21;
+	} else {
+		e_bullet_offsx = 0x08;
+		E_BULLET_ENT.sprite = 0x20;
+	}
 #ifdef ENABLE_SOUND
-  syssnd_play(WAV_BULLET, 1);
+	syssnd_play(WAV_BULLET, 1);
 #endif
 }
 
@@ -57,26 +56,23 @@ e_bullet_init(U16 x, U16 y)
 void
 e_bullet_action(UNUSED(U8 e))
 {
-  /* move bullet */
-  E_BULLET_ENT.x += e_bullet_offsx;
+	/* move bullet */
+	E_BULLET_ENT.x += e_bullet_offsx;
 
-  if (E_BULLET_ENT.x <= -0x10 || E_BULLET_ENT.x > 0xe8) {
-    /* out: deactivate */
-    E_BULLET_ENT.n = 0;
-  }
-  else {
-    /* update bullet center coordinates */
-    e_bullet_xc = E_BULLET_ENT.x + 0x0c;
-    e_bullet_yc = E_BULLET_ENT.y + 0x05;
-    if (map_eflg[map_map[e_bullet_yc >> 3][e_bullet_xc >> 3]] &
-	MAP_EFLG_SOLID) {
-      /* hit something: deactivate */
-      E_BULLET_ENT.n = 0;
-    }
-  }
+	if (E_BULLET_ENT.x <= -0x10 || E_BULLET_ENT.x > 0xe8) {
+		/* out: deactivate */
+		E_BULLET_ENT.n = 0;
+	} else {
+		/* update bullet center coordinates */
+		e_bullet_xc = E_BULLET_ENT.x + 0x0c;
+		e_bullet_yc = E_BULLET_ENT.y + 0x05;
+		if (map_eflg[map_map[e_bullet_yc >> 3][e_bullet_xc >> 3]] &
+		    MAP_EFLG_SOLID) {
+			/* hit something: deactivate */
+			E_BULLET_ENT.n = 0;
+		}
+	}
 }
 
 
 /* eof */
-
-

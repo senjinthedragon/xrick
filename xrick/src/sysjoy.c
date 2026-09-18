@@ -25,39 +25,38 @@ static SDL_Joystick *j = NULL;
 void
 sysjoy_init(void)
 {
-  int jcount, i;
-  SDL_JoystickID *ids;
+	int jcount, i;
+	SDL_JoystickID *ids;
 
-  if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
-    IFDEBUG_JOYSTICK(
-      sys_printf("xrick/joystick: can not initialize joystick subsystem\n");
-      );
-    return;
-  }
+	if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
+		IFDEBUG_JOYSTICK(
+		    sys_printf("xrick/joystick: can not initialize joystick subsystem\n"););
+		return;
+	}
 
-  ids = SDL_GetJoysticks(&jcount);
-  if (!ids || !jcount) {  /* no joystick on this system */
-    IFDEBUG_JOYSTICK(sys_printf("xrick/joystick: no joystick available\n"););
-    SDL_free(ids);
-    return;
-  }
+	ids = SDL_GetJoysticks(&jcount);
+	if (!ids || !jcount) { /* no joystick on this system */
+		IFDEBUG_JOYSTICK(sys_printf("xrick/joystick: no joystick available\n"););
+		SDL_free(ids);
+		return;
+	}
 
-  /* use the first joystick that we can open */
-  for (i = 0; i < jcount; i++) {
-    j = SDL_OpenJoystick(ids[i]);
-    if (j)
-      break;
-  }
-  SDL_free(ids);
+	/* use the first joystick that we can open */
+	for (i = 0; i < jcount; i++) {
+		j = SDL_OpenJoystick(ids[i]);
+		if (j)
+			break;
+	}
+	SDL_free(ids);
 
-  /* joystick events are enabled by default in SDL3 */
+	/* joystick events are enabled by default in SDL3 */
 }
 
 void
 sysjoy_shutdown(void)
 {
-  if (j)
-    SDL_CloseJoystick(j);
+	if (j)
+		SDL_CloseJoystick(j);
 }
 
 #endif /* ENABLE_JOYSTICK */

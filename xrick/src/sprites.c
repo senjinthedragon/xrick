@@ -12,7 +12,6 @@
  */
 
 
-
 #include "system.h"
 #include "config.h"
 #include "env.h"
@@ -23,7 +22,6 @@
 #include "tiles.h"
 
 
-
 /*
  * sprites_paint
  *
@@ -32,7 +30,8 @@
  * simple paint: no clipping, no depth management, nothing.
  */
 #ifdef GFXPC
-void sprites_paint(U8 spriteNumber, U16 x, U16 y)
+void
+sprites_paint(U8 spriteNumber, U16 x, U16 y)
 {
 	U8 i, j, k, *f, *fb;
 	U16 xm = 0, xp = 0;
@@ -44,8 +43,8 @@ void sprites_paint(U8 spriteNumber, U16 x, U16 y)
 		f = fb;
 		for (j = 0; j < 0x15; j++) /* 0X15 pixel rows */
 		{
-			xm = sprites_data[spriteNumber][i][j].mask;  /* mask */
-			xp = sprites_data[spriteNumber][i][j].pict;  /* picture */
+			xm = sprites_data[spriteNumber][i][j].mask; /* mask */
+			xp = sprites_data[spriteNumber][i][j].pict; /* picture */
 			/* map CGA 2 bits to frame buffer 8 bits per pixels */
 			for (k = 8; k--; xm >>= 2, xp >>= 2)
 				f[k] = (f[k] & (xm & 3)) | (xp & 3);
@@ -57,7 +56,8 @@ void sprites_paint(U8 spriteNumber, U16 x, U16 y)
 #endif
 
 #ifdef GFXST
-void sprites_paint(U8 spriteNumber, U16 x, U16 y)
+void
+sprites_paint(U8 spriteNumber, U16 x, U16 y)
 {
 	U8 i, j, k, *f, *fb;
 	U16 g;
@@ -83,7 +83,6 @@ void sprites_paint(U8 spriteNumber, U16 x, U16 y)
 #endif
 
 
-
 /*
  * sprites_paint2
  *
@@ -93,7 +92,8 @@ void sprites_paint(U8 spriteNumber, U16 x, U16 y)
  * complex paint: manages highlight, depth.
  */
 #ifdef GFXPC
-void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
+void
+sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 {
 	U8 k, *f, *fb, c, r, dx;
 	U16 mask, pict;
@@ -112,14 +112,14 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 	x_map = x_map & 0xfff8;
 
 	/* sprite dimension in px */
-	width = 0x20; /* width = 4 tile columns, 8 pixels each */
+	width = 0x20;  /* width = 4 tile columns, 8 pixels each */
 	height = 0x15; /* height = 0x15 pixels */
 
 	/* shift */
 	dx = (x - x_map) * 2;
 
 	/* clip */
-	if (maps_clip(&x_map, &y_map, &width, &height))  /* return if not visible */
+	if (maps_clip(&x_map, &y_map, &width, &height)) /* return if not visible */
 		return;
 
 	/* convert to fb/px */
@@ -144,31 +144,23 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 			 * sprite is not behind foreground tiles.
 			 */
 			if (front || env_highlight ||
-				!(map_eflg[map_map[(ymap + r) >> 3][xmap + c]] & MAP_EFLG_FGND))
-			{
+			    !(map_eflg[map_map[(ymap + r) >> 3][xmap + c]] & MAP_EFLG_FGND)) {
 				pict = mask = 0;
-				if (c > 0)
-				{
+				if (c > 0) {
 					mask |= sprites_data[spriteNumber][c - 1][r].mask << (16 - dx);
 					pict |= sprites_data[spriteNumber][c - 1][r].pict << (16 - dx);
-				}
-				else
-				{
+				} else {
 					mask |= 0xffff << (16 - dx);
 				}
-				if (c < cmax)
-				{
+				if (c < cmax) {
 					mask |= sprites_data[spriteNumber][c][r].mask >> dx;
 					pict |= sprites_data[spriteNumber][c][r].pict >> dx;
-				}
-				else
-				{
+				} else {
 					mask |= 0xffff >> dx;
 				}
 
 				/* map CGA 2 bits to frame buffer 8 bits per pixels */
-				for (k = 8; k--; xm >>= 2, xp >>= 2)
-				{
+				for (k = 8; k--; xm >>= 2, xp >>= 2) {
 					f[k] = ((f[k] & (mask & 3)) | (pict & 3));
 					if (env_highlight) f[k] |= 4;
 				}
@@ -181,17 +173,18 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 #endif
 
 #ifdef GFXST
-void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
+void
+sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 {
-	U32 d = 0;	/* sprite data */
-	U16 x0, y0;	/* clipped x, y */
+	U32 d = 0;  /* sprite data */
+	U16 x0, y0; /* clipped x, y */
 	U16 width, height;
-	S16 g;		/* sprite data offset*/
-	S16 r, c;	/* row, column */ /* S/U: loop while >=0 */
-	S16 i;		/* frame buffer shifter */
-	S16 im;		/* tile flag shifter */
-	U8 flg;		/* tile flag */
-	U8 *fb;		/* frame buffer */
+	S16 g;			    /* sprite data offset*/
+	S16 r, c; /* row, column */ /* S/U: loop while >=0 */
+	S16 i;			    /* frame buffer shifter */
+	S16 im;			    /* tile flag shifter */
+	U8 flg;			    /* tile flag */
+	U8 *fb;			    /* frame buffer */
 	U16 x_fb, y_fb;
 
 	/* if depth is not managed then sprites are always in front of everything */
@@ -201,11 +194,11 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 	y0 = y;
 
 	/* sprite dimension in px */
-	width = 0x20; /* width = 4 tile columns, 8 pixels each */
+	width = 0x20;  /* width = 4 tile columns, 8 pixels each */
 	height = 0x15; /* height = 0x15 pixels */
 
 	/* clip */
-	if (maps_clip(&x0, &y0, &width, &height))  /* return if not visible */
+	if (maps_clip(&x0, &y0, &width, &height)) /* return if not visible */
 		return;
 
 	g = 0;
@@ -213,7 +206,7 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 
 	/* convert to fb/px */
 	x_fb = x0 - MAPS_FB_X;
-	y_fb = y0 - MAPS_FB_Y+8; /* FIXME =8? */
+	y_fb = y0 - MAPS_FB_Y + 8; /* FIXME =8? */
 
 	/* get buffer */
 	fb = fb_at(x_fb, y_fb);
@@ -225,22 +218,20 @@ void sprites_paint2(U8 spriteNumber, U16 x, U16 y, U8 front)
 
 		i = 0x1f;
 		im = x - (x & 0xfff8);
-		flg = map_eflg[map_map[(y + r) >> 3][(x + 0x1f)>> 3]];
+		flg = map_eflg[map_map[(y + r) >> 3][(x + 0x1f) >> 3]];
 
-#define LOOP(N, C0, C1) \
-		d = sprites_data[spriteNumber][g + N]; \
-		for (c = C0; c >= C1; c--, i--, d >>= 4, im--) \
-		{ \
-			if (im == 0) \
-			{ \
-				flg = map_eflg[map_map[(y + r) >> 3][(x + c) >> 3]]; \
-				im = 8; \
-			} \
-			if (c >= width || x + c < x0) continue; \
-			if (!front && !env_highlight && (flg & MAP_EFLG_FGND)) continue; \
-			if (d & 0x0f) fb[i] = (fb[i] & 0xf0) | (d & 0x0f); \
-			if (env_highlight) fb[i] |= 0x10; \
-		}
+#define LOOP(N, C0, C1)                                                          \
+	d = sprites_data[spriteNumber][g + N];                                   \
+	for (c = C0; c >= C1; c--, i--, d >>= 4, im--) {                         \
+		if (im == 0) {                                                   \
+			flg = map_eflg[map_map[(y + r) >> 3][(x + c) >> 3]];     \
+			im = 8;                                                  \
+		}                                                                \
+		if (c >= width || x + c < x0) continue;                          \
+		if (!front && !env_highlight && (flg & MAP_EFLG_FGND)) continue; \
+		if (d & 0x0f) fb[i] = (fb[i] & 0xf0) | (d & 0x0f);               \
+		if (env_highlight) fb[i] |= 0x10;                                \
+	}
 
 		LOOP(3, 0x1f, 0x18);
 		LOOP(2, 0x17, 0x10);

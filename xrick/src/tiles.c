@@ -12,15 +12,12 @@
  */
 
 
-
 #include "tiles.h"
 #include "fb.h"
 
 
-
 static tile_t *tiles_bank;
 static U16 tiles_filter;
-
 
 
 /*
@@ -28,7 +25,8 @@ static U16 tiles_filter;
  *
  * sets current tiles bank to <bank>.
  */
-void tiles_setBank(U8 bank)
+void
+tiles_setBank(U8 bank)
 {
 	if (bank >= TILES_BANKS_COUNT)
 		sys_panic("xrick/tiles: invalid bank number %d\n", bank);
@@ -36,17 +34,16 @@ void tiles_setBank(U8 bank)
 }
 
 
-
 /*
  * tiles_setFilter
  *
  * sets current tiles display filter to <filter>
  */
-void tiles_setFilter(U16 filter)
+void
+tiles_setFilter(U16 filter)
 {
 	tiles_filter = filter;
 }
-
 
 
 /*
@@ -55,7 +52,8 @@ void tiles_setFilter(U16 filter)
  * paints tile <tileNumber> at the position indicated by <fb>.
  * returns next <fb> value.
  */
-U8 *tiles_paint(U8 tileNumber, U8 *fb)
+U8 *
+tiles_paint(U8 tileNumber, U8 *fb)
 {
 	U8 i, k, *f;
 #ifdef GFXPC
@@ -88,18 +86,17 @@ U8 *tiles_paint(U8 tileNumber, U8 *fb)
 }
 
 
-
 /*
  * tiles_paintAt
  *
  * paints tile <tileNumber> at the position indicated by <x>, <y>.
  * <x>, <y> are fb-coordinates.
  */
-void tiles_paintAt(U8 tileNumber, U16 x, U16 y)
+void
+tiles_paintAt(U8 tileNumber, U16 x, U16 y)
 {
 	tiles_paint(tileNumber, fb_at(x, y));
 }
-
 
 
 /*
@@ -111,14 +108,14 @@ void tiles_paintAt(U8 tileNumber, U16 x, U16 y)
  *
  * returns next <fb> value.
  */
-U8 *tiles_paintList(U8 *tilesList, U8 *fb)
+U8 *
+tiles_paintList(U8 *tilesList, U8 *fb)
 {
 	U8 *f;
 
 	f = fb;
 
-	while (1)
-	{
+	while (1) {
 		if (*tilesList == TILES_NULL) /* end of list */
 			return f;
 
@@ -138,7 +135,6 @@ U8 *tiles_paintList(U8 *tilesList, U8 *fb)
 }
 
 
-
 /*
  * tiles_paintListAt
  *
@@ -147,11 +143,11 @@ U8 *tiles_paintList(U8 *tilesList, U8 *fb)
  * produce crlf.
  * <x>, <y> are fb-coordinates.
  */
-void tiles_paintListAt(U8 *tilesList, U16 x, U16 y)
+void
+tiles_paintListAt(U8 *tilesList, U16 x, U16 y)
 {
 	tiles_paintList(tilesList, fb_at(x, y));
 }
-
 
 
 /* eof */

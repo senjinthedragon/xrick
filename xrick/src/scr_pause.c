@@ -34,16 +34,13 @@
 void
 screen_pause(U8 pause)
 {
-	if (pause == TRUE)
-	{
+	if (pause == TRUE) {
 		tiles_setBank(0);
 #ifdef GFXPC
 		tiles_setFilter(0xaaaa);
 #endif
 		tiles_paintListAt(screen_pausedtxt, 120, 80);
-	}
-	else
-	{
+	} else {
 #ifdef GFXPC
 		tiles_setFilter(0xffff);
 #endif
@@ -56,4 +53,3 @@ screen_pause(U8 pause)
 
 
 /* eof */
-

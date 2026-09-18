@@ -15,13 +15,13 @@
 #include "fb.h"
 
 
-
 /*
  * paints an image of size <width>,<height> with data in <pic> at
  * position <x>,<y> (fb/px).
  */
 #ifdef GFXST
-void img_paintPic(U16 x, U16 y, U16 width, U16 height, U32 *pic)
+void
+img_paintPic(U16 x, U16 y, U16 width, U16 height, U32 *pic)
 {
 	U8 *f, *fb;
 	U16 i, j, k, pp;
@@ -36,7 +36,7 @@ void img_paintPic(U16 x, U16 y, U16 width, U16 height, U32 *pic)
 		for (j = 0; j < width; j += 8) /* cols */
 		{
 			v = pic[pp++];
-			for (k = 8; k--; v >>=4)
+			for (k = 8; k--; v >>= 4)
 				f[k] = v & 0x0F;
 			f += 8;
 		}
@@ -46,13 +46,13 @@ void img_paintPic(U16 x, U16 y, U16 width, U16 height, U32 *pic)
 #endif
 
 
-
 /*
  * paints image <img> onto the frame buffer.
  * the image must have the appropriate size.
  * also manages palettes.
  */
-void img_paintImg(img_t *img)
+void
+img_paintImg(img_t *img)
 {
 	U16 k;
 	U8 *fb;
@@ -63,7 +63,6 @@ void img_paintImg(img_t *img)
 	for (k = 0; k < FB_WIDTH * FB_HEIGHT; k++)
 		fb[k] = img->pixels[k];
 }
-
 
 
 /* eof */

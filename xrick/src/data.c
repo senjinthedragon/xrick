@@ -11,7 +11,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-#include <stdlib.h>  /* malloc */
+#include <stdlib.h> /* malloc */
 #include <string.h>
 
 #include "system.h"
@@ -134,8 +134,8 @@ data_file_open(char *name)
 	if (path.zip) {
 		zf = unzDup(path.zip);
 		if (unzLocateFile(zf, name, 0) != UNZ_OK ||
-			unzGetCurrentFileInfo(zf, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK ||
-			unzOpenCurrentFile(zf) != UNZ_OK) {
+		    unzGetCurrentFileInfo(zf, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK ||
+		    unzOpenCurrentFile(zf) != UNZ_OK) {
 			unzClose(zf);
 			return NULL;
 		}
@@ -162,7 +162,7 @@ data_file_open(char *name)
 			return NULL;
 		}
 
-	    return (data_file_t *)z;
+		return (data_file_t *)z;
 	} else {
 #endif
 		n = malloc(strlen(path.name) + strlen(name) + 2);
@@ -204,10 +204,17 @@ data_file_seek(data_file_t *file, long offset, int origin)
 		zipped_t *z = (zipped_t *)file;
 		long base;
 		switch (origin) {
-		case SEEK_SET: base = 0; break;
-		case SEEK_CUR: base = z->pos; break;
-		case SEEK_END: base = z->size; break;
-		default: return -1;
+		case SEEK_SET:
+			base = 0;
+			break;
+		case SEEK_CUR:
+			base = z->pos;
+			break;
+		case SEEK_END:
+			base = z->size;
+			break;
+		default:
+			return -1;
 		}
 		base += offset;
 		if (base < 0 || base > z->size) return -1;

@@ -32,5 +32,3 @@ extern U8 control_active;
 #endif
 
 /* eof */
-
-

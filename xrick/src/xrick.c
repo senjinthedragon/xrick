@@ -29,15 +29,15 @@
 /*
  * Sets a console, if possible
  */
-static void setConsole(void)
+static void
+setConsole(void)
 {
 	// NOTE: does not handle parent process console being redirected
 	// eg "./xrick > stdout.txt" still writes to the actual console
 
 #ifdef __WIN32__
 	// try to attach to parent process console
-	if (AttachConsole(-1))
-	{
+	if (AttachConsole(-1)) {
 		// reopen (SDL2 closed everything)
 		freopen("CONIN$", "r", stdin);
 		freopen("CONOUT$", "w", stdout);
@@ -47,12 +47,11 @@ static void setConsole(void)
 }
 
 
-
- /*
-  * Initialize system
-  */
+/*
+ * Initialize system
+ */
 void
-sys_init(int argc, char** argv)
+sys_init(int argc, char **argv)
 {
 	setConsole();
 	sys_printf("xrick\n");
@@ -69,7 +68,7 @@ sys_init(int argc, char** argv)
 	// Furthermore compiling with -mwindows sends all stdout and stderr to null.
 	// Compiling without solves my problem.
 
-	//SDL_Log("SDL!");
+	// SDL_Log("SDL!");
 
 	sysvid_init(FB_WIDTH, FB_HEIGHT);
 #ifdef ENABLE_JOYSTICK
@@ -84,7 +83,6 @@ sys_init(int argc, char** argv)
 	signal(SIGINT, exit);
 	signal(SIGTERM, exit);
 }
-
 
 
 /*
@@ -103,7 +101,6 @@ sys_shutdown(void)
 
 	SDL_Quit();
 }
-
 
 
 /*

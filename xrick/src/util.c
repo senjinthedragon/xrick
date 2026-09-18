@@ -11,7 +11,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-#include <stdlib.h>  /* NULL */
+#include <stdlib.h> /* NULL */
 
 #include "system.h"
 #include "config.h"
@@ -36,16 +36,14 @@
 U8
 u_fboxtest(U8 e, U16 x, U16 y)
 {
-  if (ent_ents[e].x >= x ||
-      ent_ents[e].x + ent_ents[e].w < x ||
-      ent_ents[e].y >= y ||
-      ent_ents[e].y + ent_ents[e].h < y)
-    return FALSE;
-  else
-    return TRUE;
+	if (ent_ents[e].x >= x ||
+	    ent_ents[e].x + ent_ents[e].w < x ||
+	    ent_ents[e].y >= y ||
+	    ent_ents[e].y + ent_ents[e].h < y)
+		return FALSE;
+	else
+		return TRUE;
 }
-
-
 
 
 /*
@@ -60,21 +58,21 @@ u_fboxtest(U8 e, U16 x, U16 y)
 U8
 u_boxtest(U8 e1, U8 e2)
 {
-  /* rick is special (may be crawling) */
-  if (e1 == E_RICK_NO)
-    return e_rick_boxtest(e2);
+	/* rick is special (may be crawling) */
+	if (e1 == E_RICK_NO)
+		return e_rick_boxtest(e2);
 
-  /*
-   * entity 1: x+0x05 to x+0x011, y to y+0x14
-   * entity 2: x to x+ .w, y to y+ .h
-   */
-  if (ent_ents[e1].x + 0x11 < ent_ents[e2].x ||
-      ent_ents[e1].x + 0x05 > ent_ents[e2].x + ent_ents[e2].w ||
-      ent_ents[e1].y + 0x14 < ent_ents[e2].y ||
-      ent_ents[e1].y > ent_ents[e2].y + ent_ents[e2].h - 1)
-    return FALSE;
-  else
-    return TRUE;
+	/*
+	 * entity 1: x+0x05 to x+0x011, y to y+0x14
+	 * entity 2: x to x+ .w, y to y+ .h
+	 */
+	if (ent_ents[e1].x + 0x11 < ent_ents[e2].x ||
+	    ent_ents[e1].x + 0x05 > ent_ents[e2].x + ent_ents[e2].w ||
+	    ent_ents[e1].y + 0x14 < ent_ents[e2].y ||
+	    ent_ents[e1].y > ent_ents[e2].y + ent_ents[e2].h - 1)
+		return FALSE;
+	else
+		return TRUE;
 }
 
 
@@ -91,94 +89,91 @@ u_boxtest(U8 e1, U8 e2)
 void
 u_envtest(U16 x, U16 y, U8 crawl, U8 *rc0, U8 *rc1)
 {
-  U8 i, xx;
+	U8 i, xx;
 
-  /* prepare for ent #0 test */
-  ent_ents[ENT_ENTSNUM].x = x;
-  ent_ents[ENT_ENTSNUM].y = y;
+	/* prepare for ent #0 test */
+	ent_ents[ENT_ENTSNUM].x = x;
+	ent_ents[ENT_ENTSNUM].y = y;
 
-  i = 1;
-  if (!crawl) i++;
-  if (y & 0x0004) i++;
+	i = 1;
+	if (!crawl) i++;
+	if (y & 0x0004) i++;
 
-  x += 4;
-  xx = (U8)x; /* FIXME? */
+	x += 4;
+	xx = (U8)x; /* FIXME? */
 
-  x = x >> 3;  /* from pixels to tiles */
-  y = y >> 3;  /* from pixels to tiles */
+	x = x >> 3; /* from pixels to tiles */
+	y = y >> 3; /* from pixels to tiles */
 
-  *rc0 = *rc1 = 0;
+	*rc0 = *rc1 = 0;
 
-  if (xx & 0x07) {  /* tiles columns alignment */
-    if (crawl) {
-      *rc0 |= (map_eflg[map_map[y][x]] &
-	   (MAP_EFLG_VERT|MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP));
-      *rc0 |= (map_eflg[map_map[y][x + 1]] &
-	   (MAP_EFLG_VERT|MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP));
-      *rc0 |= (map_eflg[map_map[y][x + 2]] &
-	   (MAP_EFLG_VERT|MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP));
-      y++;
-    }
-    do {
-      *rc1 |= (map_eflg[map_map[y][x]] &
-	       (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_FGND|
-		MAP_EFLG_LETHAL|MAP_EFLG_01));
-      *rc1 |= (map_eflg[map_map[y][x + 1]] &
-	       (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_FGND|
-		MAP_EFLG_LETHAL|MAP_EFLG_CLIMB|MAP_EFLG_01));
-      *rc1 |= (map_eflg[map_map[y][x + 2]] &
-	       (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_FGND|
-		MAP_EFLG_LETHAL|MAP_EFLG_01));
-      y++;
-    } while (--i > 0);
+	if (xx & 0x07) { /* tiles columns alignment */
+		if (crawl) {
+			*rc0 |= (map_eflg[map_map[y][x]] &
+				 (MAP_EFLG_VERT | MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP));
+			*rc0 |= (map_eflg[map_map[y][x + 1]] &
+				 (MAP_EFLG_VERT | MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP));
+			*rc0 |= (map_eflg[map_map[y][x + 2]] &
+				 (MAP_EFLG_VERT | MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP));
+			y++;
+		}
+		do {
+			*rc1 |= (map_eflg[map_map[y][x]] &
+				 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_FGND |
+				  MAP_EFLG_LETHAL | MAP_EFLG_01));
+			*rc1 |= (map_eflg[map_map[y][x + 1]] &
+				 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_FGND |
+				  MAP_EFLG_LETHAL | MAP_EFLG_CLIMB | MAP_EFLG_01));
+			*rc1 |= (map_eflg[map_map[y][x + 2]] &
+				 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_FGND |
+				  MAP_EFLG_LETHAL | MAP_EFLG_01));
+			y++;
+		} while (--i > 0);
 
-    *rc1 |= (map_eflg[map_map[y][x]] &
-	     (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP|MAP_EFLG_FGND|
-	      MAP_EFLG_LETHAL|MAP_EFLG_01));
-    *rc1 |= (map_eflg[map_map[y][x + 1]]);
-    *rc1 |= (map_eflg[map_map[y][x + 2]] &
-	     (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP|MAP_EFLG_FGND|
-	      MAP_EFLG_LETHAL|MAP_EFLG_01));
-  }
-  else {
-    if (crawl) {
-      *rc0 |= (map_eflg[map_map[y][x]] &
-	   (MAP_EFLG_VERT|MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP));
-      *rc0 |= (map_eflg[map_map[y][x + 1]] &
-	   (MAP_EFLG_VERT|MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_WAYUP));
-      y++;
-    }
-    do {
-      *rc1 |= (map_eflg[map_map[y][x]] &
-	       (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_FGND|
-		MAP_EFLG_LETHAL|MAP_EFLG_CLIMB|MAP_EFLG_01));
-      *rc1 |= (map_eflg[map_map[y][x + 1]] &
-	       (MAP_EFLG_SOLID|MAP_EFLG_SPAD|MAP_EFLG_FGND|
-		MAP_EFLG_LETHAL|MAP_EFLG_CLIMB|MAP_EFLG_01));
-      y++;
-    } while (--i > 0);
+		*rc1 |= (map_eflg[map_map[y][x]] &
+			 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP | MAP_EFLG_FGND |
+			  MAP_EFLG_LETHAL | MAP_EFLG_01));
+		*rc1 |= (map_eflg[map_map[y][x + 1]]);
+		*rc1 |= (map_eflg[map_map[y][x + 2]] &
+			 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP | MAP_EFLG_FGND |
+			  MAP_EFLG_LETHAL | MAP_EFLG_01));
+	} else {
+		if (crawl) {
+			*rc0 |= (map_eflg[map_map[y][x]] &
+				 (MAP_EFLG_VERT | MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP));
+			*rc0 |= (map_eflg[map_map[y][x + 1]] &
+				 (MAP_EFLG_VERT | MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_WAYUP));
+			y++;
+		}
+		do {
+			*rc1 |= (map_eflg[map_map[y][x]] &
+				 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_FGND |
+				  MAP_EFLG_LETHAL | MAP_EFLG_CLIMB | MAP_EFLG_01));
+			*rc1 |= (map_eflg[map_map[y][x + 1]] &
+				 (MAP_EFLG_SOLID | MAP_EFLG_SPAD | MAP_EFLG_FGND |
+				  MAP_EFLG_LETHAL | MAP_EFLG_CLIMB | MAP_EFLG_01));
+			y++;
+		} while (--i > 0);
 
-    *rc1 |= (map_eflg[map_map[y][x]]);
-    *rc1 |= (map_eflg[map_map[y][x + 1]]);
-  }
+		*rc1 |= (map_eflg[map_map[y][x]]);
+		*rc1 |= (map_eflg[map_map[y][x + 1]]);
+	}
 
-  /*
-   * If not lethal yet, and there's an entity on slot zero, and (x,y)
-   * boxtests this entity, then raise SOLID flag. This is how we make
-   * sure that no entity can move over the entity that is on slot zero.
-   *
-   * Beware! When env_invicible is set, this means that a block can
-   * move over rick without killing him -- but then rick is trapped
-   * because the block is solid.
-   */
-  if (!(*rc1 & MAP_EFLG_LETHAL)
-      && ent_ents[0].n
-      && u_boxtest(ENT_ENTSNUM, 0)) {
-    *rc1 |= MAP_EFLG_SOLID;
-  }
+	/*
+	 * If not lethal yet, and there's an entity on slot zero, and (x,y)
+	 * boxtests this entity, then raise SOLID flag. This is how we make
+	 * sure that no entity can move over the entity that is on slot zero.
+	 *
+	 * Beware! When env_invicible is set, this means that a block can
+	 * move over rick without killing him -- but then rick is trapped
+	 * because the block is solid.
+	 */
+	if (!(*rc1 & MAP_EFLG_LETHAL) && ent_ents[0].n && u_boxtest(ENT_ENTSNUM, 0)) {
+		*rc1 |= MAP_EFLG_SOLID;
+	}
 
-  /* When invicible, the environment can not be lethal. */
-  if (env_invicible) *rc1 &= ~MAP_EFLG_LETHAL;
+	/* When invicible, the environment can not be lethal. */
+	if (env_invicible) *rc1 &= ~MAP_EFLG_LETHAL;
 }
 
 
@@ -191,18 +186,18 @@ u_envtest(U16 x, U16 y, U8 crawl, U8 *rc0, U8 *rc1)
 U8
 u_trigbox(U8 e, U16 x, U16 y)
 {
-  U16 xmax, ymax;
+	U16 xmax, ymax;
 
-  xmax = ent_ents[e].trig_x + (ent_entdata[ent_ents[e].n & 0x7F].trig_w << 3);
-  ymax = ent_ents[e].trig_y + (ent_entdata[ent_ents[e].n & 0x7F].trig_h << 3);
+	xmax = ent_ents[e].trig_x + (ent_entdata[ent_ents[e].n & 0x7F].trig_w << 3);
+	ymax = ent_ents[e].trig_y + (ent_entdata[ent_ents[e].n & 0x7F].trig_h << 3);
 
-  if (xmax > 0xFF) xmax = 0xFF;
+	if (xmax > 0xFF) xmax = 0xFF;
 
-  if (x <= ent_ents[e].trig_x || x > xmax ||
-      y <= ent_ents[e].trig_y || y > ymax)
-    return FALSE;
-  else
-    return TRUE;
+	if (x <= ent_ents[e].trig_x || x > xmax ||
+	    y <= ent_ents[e].trig_y || y > ymax)
+		return FALSE;
+	else
+		return TRUE;
 }
 
 

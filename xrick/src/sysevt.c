@@ -29,8 +29,8 @@
 
 #define SYSJOY_RANGE 3280
 
-#define SETBIT(x,b) x |= (b)
-#define CLRBIT(x,b) x &= ~(b)
+#define SETBIT(x, b) x |= (b)
+#define CLRBIT(x, b) x &= ~(b)
 
 static SDL_Event event;
 
@@ -48,164 +48,136 @@ processEvent()
 		if (key == syskbd_up || key == SDL_SCANCODE_UP) {
 			SETBIT(control_status, CONTROL_UP);
 			control_last = CONTROL_UP;
-		}
-		else if (key == syskbd_down || key == SDL_SCANCODE_DOWN) {
+		} else if (key == syskbd_down || key == SDL_SCANCODE_DOWN) {
 			SETBIT(control_status, CONTROL_DOWN);
 			control_last = CONTROL_DOWN;
-		}
-		else if (key == syskbd_left || key == SDL_SCANCODE_LEFT) {
+		} else if (key == syskbd_left || key == SDL_SCANCODE_LEFT) {
 			SETBIT(control_status, CONTROL_LEFT);
 			control_last = CONTROL_LEFT;
-		}
-		else if (key == syskbd_right || key == SDL_SCANCODE_RIGHT) {
+		} else if (key == syskbd_right || key == SDL_SCANCODE_RIGHT) {
 			SETBIT(control_status, CONTROL_RIGHT);
 			control_last = CONTROL_RIGHT;
-		}
-		else if (key == syskbd_pause) {
+		} else if (key == syskbd_pause) {
 			SETBIT(control_status, CONTROL_PAUSE);
 			control_last = CONTROL_PAUSE;
-		}
-		else if (key == syskbd_end) {
+		} else if (key == syskbd_end) {
 			SETBIT(control_status, CONTROL_END);
 			control_last = CONTROL_END;
-		}
-		else if (key == syskbd_xtra) {
+		} else if (key == syskbd_xtra) {
 			SETBIT(control_status, CONTROL_EXIT);
 			control_last = CONTROL_EXIT;
-		}
-		else if (key == syskbd_fire) {
+		} else if (key == syskbd_fire) {
 			SETBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
-		}
-		else if (key == SDL_SCANCODE_F1) {
+		} else if (key == SDL_SCANCODE_F1) {
 			sysvid_toggleFullscreen();
-		}
-		else if (key == SDL_SCANCODE_F2) {
+		} else if (key == SDL_SCANCODE_F2) {
 			sysvid_zoom(-1);
-		}
-		else if (key == SDL_SCANCODE_F3) {
+		} else if (key == SDL_SCANCODE_F3) {
 			sysvid_zoom(+1);
 		}
 #ifdef ENABLE_SOUND
 		else if (key == SDL_SCANCODE_F4) {
 			syssnd_toggleMute();
-		}
-		else if (key == SDL_SCANCODE_F5) {
+		} else if (key == SDL_SCANCODE_F5) {
 			syssnd_vol(-1);
-		}
-		else if (key == SDL_SCANCODE_F6) {
+		} else if (key == SDL_SCANCODE_F6) {
 			syssnd_vol(+1);
 		}
 #endif
 		else if (key == SDL_SCANCODE_F7) {
 			game_toggleCheat(1);
-		}
-		else if (key == SDL_SCANCODE_F8) {
+		} else if (key == SDL_SCANCODE_F8) {
 			game_toggleCheat(2);
-		}
-		else if (key == SDL_SCANCODE_F9) {
+		} else if (key == SDL_SCANCODE_F9) {
 			game_toggleCheat(3);
-		}
-		else if (key == SDL_SCANCODE_F10) {
+		} else if (key == SDL_SCANCODE_F10) {
 			sysvid_cycleUpscale();
-		}
-		else if (key == SDL_SCANCODE_F11) {
+		} else if (key == SDL_SCANCODE_F11) {
 			sysvid_cycleCrt();
-		}
-		else if (key == SDL_SCANCODE_F12) {
+		} else if (key == SDL_SCANCODE_F12) {
 			sysvid_cycleBezel();
 		}
 		break;
 	case SDL_EVENT_KEY_UP:
 		key = event.key.scancode;
 		if (key == syskbd_up || key == SDL_SCANCODE_UP) {
-      CLRBIT(control_status, CONTROL_UP);
-      control_last = CONTROL_UP;
-    }
-    else if (key == syskbd_down || key == SDL_SCANCODE_DOWN) {
-      CLRBIT(control_status, CONTROL_DOWN);
-      control_last = CONTROL_DOWN;
-    }
-    else if (key == syskbd_left || key == SDL_SCANCODE_LEFT) {
-      CLRBIT(control_status, CONTROL_LEFT);
-      control_last = CONTROL_LEFT;
-    }
-    else if (key == syskbd_right || key == SDL_SCANCODE_RIGHT) {
-      CLRBIT(control_status, CONTROL_RIGHT);
-      control_last = CONTROL_RIGHT;
-    }
-    else if (key == syskbd_pause) {
-      CLRBIT(control_status, CONTROL_PAUSE);
-      control_last = CONTROL_PAUSE;
-    }
-    else if (key == syskbd_end) {
-      CLRBIT(control_status, CONTROL_END);
-      control_last = CONTROL_END;
-    }
-    else if (key == syskbd_xtra) {
-      CLRBIT(control_status, CONTROL_EXIT);
-      control_last = CONTROL_EXIT;
-    }
-    else if (key == syskbd_fire) {
-      CLRBIT(control_status, CONTROL_FIRE);
-      control_last = CONTROL_FIRE;
-    }
-    break;
-  case SDL_EVENT_QUIT:
-    /* player tries to close the window -- this is the same as pressing ESC */
-    SETBIT(control_status, CONTROL_EXIT);
-    control_last = CONTROL_EXIT;
-    break;
+			CLRBIT(control_status, CONTROL_UP);
+			control_last = CONTROL_UP;
+		} else if (key == syskbd_down || key == SDL_SCANCODE_DOWN) {
+			CLRBIT(control_status, CONTROL_DOWN);
+			control_last = CONTROL_DOWN;
+		} else if (key == syskbd_left || key == SDL_SCANCODE_LEFT) {
+			CLRBIT(control_status, CONTROL_LEFT);
+			control_last = CONTROL_LEFT;
+		} else if (key == syskbd_right || key == SDL_SCANCODE_RIGHT) {
+			CLRBIT(control_status, CONTROL_RIGHT);
+			control_last = CONTROL_RIGHT;
+		} else if (key == syskbd_pause) {
+			CLRBIT(control_status, CONTROL_PAUSE);
+			control_last = CONTROL_PAUSE;
+		} else if (key == syskbd_end) {
+			CLRBIT(control_status, CONTROL_END);
+			control_last = CONTROL_END;
+		} else if (key == syskbd_xtra) {
+			CLRBIT(control_status, CONTROL_EXIT);
+			control_last = CONTROL_EXIT;
+		} else if (key == syskbd_fire) {
+			CLRBIT(control_status, CONTROL_FIRE);
+			control_last = CONTROL_FIRE;
+		}
+		break;
+	case SDL_EVENT_QUIT:
+		/* player tries to close the window -- this is the same as pressing ESC */
+		SETBIT(control_status, CONTROL_EXIT);
+		control_last = CONTROL_EXIT;
+		break;
 #ifdef ENABLE_FOCUS
-  case SDL_EVENT_WINDOW_FOCUS_GAINED:
-    control_active = TRUE;
-    break;
-  case SDL_EVENT_WINDOW_FOCUS_LOST:
-    control_active = FALSE;
-    break;
+	case SDL_EVENT_WINDOW_FOCUS_GAINED:
+		control_active = TRUE;
+		break;
+	case SDL_EVENT_WINDOW_FOCUS_LOST:
+		control_active = FALSE;
+		break;
 #endif
 #ifdef ENABLE_JOYSTICK
-  case SDL_EVENT_JOYSTICK_AXIS_MOTION:
-    IFDEBUG_EVENTS(sys_printf("xrick/events: joystick\n"););
-    if (event.jaxis.axis == 0) {  /* left-right */
-      if (event.jaxis.value < -SYSJOY_RANGE) {  /* left */
-	SETBIT(control_status, CONTROL_LEFT);
-	CLRBIT(control_status, CONTROL_RIGHT);
-      }
-      else if (event.jaxis.value > SYSJOY_RANGE) {  /* right */
-	SETBIT(control_status, CONTROL_RIGHT);
-	CLRBIT(control_status, CONTROL_LEFT);
-      }
-      else {  /* center */
-	CLRBIT(control_status, CONTROL_RIGHT);
-	CLRBIT(control_status, CONTROL_LEFT);
-      }
-    }
-    if (event.jaxis.axis == 1) {  /* up-down */
-      if (event.jaxis.value < -SYSJOY_RANGE) {  /* up */
-	SETBIT(control_status, CONTROL_UP);
-	CLRBIT(control_status, CONTROL_DOWN);
-      }
-      else if (event.jaxis.value > SYSJOY_RANGE) {  /* down */
-	SETBIT(control_status, CONTROL_DOWN);
-	CLRBIT(control_status, CONTROL_UP);
-      }
-      else {  /* center */
-	CLRBIT(control_status, CONTROL_DOWN);
-	CLRBIT(control_status, CONTROL_UP);
-      }
-    }
-    break;
-  case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
-    SETBIT(control_status, CONTROL_FIRE);
-    break;
-  case SDL_EVENT_JOYSTICK_BUTTON_UP:
-    CLRBIT(control_status, CONTROL_FIRE);
-    break;
+	case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+		IFDEBUG_EVENTS(sys_printf("xrick/events: joystick\n"););
+		if (event.jaxis.axis == 0) {			 /* left-right */
+			if (event.jaxis.value < -SYSJOY_RANGE) { /* left */
+				SETBIT(control_status, CONTROL_LEFT);
+				CLRBIT(control_status, CONTROL_RIGHT);
+			} else if (event.jaxis.value > SYSJOY_RANGE) { /* right */
+				SETBIT(control_status, CONTROL_RIGHT);
+				CLRBIT(control_status, CONTROL_LEFT);
+			} else { /* center */
+				CLRBIT(control_status, CONTROL_RIGHT);
+				CLRBIT(control_status, CONTROL_LEFT);
+			}
+		}
+		if (event.jaxis.axis == 1) {			 /* up-down */
+			if (event.jaxis.value < -SYSJOY_RANGE) { /* up */
+				SETBIT(control_status, CONTROL_UP);
+				CLRBIT(control_status, CONTROL_DOWN);
+			} else if (event.jaxis.value > SYSJOY_RANGE) { /* down */
+				SETBIT(control_status, CONTROL_DOWN);
+				CLRBIT(control_status, CONTROL_UP);
+			} else { /* center */
+				CLRBIT(control_status, CONTROL_DOWN);
+				CLRBIT(control_status, CONTROL_UP);
+			}
+		}
+		break;
+	case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+		SETBIT(control_status, CONTROL_FIRE);
+		break;
+	case SDL_EVENT_JOYSTICK_BUTTON_UP:
+		CLRBIT(control_status, CONTROL_FIRE);
+		break;
 #endif
-  default:
-    break;
-  }
+	default:
+		break;
+	}
 }
 
 /*
@@ -214,8 +186,8 @@ processEvent()
 void
 sysevt_poll(void)
 {
-  while (SDL_PollEvent(&event))
-    processEvent();
+	while (SDL_PollEvent(&event))
+		processEvent();
 }
 
 /*
@@ -224,23 +196,19 @@ sysevt_poll(void)
 void
 sysevt_wait(void)
 {
-  /* Block indefinitely as usual, except while the OSD's few-second
-   * message is still counting down: bound the wait so the game loop
-   * keeps ticking (and sysvid_update() keeps checking the OSD timer)
-   * even on an otherwise-static screen like a menu or Hall of Fame,
-   * where nothing else would wake this loop up before the next real
-   * input event -- which could be much later than 5 seconds away. */
-  if (sysvid_osdActive())
-  {
-    if (SDL_WaitEventTimeout(&event, 100))
-      processEvent();
-  }
-  else
-  {
-    SDL_WaitEvent(&event);
-    processEvent();
-  }
+	/* Block indefinitely as usual, except while the OSD's few-second
+	 * message is still counting down: bound the wait so the game loop
+	 * keeps ticking (and sysvid_update() keeps checking the OSD timer)
+	 * even on an otherwise-static screen like a menu or Hall of Fame,
+	 * where nothing else would wake this loop up before the next real
+	 * input event -- which could be much later than 5 seconds away. */
+	if (sysvid_osdActive()) {
+		if (SDL_WaitEventTimeout(&event, 100))
+			processEvent();
+	} else {
+		SDL_WaitEvent(&event);
+		processEvent();
+	}
 }
 
 /* eof */
-

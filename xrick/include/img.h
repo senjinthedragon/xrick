@@ -18,15 +18,15 @@
 
 /* a color */
 typedef struct {
-  U8 r, g, b, nothing;
+	U8 r, g, b, nothing;
 } img_color_t;
 
 /* an image */
 typedef struct {
-  U16 w, h;
-  U16 ncolors;
-  img_color_t *colors;
-  U8 *pixels;
+	U16 w, h;
+	U16 ncolors;
+	img_color_t *colors;
+	U8 *pixels;
 } img_t;
 
 /* the splash image */

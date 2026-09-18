@@ -32,5 +32,3 @@ U8 syskbd_xtra = SDL_SCANCODE_ESCAPE;
 U8 syskbd_fire = SDL_SCANCODE_SPACE;
 
 /* eof */
-
-

@@ -12,7 +12,6 @@
  */
 
 
-
 #include "system.h"
 #include "config.h"
 #include "env.h"
@@ -24,7 +23,6 @@
 
 /* fixme is this for sounds only? */
 #include "game.h"
-
 
 
 /*
@@ -45,39 +43,40 @@ U8 e_bomb_ticker;
  * ASM 11CD
  * returns: TRUE/hit, FALSE/not
  */
-U8 e_bomb_hit(U8 e)
+U8
+e_bomb_hit(U8 e)
 {
 	if (ent_ents[e].x > (E_BOMB_ENT.x >= 0xE0 ? 0xFF : E_BOMB_ENT.x + 0x20))
-			return FALSE;
+		return FALSE;
 	if (ent_ents[e].x + ent_ents[e].w < (E_BOMB_ENT.x > 0x04 ? E_BOMB_ENT.x - 0x04 : 0))
-			return FALSE;
+		return FALSE;
 	if (ent_ents[e].y > (E_BOMB_ENT.y + 0x1D))
-			return FALSE;
+		return FALSE;
 	if (ent_ents[e].y + ent_ents[e].h < (E_BOMB_ENT.y > 0x0004 ? E_BOMB_ENT.y - 0x0004 : 0))
-			return FALSE;
+		return FALSE;
 	return TRUE;
 }
 
 /*
  * Initialize bomb
  */
-void e_bomb_init(U16 x, U16 y)
+void
+e_bomb_init(U16 x, U16 y)
 {
-    E_BOMB_ENT.n = 0x03;
-    E_BOMB_ENT.x = x;
-    E_BOMB_ENT.y = y;
-    e_bomb_ticker = E_BOMB_TICKER;
-    e_bomb_lethal = FALSE;
+	E_BOMB_ENT.n = 0x03;
+	E_BOMB_ENT.x = x;
+	E_BOMB_ENT.y = y;
+	e_bomb_ticker = E_BOMB_TICKER;
+	e_bomb_lethal = FALSE;
 
-    /*
-     * Atari ST dynamite sprites are not centered the
-     * way IBM PC sprites were ... need to adjust things a little bit
-     */
+	/*
+	 * Atari ST dynamite sprites are not centered the
+	 * way IBM PC sprites were ... need to adjust things a little bit
+	 */
 #ifdef GFXST
-    E_BOMB_ENT.x += 4;
-    E_BOMB_ENT.y += 5;
+	E_BOMB_ENT.x += 4;
+	E_BOMB_ENT.y += 5;
 #endif
-
 }
 
 
@@ -92,16 +91,13 @@ e_bomb_action(UNUSED(U8 e))
 	/* tick */
 	e_bomb_ticker--;
 
-	if (e_bomb_ticker == 0)
-	{
+	if (e_bomb_ticker == 0) {
 		/*
 		 * end: deactivate
 		 */
 		E_BOMB_ENT.n = 0;
 		e_bomb_lethal = FALSE;
-	}
-	else if (e_bomb_ticker >= 0x0A)
-	{
+	} else if (e_bomb_ticker >= 0x0A) {
 		/*
 		 * ticking
 		 */
@@ -115,10 +111,8 @@ e_bomb_action(UNUSED(U8 e))
 			E_BOMB_ENT.sprite = 0x99 + 19 - (e_bomb_ticker >> 1);
 		else
 #endif
-		E_BOMB_ENT.sprite = (e_bomb_ticker & 0x01) ? 0x23 : 0x22;
-	}
-	else if (e_bomb_ticker == 0x09)
-	{
+			E_BOMB_ENT.sprite = (e_bomb_ticker & 0x01) ? 0x23 : 0x22;
+	} else if (e_bomb_ticker == 0x09) {
 		/*
 		 * explode
 		 */
@@ -139,9 +133,7 @@ e_bomb_action(UNUSED(U8 e))
 		e_bomb_lethal = TRUE;
 		if (e_bomb_hit(E_RICK_NO))
 			e_rick_gozombie();
-	}
-	else
-	{
+	} else {
 		/*
 		 * exploding
 		 */
@@ -158,5 +150,3 @@ e_bomb_action(UNUSED(U8 e))
 }
 
 /* eof */
-
-

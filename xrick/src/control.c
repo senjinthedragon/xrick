@@ -18,5 +18,3 @@ U8 control_last = 0;
 U8 control_active = TRUE;
 
 /* eof */
-
-

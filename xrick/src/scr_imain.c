@@ -11,7 +11,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-#include <stdio.h>  /* sprintf */
+#include <stdio.h> /* sprintf */
 
 #include "system.h"
 #include "game.h"
@@ -43,8 +43,7 @@ screen_introMain(void)
 	static U32 tm = 0;
 	U8 i, s[32];
 
-	if (seq == 0)
-	{
+	if (seq == 0) {
 		tiles_setBank(0);
 		if (first == TRUE)
 			seq = 1;
@@ -58,150 +57,136 @@ screen_introMain(void)
 #endif
 	}
 
-	switch (seq)
-	{
-		case 1:  /* dispay hall of fame */
-			fb_clear();
-			sysvid_setGamma(0);
-			tm = sys_gettime();
+	switch (seq) {
+	case 1: /* dispay hall of fame */
+		fb_clear();
+		sysvid_setGamma(0);
+		tm = sys_gettime();
 
 #ifdef GFXPC
-			/* Rick Dangerous title */
-			tiles_setFilter(0xaaaa);
-			tiles_paintList(screen_imainrdt, fb_at(32, 16));
+		/* Rick Dangerous title */
+		tiles_setFilter(0xaaaa);
+		tiles_paintList(screen_imainrdt, fb_at(32, 16));
 
-			/* Core Design copyright + press space to start */
-			tiles_setFilter(0x5555);
-			tiles_paintList(screen_imaincdc, fb_at(64, 80));
+		/* Core Design copyright + press space to start */
+		tiles_setFilter(0x5555);
+		tiles_paintList(screen_imaincdc, fb_at(64, 80));
 #endif
 
 #ifdef GFXST
-			img_paintPic(0, 0, 0x140, 0xc8, pic_splash);
+		img_paintPic(0, 0, 0x140, 0xc8, pic_splash);
 #endif
 
-			game_period = period/2;
-			seq = 2;
-			break;
+		game_period = period / 2;
+		seq = 2;
+		break;
 
-		case 2: /* fade-in */
-			if (fb_fadeIn())
-			{
-				game_period = IMAIN_PERIOD;
-				seq = 3;
-			}
-			break;
+	case 2: /* fade-in */
+		if (fb_fadeIn()) {
+			game_period = IMAIN_PERIOD;
+			seq = 3;
+		}
+		break;
 
-		case 3:  /* wait for key pressed or timeout */
-			if (control_status & CONTROL_FIRE)
-				seq = 4;
-			else if (sys_gettime() - tm > SCREEN_TIMEOUT)
-			{
-				seen++;
-				game_period = period/2;
+	case 3: /* wait for key pressed or timeout */
+		if (control_status & CONTROL_FIRE)
+			seq = 4;
+		else if (sys_gettime() - tm > SCREEN_TIMEOUT) {
+			seen++;
+			game_period = period / 2;
+			seq = 8;
+		}
+		break;
+
+	case 4: /* wait for key released */
+		if (!(control_status & CONTROL_FIRE)) {
+			if (seen++ == 0)
 				seq = 8;
+			else {
+				game_period = period / 2;
+				seq = 28;
 			}
-			break;
+		}
+		break;
 
-		case 4:  /* wait for key released */
-			if (!(control_status & CONTROL_FIRE))
-			{
-				if (seen++ == 0)
-					seq = 8;
-				else
-				{
-					game_period = period/2;
-					seq = 28;
-				}
-			}
-			break;
+	case 8: /* fade-out */
+		if (fb_fadeOut()) {
+			game_period = IMAIN_PERIOD;
+			seq = 10;
+		}
+		break;
 
-		case 8: /* fade-out */
-			if (fb_fadeOut())
-			{
-				game_period = IMAIN_PERIOD;
-				seq = 10;
-			}
-			break;
+	case 10: /* display Rick Dangerous title and Core Design copyright */
+		fb_clear();
+		tm = sys_gettime();
 
-		case 10:  /* display Rick Dangerous title and Core Design copyright */
-			fb_clear();
-			tm = sys_gettime();
-
-			/* hall of fame title */
+		/* hall of fame title */
 #ifdef GFXPC
-			tiles_setFilter(0xaaaa);
-			tiles_paintListAt(screen_imainhoft, 32, 0);
+		tiles_setFilter(0xaaaa);
+		tiles_paintListAt(screen_imainhoft, 32, 0);
 #endif
 #ifdef GFXST
-			img_paintPic(0, 0, 0x140, 0x20, pic_haf);
+		img_paintPic(0, 0, 0x140, 0x20, pic_haf);
 #endif
 
-			/* hall of fame content */
+		/* hall of fame content */
 #ifdef GFXPC
-			tiles_setFilter(0x5555);
+		tiles_setFilter(0x5555);
 #endif
-			for (i = 0; i < 8; i++)
-			{
-				sprintf((char *)s, "%06d@@@....@@@%s",
-					game_hscores[i].score, game_hscores[i].name);
-				s[26] = TILES_NULL;
-				tiles_paintListAt(s, 56, 40 + i*2*8);
-			}
+		for (i = 0; i < 8; i++) {
+			sprintf((char *)s, "%06d@@@....@@@%s",
+				game_hscores[i].score, game_hscores[i].name);
+			s[26] = TILES_NULL;
+			tiles_paintListAt(s, 56, 40 + i * 2 * 8);
+		}
 
-			game_period = period/2;
-			seq = 11;
-			break;
+		game_period = period / 2;
+		seq = 11;
+		break;
 
-		case 11: /* fade-in */
-			if (fb_fadeIn())
-			{
-				game_period = IMAIN_PERIOD;
-				seq = 12;
-			}
-			break;
+	case 11: /* fade-in */
+		if (fb_fadeIn()) {
+			game_period = IMAIN_PERIOD;
+			seq = 12;
+		}
+		break;
 
-		case 12:  /* wait for key pressed or timeout */
-			if (control_status & CONTROL_FIRE)
-				seq = 13;
-			else if (sys_gettime() - tm > SCREEN_TIMEOUT)
-			{
-				seen++;
+	case 12: /* wait for key pressed or timeout */
+		if (control_status & CONTROL_FIRE)
+			seq = 13;
+		else if (sys_gettime() - tm > SCREEN_TIMEOUT) {
+			seen++;
+			seq = 18;
+		}
+		break;
+
+	case 13: /* wait for key released */
+		if (!(control_status & CONTROL_FIRE)) {
+			if (seen++ == 0)
 				seq = 18;
+			else {
+				game_period = period / 2;
+				seq = 28;
 			}
-			break;
+		}
+		break;
 
-		case 13:  /* wait for key released */
-			if (!(control_status & CONTROL_FIRE))
-			{
-				if (seen++ == 0)
-					seq = 18;
-				else
-				{
-					game_period = period/2;
-					seq = 28;
-				}
-			}
-			break;
+	case 18: /* fade-out */
+		if (fb_fadeOut()) {
+			game_period = IMAIN_PERIOD;
+			seq = 1;
+		}
+		break;
 
-		case 18: /* fade-out */
-			if (fb_fadeOut())
-			{
-				game_period = IMAIN_PERIOD;
-				seq = 1;
-			}
-			break;
-
-		case 28: /* fade-out */
-			if (fb_fadeOut())
-			{
-				game_period = IMAIN_PERIOD;
-				seq = 30;
-			}
-			break;
-
+	case 28: /* fade-out */
+		if (fb_fadeOut()) {
+			game_period = IMAIN_PERIOD;
+			seq = 30;
+		}
+		break;
 	}
 
-	if (control_status & CONTROL_EXIT)  /* check for exit request */
+	if (control_status & CONTROL_EXIT) /* check for exit request */
 		return SCREEN_EXIT;
 
 	if (seq == 30) /* we're done */
@@ -213,11 +198,8 @@ screen_introMain(void)
 		game_period = period;
 		sysvid_setGamma(255);
 		return SCREEN_DONE;
-	}
-	else
+	} else
 		return SCREEN_RUNNING;
 }
 
 /* eof */
-
-

@@ -31,16 +31,16 @@
 #define GAME_BULLETS_INIT 6
 
 typedef struct {
-  U32 score;
-  U8 name[10];
+	U32 score;
+	U8 name[10];
 } hscore_t;
 
-extern hscore_t game_hscores[8];  /* highest scores (hall of fame) */
+extern hscore_t game_hscores[8]; /* highest scores (hall of fame) */
 
-extern U8 game_dir;        /* direction (LEFT, RIGHT) */
+extern U8 game_dir; /* direction (LEFT, RIGHT) */
 
-extern U8 game_waitevt;    /* wait for events (TRUE, FALSE) */
-extern U8 game_period;     /* time between each frame, in millisecond */
+extern U8 game_waitevt; /* wait for events (TRUE, FALSE) */
+extern U8 game_period;	/* time between each frame, in millisecond */
 
 extern rect_t *game_rects; /* rectangles to redraw at each frame */
 
@@ -51,5 +51,3 @@ extern void game_toggleCheat(U8);
 #endif
 
 /* eof */
-
-

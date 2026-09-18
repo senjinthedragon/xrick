@@ -65,10 +65,10 @@ extern U8 map_map[0x2c][0x20];
  * main maps
  */
 typedef struct {
-  U16 x, y;		/* initial position for rick */
-  U16 row;		/* initial map_map top row within the submap */
-  U16 submap;	/* initial submap */
-  char *tune;	/* map tune */
+	U16 x, y;   /* initial position for rick */
+	U16 row;    /* initial map_map top row within the submap */
+	U16 submap; /* initial submap */
+	char *tune; /* map tune */
 } map_t;
 
 extern map_t map_maps[MAP_NBR_MAPS];
@@ -77,10 +77,10 @@ extern map_t map_maps[MAP_NBR_MAPS];
  * sub maps
  */
 typedef struct {
-  U16 page;            /* tiles page */
-  U16 bnum;            /* first block number */
-  U16 connect;         /* first connection */
-  U16 mark;            /* first entity mark */
+	U16 page;    /* tiles page */
+	U16 bnum;    /* first block number */
+	U16 connect; /* first connection */
+	U16 mark;    /* first entity mark */
 } submap_t;
 
 extern submap_t map_submaps[MAP_NBR_SUBMAPS];
@@ -89,10 +89,10 @@ extern submap_t map_submaps[MAP_NBR_SUBMAPS];
  * connections
  */
 typedef struct {
-  U8 dir;
-  U8 rowout;
-  U8 submap;
-  U8 rowin;
+	U8 dir;
+	U8 rowout;
+	U8 submap;
+	U8 rowin;
 } connect_t;
 
 extern connect_t map_connect[MAP_NBR_CONNECT];
@@ -115,11 +115,11 @@ extern block_t map_blocks[MAP_NBR_BLOCKS];
  * mark structure
  */
 typedef struct {
-  U8 row;
-  U8 ent;
-  U8 flags;
-  U8 xy;  /* bits XXXX XYYY (from b03) with X->x, Y->y */
-  U8 lt;  /* bits XXXX XNNN (from b04) with X->trig_x, NNN->lat & trig_y */
+	U8 row;
+	U8 ent;
+	U8 flags;
+	U8 xy; /* bits XXXX XYYY (from b03) with X->x, Y->y */
+	U8 lt; /* bits XXXX XNNN (from b04) with X->trig_x, NNN->lat & trig_y */
 } mark_t;
 
 extern mark_t map_marks[MAP_NBR_MARKS];
@@ -150,8 +150,8 @@ extern U8 map_bnums[MAP_NBR_BNUMS];
 #define MAP_EFLG_CLIMB (0x02)
 #define MAP_EFLG_01 (0x01)
 
-extern U8 map_eflg_c[MAP_NBR_EFLGC];  /* compressed */
-extern U8 map_eflg[0x100];  /* current */
+extern U8 map_eflg_c[MAP_NBR_EFLGC]; /* compressed */
+extern U8 map_eflg[0x100];	     /* current */
 
 /*
  * map_map top row within the submap

@@ -57,46 +57,46 @@ extern void ents_paintAll();
 #define ENT_FLG_TRIGRICK 0x80
 
 typedef struct {
-  U8 n;          /* b00 */
-  /*U8 b01;*/    /* b01 in ASM code but never used */
-  U16 x;         /* b02 - position */
-  U16 y;         /* w04 - position */
-  U8 sprite;     /* b08 - sprite number */
-  /*U16 w0C;*/   /* w0C in ASM code but never used */
-  U8 w;          /* b0E - width */
-  U8 h;          /* b10 - height */
-  U16 mark;      /* w12 - number of the mark that created the entity */
-  U8 flags;      /* b14 */
-  U16 trig_x;    /* b16 - position of trigger box */
-  U16 trig_y;    /* w18 - position of trigger box */
-  U16 xsave;     /* b1C */
-  U16 ysave;     /* w1E */
-  U16 sprbase;   /* w20 */
-  U16 step_no_i; /* w22 */
-  U16 step_no;   /* w24 */
-  S16 c1;        /* b26 */
-  S16 c2;        /* b28 */
-  U8 ylow;       /* b2A */
-  S16 offsy;     /* w2C */
-  U8 latency;    /* b2E */
-  U8 prev_n;     /* new */
-  U16 prev_x;    /* new */
-  U16 prev_y;    /* new */
-  U8 prev_s;     /* new */
-  U8 front;      /* new */
-  U8 trigsnd;    /* new */
+	U8 n;	       /* b00 */
+	/*U8 b01;*/    /* b01 in ASM code but never used */
+	U16 x;	       /* b02 - position */
+	U16 y;	       /* w04 - position */
+	U8 sprite;     /* b08 - sprite number */
+	/*U16 w0C;*/   /* w0C in ASM code but never used */
+	U8 w;	       /* b0E - width */
+	U8 h;	       /* b10 - height */
+	U16 mark;      /* w12 - number of the mark that created the entity */
+	U8 flags;      /* b14 */
+	U16 trig_x;    /* b16 - position of trigger box */
+	U16 trig_y;    /* w18 - position of trigger box */
+	U16 xsave;     /* b1C */
+	U16 ysave;     /* w1E */
+	U16 sprbase;   /* w20 */
+	U16 step_no_i; /* w22 */
+	U16 step_no;   /* w24 */
+	S16 c1;	       /* b26 */
+	S16 c2;	       /* b28 */
+	U8 ylow;       /* b2A */
+	S16 offsy;     /* w2C */
+	U8 latency;    /* b2E */
+	U8 prev_n;     /* new */
+	U16 prev_x;    /* new */
+	U16 prev_y;    /* new */
+	U8 prev_s;     /* new */
+	U8 front;      /* new */
+	U8 trigsnd;    /* new */
 } ent_t;
 
 typedef struct {
-  U8 w, h;
-  U16 spr, sni;
-  U8 trig_w, trig_h;
-  U8 snd;
+	U8 w, h;
+	U16 spr, sni;
+	U8 trig_w, trig_h;
+	U8 snd;
 } entdata_t;
 
 typedef struct {
-  U8 count;
-  S8 dx, dy;
+	U8 count;
+	S8 dx, dy;
 } mvstep_t;
 
 extern ent_t ent_ents[ENT_ENTSNUM + 1];

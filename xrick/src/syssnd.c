@@ -30,14 +30,14 @@
 /* SDL3 dropped SDL_MIX_MAXVOLUME; this is the same value SDL2 used */
 #define MIX_MAXVOLUME 128
 
-#define ADJVOL(S) (((S)*sndVol)/MIX_MAXVOLUME)
+#define ADJVOL(S) (((S) * sndVol) / MIX_MAXVOLUME)
 
 static U8 isAudioActive = FALSE;
 static channel_t channel[SYSSND_MIXCHANNELS];
 
 static U8 sndVol = MIX_MAXVOLUME;  /* internal volume */
-static U8 sndUVol = SYSSND_MAXVOL;  /* user-selected volume */
-static U8 sndMute = FALSE;  /* mute flag */
+static U8 sndUVol = SYSSND_MAXVOL; /* user-selected volume */
+static U8 sndMute = FALSE;	   /* mute flag */
 
 static SDL_AudioStream *audioStream;
 static SDL_Mutex *sndlock;
@@ -64,16 +64,14 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 	S16 *buf;
 	int nsamples = additional_amount / (int)sizeof(S16);
 
-	buf = (nsamples <= (int)(sizeof(mixbuf)/sizeof(mixbuf[0]))) ? mixbuf : malloc(nsamples * sizeof(S16));
+	buf = (nsamples <= (int)(sizeof(mixbuf) / sizeof(mixbuf[0]))) ? mixbuf : malloc(nsamples * sizeof(S16));
 	if (!buf) return;
 
 	SDL_LockMutex(sndlock);
 
-	for (i = 0; i < nsamples; i++)
-	{
+	for (i = 0; i < nsamples; i++) {
 		s = 0;
-		for (c = 0; c < SYSSND_MIXCHANNELS; c++)
-		{
+		for (c = 0; c < SYSSND_MIXCHANNELS; c++) {
 			if (channel[c].loop != 0) /* channel is active */
 			{
 				if (channel[c].len > 0) /* not ending */
@@ -81,8 +79,7 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 					s += ADJVOL(*channel[c].buf);
 					channel[c].buf++;
 					channel[c].len--;
-				}
-				else /* ending */
+				} else /* ending */
 				{
 					if (channel[c].loop > 0) channel[c].loop--;
 					if (channel[c].loop) /* just loop */
@@ -93,8 +90,7 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 						s += ADJVOL(*channel[c].buf);
 						channel[c].buf++;
 						channel[c].len--;
-					}
-					else /* end for real */
+					} else /* end for real */
 					{
 						IFDEBUG_AUDIO2(sys_printf("xrick/audio: channel %d - end\n", c););
 						end_channel(c);
@@ -103,12 +99,9 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 			}
 		}
 
-		if (sndMute)
-		{
+		if (sndMute) {
 			buf[i] = 0;
-		}
-		else
-		{
+		} else {
 			if (s > 32767) s = 32767;
 			if (s < -32768) s = -32768;
 			buf[i] = (S16)s;
@@ -134,43 +127,41 @@ end_channel(U8 c)
 void
 syssnd_init(void)
 {
-  SDL_AudioSpec desired;
-  U16 c;
+	SDL_AudioSpec desired;
+	U16 c;
 
-  if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
-    IFDEBUG_AUDIO(
-      sys_printf("xrick/audio: can not initialize audio subsystem\n");
-      );
-    return;
-  }
+	if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+		IFDEBUG_AUDIO(
+		    sys_printf("xrick/audio: can not initialize audio subsystem\n"););
+		return;
+	}
 
-  desired.freq = SYSSND_FREQ;
-  desired.format = SDL_AUDIO_S16;
-  desired.channels = SYSSND_CHANNELS;
+	desired.freq = SYSSND_FREQ;
+	desired.format = SDL_AUDIO_S16;
+	desired.channels = SYSSND_CHANNELS;
 
-  audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &desired, syssnd_callback, NULL);
-  if (!audioStream) {
-    IFDEBUG_AUDIO(
-      sys_printf("xrick/audio: can not open audio (%s)\n", SDL_GetError());
-      );
-    return;
-  }
+	audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &desired, syssnd_callback, NULL);
+	if (!audioStream) {
+		IFDEBUG_AUDIO(
+		    sys_printf("xrick/audio: can not open audio (%s)\n", SDL_GetError()););
+		return;
+	}
 
-  sndlock = SDL_CreateMutex();
-  if (sndlock == NULL) {
-    IFDEBUG_AUDIO(sys_printf("xrick/audio: can not create lock\n"););
-    SDL_DestroyAudioStream(audioStream);
-    audioStream = NULL;
-    return;
-  }
+	sndlock = SDL_CreateMutex();
+	if (sndlock == NULL) {
+		IFDEBUG_AUDIO(sys_printf("xrick/audio: can not create lock\n"););
+		SDL_DestroyAudioStream(audioStream);
+		audioStream = NULL;
+		return;
+	}
 
-  if (sysarg_args_vol != 0) {
-    sndUVol = sysarg_args_vol;
-    sndVol = MIX_MAXVOLUME * sndUVol / SYSSND_MAXVOL;
-  }
+	if (sysarg_args_vol != 0) {
+		sndUVol = sysarg_args_vol;
+		sndVol = MIX_MAXVOLUME * sndUVol / SYSSND_MAXVOL;
+	}
 
-  for (c = 0; c < SYSSND_MIXCHANNELS; c++)
-    channel[c].loop = 0;  /* deactivate */
+	for (c = 0; c < SYSSND_MIXCHANNELS; c++)
+		channel[c].loop = 0; /* deactivate */
 
 	isAudioActive = TRUE;
 	SDL_ResumeAudioStreamDevice(audioStream);
@@ -184,11 +175,11 @@ syssnd_init(void)
 void
 syssnd_shutdown(void)
 {
-  if (!isAudioActive) return;
+	if (!isAudioActive) return;
 
-  SDL_DestroyAudioStream(audioStream);
-  SDL_DestroyMutex(sndlock);
-  isAudioActive = FALSE;
+	SDL_DestroyAudioStream(audioStream);
+	SDL_DestroyMutex(sndlock);
+	isAudioActive = FALSE;
 }
 
 /*
@@ -200,21 +191,21 @@ syssnd_shutdown(void)
 void
 syssnd_toggleMute(void)
 {
-  SDL_LockMutex(sndlock);
-  sndMute = !sndMute;
-  SDL_UnlockMutex(sndlock);
+	SDL_LockMutex(sndlock);
+	sndMute = !sndMute;
+	SDL_UnlockMutex(sndlock);
 }
 
 void
 syssnd_vol(S8 d)
 {
-  if ((d < 0 && sndUVol > 0) ||
-      (d > 0 && sndUVol < SYSSND_MAXVOL)) {
-    sndUVol += d;
-    SDL_LockMutex(sndlock);
-    sndVol = MIX_MAXVOLUME * sndUVol / SYSSND_MAXVOL;
-    SDL_UnlockMutex(sndlock);
-  }
+	if ((d < 0 && sndUVol > 0) ||
+	    (d > 0 && sndUVol < SYSSND_MAXVOL)) {
+		sndUVol += d;
+		SDL_LockMutex(sndlock);
+		sndVol = MIX_MAXVOLUME * sndUVol / SYSSND_MAXVOL;
+		SDL_UnlockMutex(sndlock);
+	}
 }
 
 /*
@@ -230,37 +221,36 @@ syssnd_vol(S8 d)
 S8
 syssnd_play(sound_t *sound, S8 loop)
 {
-  S8 c;
+	S8 c;
 
-  if (!isAudioActive) return -1;
-  if (sound == NULL) return -1;
+	if (!isAudioActive) return -1;
+	if (sound == NULL) return -1;
 
-  c = 0;
-  SDL_LockMutex(sndlock);
-  while ((channel[c].snd != sound || channel[c].loop == 0) &&
-	 channel[c].loop != 0 &&
-	 c < SYSSND_MIXCHANNELS)
-    c++;
-  if (c == SYSSND_MIXCHANNELS)
-    c = -1;
+	c = 0;
+	SDL_LockMutex(sndlock);
+	while ((channel[c].snd != sound || channel[c].loop == 0) &&
+	       channel[c].loop != 0 &&
+	       c < SYSSND_MIXCHANNELS)
+		c++;
+	if (c == SYSSND_MIXCHANNELS)
+		c = -1;
 
-  IFDEBUG_AUDIO(
-    if (channel[c].snd == sound && channel[c].loop != 0)
-      sys_printf("xrick/sound: already playing %s on channel %d - resetting\n",
-		 sound->name, c);
-    else if (c >= 0)
-      sys_printf("xrick/sound: playing %s on channel %d\n", sound->name, c);
-    );
+	IFDEBUG_AUDIO(
+	    if (channel[c].snd == sound && channel[c].loop != 0)
+		sys_printf("xrick/sound: already playing %s on channel %d - resetting\n",
+			   sound->name, c);
+	    else if (c >= 0)
+		sys_printf("xrick/sound: playing %s on channel %d\n", sound->name, c););
 
-  if (c >= 0) {
-    channel[c].loop = loop;
-    channel[c].snd = sound;
-    channel[c].buf = sound->buf;
-    channel[c].len = sound->len;
-  }
-  SDL_UnlockMutex(sndlock);
+	if (c >= 0) {
+		channel[c].loop = loop;
+		channel[c].snd = sound;
+		channel[c].buf = sound->buf;
+		channel[c].len = sound->len;
+	}
+	SDL_UnlockMutex(sndlock);
 
-  return c;
+	return c;
 }
 
 /*
@@ -272,21 +262,21 @@ syssnd_play(sound_t *sound, S8 loop)
 void
 syssnd_pause(U8 pause, U8 clear)
 {
-  U8 c;
+	U8 c;
 
-  if (!isAudioActive) return;
+	if (!isAudioActive) return;
 
-  if (clear == TRUE) {
-    SDL_LockMutex(sndlock);
-    for (c = 0; c < SYSSND_MIXCHANNELS; c++)
-      channel[c].loop = 0;
-    SDL_UnlockMutex(sndlock);
-  }
+	if (clear == TRUE) {
+		SDL_LockMutex(sndlock);
+		for (c = 0; c < SYSSND_MIXCHANNELS; c++)
+			channel[c].loop = 0;
+		SDL_UnlockMutex(sndlock);
+	}
 
-  if (pause == TRUE)
-    SDL_PauseAudioStreamDevice(audioStream);
-  else
-    SDL_ResumeAudioStreamDevice(audioStream);
+	if (pause == TRUE)
+		SDL_PauseAudioStreamDevice(audioStream);
+	else
+		SDL_ResumeAudioStreamDevice(audioStream);
 }
 
 /*
@@ -295,12 +285,12 @@ syssnd_pause(U8 pause, U8 clear)
 void
 syssnd_stopchan(S8 chan)
 {
-  if (chan < 0 || chan > SYSSND_MIXCHANNELS)
-    return;
+	if (chan < 0 || chan > SYSSND_MIXCHANNELS)
+		return;
 
-  SDL_LockMutex(sndlock);
-  if (channel[chan].snd) end_channel(chan);
-  SDL_UnlockMutex(sndlock);
+	SDL_LockMutex(sndlock);
+	if (channel[chan].snd) end_channel(chan);
+	SDL_UnlockMutex(sndlock);
 }
 
 /*
@@ -387,7 +377,7 @@ syssnd_load(char *name)
 {
 	sound_t *s;
 	OggVorbis_File vf;
-	ov_callbacks cb = { vorbisIO_read, vorbisIO_seek, vorbisIO_close, vorbisIO_tell };
+	ov_callbacks cb = {vorbisIO_read, vorbisIO_seek, vorbisIO_close, vorbisIO_tell};
 	data_file_t *f;
 	vorbis_info *vi;
 	S16 *pcm;

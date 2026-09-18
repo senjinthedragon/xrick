@@ -33,31 +33,29 @@ e_bonus_action(U8 e)
 {
 #define seq c1
 
-  if (ent_ents[e].seq == 0) {
-    if (e_rick_boxtest(e)) {
-      env_score += 500;
+	if (ent_ents[e].seq == 0) {
+		if (e_rick_boxtest(e)) {
+			env_score += 500;
 #ifdef ENABLE_SOUND
-      syssnd_play(WAV_BONUS, 1);
+			syssnd_play(WAV_BONUS, 1);
 #endif
-      map_marks[ent_ents[e].mark].ent |= MAP_MARK_NACT;
-      ent_ents[e].seq = 1;
-      ent_ents[e].sprite = 0xad;
-      ent_ents[e].front = TRUE;
-      ent_ents[e].y -= 0x08;
-    }
-  }
+			map_marks[ent_ents[e].mark].ent |= MAP_MARK_NACT;
+			ent_ents[e].seq = 1;
+			ent_ents[e].sprite = 0xad;
+			ent_ents[e].front = TRUE;
+			ent_ents[e].y -= 0x08;
+		}
+	}
 
-  else if (ent_ents[e].seq > 0 && ent_ents[e].seq < 10) {
-    ent_ents[e].seq++;
-    ent_ents[e].y -= 2;
-  }
+	else if (ent_ents[e].seq > 0 && ent_ents[e].seq < 10) {
+		ent_ents[e].seq++;
+		ent_ents[e].y -= 2;
+	}
 
-  else {
-    ent_ents[e].n = 0;
-  }
+	else {
+		ent_ents[e].n = 0;
+	}
 }
 
 
 /* eof */
-
-

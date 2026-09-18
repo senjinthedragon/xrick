@@ -48,7 +48,7 @@ screen_gameover(void)
 	}
 
 	switch (seq) {
-	case 1:  /* display banner */
+	case 1:			      /* display banner */
 		sysvid_setGamma(255); /* fb_fadeOut() left gamma at 0 */
 #ifdef GFXST
 		fb_clear();
@@ -63,7 +63,7 @@ screen_gameover(void)
 		seq = 2;
 		break;
 
-	case 2:  /* wait for key pressed */
+	case 2: /* wait for key pressed */
 		if (control_status & CONTROL_FIRE)
 			seq = 3;
 #ifdef GFXST
@@ -74,7 +74,7 @@ screen_gameover(void)
 			sys_sleep(50);
 		break;
 
-	case 3:  /* wait for key released */
+	case 3: /* wait for key released */
 		if (!(control_status & CONTROL_FIRE))
 			seq = 4;
 		else
@@ -82,18 +82,17 @@ screen_gameover(void)
 		break;
 	}
 
-	if (control_status & CONTROL_EXIT)  /* check for exit request */
+	if (control_status & CONTROL_EXIT) /* check for exit request */
 		return SCREEN_EXIT;
 
-	if (seq == 4) {  /* we're done */
+	if (seq == 4) { /* we're done */
 		fb_clear();
 		seq = 0;
 		game_period = period;
 		return SCREEN_DONE;
 	}
 
-  return SCREEN_RUNNING;
+	return SCREEN_RUNNING;
 }
 
 /* eof */
-

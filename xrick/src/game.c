@@ -47,18 +47,35 @@
  */
 typedef enum {
 #ifdef ENABLE_DEVTOOLS
-  DEVTOOLS,
+	DEVTOOLS,
 #endif
-  XRICK, XRICK_CLR,
-  MAIN_INTRO, MAP_INTRO,
-  INIT,
-  INIT_MAP, INIT_SUBMAP,
-  FADEIN__CTRL_ACTION, FADEOUT__MAP_INTRO, FADEOUT__GAMEOVER,
-  PAUSE_PRESSED1, PAUSE_PRESSED1B, PAUSED, PAUSE_PRESSED2,
-  CTRL_ACTION, CTRL_PAUSE, CTRL_RICK, PAINT, CTRL_SCROLL,
-  NEXT_SUBMAP, NEXT_MAP,
-  SCROLL_UP, SCROLL_DOWN,
-  RESTART, GAMEOVER, GETNAME, EXIT
+	XRICK,
+	XRICK_CLR,
+	MAIN_INTRO,
+	MAP_INTRO,
+	INIT,
+	INIT_MAP,
+	INIT_SUBMAP,
+	FADEIN__CTRL_ACTION,
+	FADEOUT__MAP_INTRO,
+	FADEOUT__GAMEOVER,
+	PAUSE_PRESSED1,
+	PAUSE_PRESSED1B,
+	PAUSED,
+	PAUSE_PRESSED2,
+	CTRL_ACTION,
+	CTRL_PAUSE,
+	CTRL_RICK,
+	PAINT,
+	CTRL_SCROLL,
+	NEXT_SUBMAP,
+	NEXT_MAP,
+	SCROLL_UP,
+	SCROLL_DOWN,
+	RESTART,
+	GAMEOVER,
+	GETNAME,
+	EXIT
 } game_state_t;
 
 
@@ -73,27 +90,25 @@ U8 game_dir = 0;
 
 #ifdef GFXST
 hscore_t game_hscores[8] = {
-  { 8000, "SIMES@@@@@" },
-  { 7000, "JAYNE@@@@@" },
-  { 6000, "DANGERSTU@" },
-  { 5000, "KEN@@@@@@@" },
-  { 4000, "ROB@N@BOB@" },
-  { 3000, "TELLY@@@@@" },
-  { 2000, "NOBBY@@@@@" },
-  { 1000, "JEZEBEL@@@" }
-};
+    {8000, "SIMES@@@@@"},
+    {7000, "JAYNE@@@@@"},
+    {6000, "DANGERSTU@"},
+    {5000, "KEN@@@@@@@"},
+    {4000, "ROB@N@BOB@"},
+    {3000, "TELLY@@@@@"},
+    {2000, "NOBBY@@@@@"},
+    {1000, "JEZEBEL@@@"}};
 #endif
 #ifdef GFXPC
 hscore_t game_hscores[8] = {
-  { 8000, "DANGERSTU@" },
-  { 7000, "SIMES@@@@@" },
-  { 6000, "KEN@T@ZEN@" },
-  { 5000, "BOBBLE@@@@" },
-  { 4000, "GREG@LAA@@" },
-  { 3000, "TELLY@@@@@" },
-  { 2000, "CHIGLET@@@" },
-  { 1000, "ANDYSPLEEN" }
-};
+    {8000, "DANGERSTU@"},
+    {7000, "SIMES@@@@@"},
+    {6000, "KEN@T@ZEN@"},
+    {5000, "BOBBLE@@@@"},
+    {4000, "GREG@LAA@@"},
+    {3000, "TELLY@@@@@"},
+    {2000, "CHIGLET@@@"},
+    {1000, "ANDYSPLEEN"}};
 #endif
 
 
@@ -123,31 +138,30 @@ static void game_save(void);
  * toggles one of the three cheat options
  * FIXME weird dependencies here! + _state exclusion is not complete
  */
-void game_toggleCheat(U8 nbr)
+void
+game_toggleCheat(U8 nbr)
 {
 #ifdef ENABLE_CHEATS
 	if (game_state != MAIN_INTRO && game_state != MAP_INTRO &&
-		game_state != GAMEOVER && game_state != GETNAME &&
+	    game_state != GAMEOVER && game_state != GETNAME &&
 #ifdef ENABLE_DEVTOOLS
-		game_state != DEVTOOLS &&
+	    game_state != DEVTOOLS &&
 #endif
-		game_state != XRICK && game_state != EXIT)
-	{
-		switch (nbr)
-		{
-			case 1:
-				env_trainer = ~env_trainer;
-				env_lives = 6;
-				env_bombs = 6;
-				env_bullets = 6;
-				break;
+	    game_state != XRICK && game_state != EXIT) {
+		switch (nbr) {
+		case 1:
+			env_trainer = ~env_trainer;
+			env_lives = 6;
+			env_bombs = 6;
+			env_bullets = 6;
+			break;
 
-			case 2:
-				env_invicible = ~env_invicible;
-				break;
+		case 2:
+			env_invicible = ~env_invicible;
+			break;
 
-			case 3:
-				env_highlight = ~env_highlight;
+		case 3:
+			env_highlight = ~env_highlight;
 			break;
 		}
 
@@ -185,41 +199,44 @@ game_run(char *path)
 	game_state = XRICK;
 
 	/* main loop */
-	while (game_state != EXIT)
-	{
+	while (game_state != EXIT) {
 		game_loop();
 	}
 
 	game_exit();
 }
 
-static void game_exit(void)
+static void
+game_exit(void)
 {
 	freeData(); /* free cached data */
 	data_closepath();
 }
 
-static void game_loop(void)
+static void
+game_loop(void)
 {
 	/* timer */
 	// sys_gettime() and sys_sleep() use milliseconds
-	tmx = tm; tm = sys_gettime(); tmx = tm - tmx;
+	tmx = tm;
+	tm = sys_gettime();
+	tmx = tm - tmx;
 	if (tmx < game_period) sys_sleep(game_period - tmx);
 
 	/* video */
-	/*DEBUG*//*game_rects=&draw_SCREENRECT;*//*DEBUG*/
+	/*DEBUG*/ /*game_rects=&draw_SCREENRECT;*/ /*DEBUG*/
 	// FIXME:??
-	//sysvid_update(fb_updatedRects);
+	// sysvid_update(fb_updatedRects);
 	sysvid_update(game_rects);
-	draw_STATUSRECT.next = NULL;  /* FIXME freerects should handle this */
+	draw_STATUSRECT.next = NULL; /* FIXME freerects should handle this */
 
 	/* sound: nothing to do here, everything is managed via callbacks */
 
 	/* events */
 	if (game_waitevt)
-		sysevt_wait();  /* wait for an event, stop doing anything */
+		sysevt_wait(); /* wait for an event, stop doing anything */
 	else
-		sysevt_poll();  /* process events (non-blocking) */
+		sysevt_poll(); /* process events (non-blocking) */
 
 	/*
 	 * game_cycle: depending on the game state
@@ -232,7 +249,7 @@ static void game_loop(void)
 }
 
 
-//static game_state_t game_state2;
+// static game_state_t game_state2;
 
 /*
  * game_cycle
@@ -241,18 +258,18 @@ static void game_loop(void)
  * When returning, game_rects must contain every parts of the buffer
  * that have been modified.
  */
-static void game_cycle(void)
+static void
+game_cycle(void)
 {
 	while (1) {
 
-		//if (game_state != game_state2)
+		// if (game_state != game_state2)
 		//{
 		//	sys_printf("xrick/game: state = %d", (U8) game_state);
 		//	game_state2 = game_state;
-		//}
+		// }
 
 		switch (game_state) {
-
 
 
 #ifdef ENABLE_DEVTOOLS
@@ -268,25 +285,23 @@ static void game_cycle(void)
 				game_state = EXIT;
 				return;
 			}
-		break;
+			break;
 #endif
 
 
 		case XRICK:
 
-			switch(screen_xrick())
-			{
-				case SCREEN_RUNNING:
-					return;
-				case SCREEN_DONE:
-					game_state = XRICK_CLR;
-					return;
-				case SCREEN_EXIT:
-					game_state = EXIT;
-					return;
+			switch (screen_xrick()) {
+			case SCREEN_RUNNING:
+				return;
+			case SCREEN_DONE:
+				game_state = XRICK_CLR;
+				return;
+			case SCREEN_EXIT:
+				game_state = EXIT;
+				return;
 			}
-		break;
-
+			break;
 
 
 		case XRICK_CLR:
@@ -301,55 +316,46 @@ static void game_cycle(void)
 			break;
 
 
-
 		case MAIN_INTRO:
 
-			switch (screen_introMain())
-			{
-				case SCREEN_RUNNING:
-					return;
-				case SCREEN_DONE:
-					game_state = INIT;
-					break;
-				case SCREEN_EXIT:
-					game_state = EXIT;
-					return;
+			switch (screen_introMain()) {
+			case SCREEN_RUNNING:
+				return;
+			case SCREEN_DONE:
+				game_state = INIT;
+				break;
+			case SCREEN_EXIT:
+				game_state = EXIT;
+				return;
 			}
 			break;
-
 
 
 		case INIT:
 
 			init();
-			if (env_submap == map_maps[env_map].submap)
-			{
+			if (env_submap == map_maps[env_map].submap) {
 				game_state = MAP_INTRO;
-			}
-			else
-			{
+			} else {
 				game_state = INIT_MAP; /* no intro if not first submap */
 			}
 			break;
 
 
-
 		case MAP_INTRO:
 
-			switch (screen_introMap())
-			{
-				case SCREEN_RUNNING:
-					return;
-				case SCREEN_DONE:
-					game_waitevt = FALSE;
-					game_state = INIT_MAP;
-					break;
-				case SCREEN_EXIT:
-					game_state = EXIT;
-					return;
+			switch (screen_introMap()) {
+			case SCREEN_RUNNING:
+				return;
+			case SCREEN_DONE:
+				game_waitevt = FALSE;
+				game_state = INIT_MAP;
+				break;
+			case SCREEN_EXIT:
+				game_state = EXIT;
+				return;
 			}
 			break;
-
 
 
 		case INIT_MAP:
@@ -359,34 +365,29 @@ static void game_cycle(void)
 				sysarg_args_map = 0; // FIXME game completed, start all over. fine, but... ack...
 				sysarg_args_submap = 0;
 				game_state = FADEOUT__GAMEOVER;
-			}
-			else
-			{
+			} else {
 				map_init();
 				game_save();
-				fb_clear();                 /* clear buffer */
-				//ent_clprev();
-				maps_paint();                     /* draw the map onto the buffer */
-				//ents_paintAll();
-				env_paintGame();              /* draw the status bar onto the buffer */
+				fb_clear(); /* clear buffer */
+				// ent_clprev();
+				maps_paint(); /* draw the map onto the buffer */
+				// ents_paintAll();
+				env_paintGame(); /* draw the status bar onto the buffer */
 #ifdef ENABLE_DEVTOOLS
-				env_paintXtra();                   /* draw the info bar onto the buffer */
+				env_paintXtra(); /* draw the info bar onto the buffer */
 #endif
-				game_rects = &draw_SCREENRECT;  /* request full buffer refresh */
+				game_rects = &draw_SCREENRECT; /* request full buffer refresh */
 				game_state = FADEIN__CTRL_ACTION;
 			}
 			break;
 
 
-
 		case FADEIN__CTRL_ACTION:
 
-			if (fb_fadeIn())
-			{
+			if (fb_fadeIn()) {
 				game_state = CTRL_ACTION;
 			}
 			return;
-
 
 
 		case PAUSE_PRESSED1:
@@ -394,7 +395,6 @@ static void game_cycle(void)
 			screen_pause(TRUE);
 			game_state = PAUSE_PRESSED1B;
 			break;
-
 
 
 		case PAUSE_PRESSED1B:
@@ -405,25 +405,20 @@ static void game_cycle(void)
 			break;
 
 
-
 		case PAUSED:
 
-			if (control_status & CONTROL_PAUSE)
-			{
+			if (control_status & CONTROL_PAUSE) {
 				game_state = PAUSE_PRESSED2;
 			}
-			if (control_status & CONTROL_EXIT)
-			{
+			if (control_status & CONTROL_EXIT) {
 				game_state = EXIT;
 			}
 			return;
 
 
-
 		case PAUSE_PRESSED2:
 
-			if (!(control_status & CONTROL_PAUSE)) 
-			{
+			if (!(control_status & CONTROL_PAUSE)) {
 				game_waitevt = FALSE;
 				screen_pause(FALSE);
 #ifdef ENABLE_SOUND
@@ -431,8 +426,7 @@ static void game_cycle(void)
 #endif
 				game_state = CTRL_RICK;
 			}
-		return;
-
+			return;
 
 
 		case CTRL_ACTION:
@@ -440,77 +434,57 @@ static void game_cycle(void)
 			if (control_status & CONTROL_END) /* request to end the game */
 			{
 				game_state = FADEOUT__GAMEOVER;
-			}
-			else
-			if (control_last == CONTROL_EXIT) /* request to exit the game */
+			} else if (control_last == CONTROL_EXIT) /* request to exit the game */
 			{
 				game_state = EXIT;
-			}
-			else
-			{
-				ent_action();      /* run entities */
-				e_them_rndseed++;  /* (0270) */
+			} else {
+				ent_action();	  /* run entities */
+				e_them_rndseed++; /* (0270) */
 				game_state = CTRL_PAUSE;
 			}
 			break;
 
 
-
 		case CTRL_PAUSE:
 
-			if (control_status & CONTROL_PAUSE)
-			{
+			if (control_status & CONTROL_PAUSE) {
 #ifdef ENABLE_SOUND
 				syssnd_pause(TRUE, FALSE);
 #endif
 				game_waitevt = TRUE;
 				game_state = PAUSE_PRESSED1;
-			}
-			else
-			if (control_active == FALSE)
-			{
+			} else if (control_active == FALSE) {
 #ifdef ENABLE_SOUND
 				syssnd_pause(TRUE, FALSE);
 #endif
 				game_waitevt = TRUE;
 				screen_pause(TRUE);
 				game_state = PAUSED;
-			}
-			else
-			{
+			} else {
 				game_state = CTRL_RICK;
 			}
 			break;
 
 
-
 		case CTRL_RICK:
 
 			// FIXME if (e_rick_isDead)
-			if E_RICK_STTST(E_RICK_STDEAD) /* rick is dead */
+			if E_RICK_STTST (E_RICK_STDEAD) /* rick is dead */
 			{
-				if (env_trainer || --env_lives)
-				{
+				if (env_trainer || --env_lives) {
 					game_state = RESTART;
-				}
-				else
-				{
+				} else {
 					game_state = FADEOUT__GAMEOVER;
 				}
-			}
-			else 
-			if (e_rick_atExit) /* rick is exiting the submap, must chain to next submap */
+			} else if (e_rick_atExit) /* rick is exiting the submap, must chain to next submap */
 			{
 				//	e_rick_enterMap(); // akn
 				e_rick_atExit = FALSE;
 				game_state = NEXT_SUBMAP;
-			}
-			else
-			{
+			} else {
 				game_state = PAINT;
 			}
 			break;
-
 
 
 		case PAINT:
@@ -520,36 +494,24 @@ static void game_cycle(void)
 			return;
 
 
-
 		case CTRL_SCROLL:
-			if (!E_RICK_STTST(E_RICK_STZOMBIE))
-			{
-				if (ent_ents[1].y >= 0xcc)
-				{
+			if (!E_RICK_STTST(E_RICK_STZOMBIE)) {
+				if (ent_ents[1].y >= 0xcc) {
 					game_state = SCROLL_UP;
-				}
-				else
-				if (ent_ents[1].y <= 0x60)
-				{
+				} else if (ent_ents[1].y <= 0x60) {
 					game_state = SCROLL_DOWN;
-				}
-				else
-				{
+				} else {
 					game_state = CTRL_ACTION;
 				}
-			}
-			else
-			{
+			} else {
 				game_state = CTRL_ACTION;
 			}
 			break;
 
 
-
 		case NEXT_SUBMAP:
 
-			switch (map_chain())
-			{
+			switch (map_chain()) {
 			case MAP_CHAIN_BLOCKED:
 				/* reached the edge at a row this submap has no exit
 				 * for -- treat it as a wall (map_chain() already
@@ -569,8 +531,7 @@ static void game_cycle(void)
 				env_bombs = 0x06;
 				env_map++;
 
-				if (env_map == 0x04)
-				{
+				if (env_map == 0x04) {
 					/* reached end of game */
 					/* FIXME @292?*/
 				}
@@ -579,7 +540,6 @@ static void game_cycle(void)
 				break;
 			}
 			break;
-
 
 
 		case NEXT_MAP:
@@ -592,61 +552,53 @@ static void game_cycle(void)
 			break;
 
 
-
 		case FADEOUT__MAP_INTRO:
 
-			if (fb_fadeOut())
-			{
+			if (fb_fadeOut()) {
 				game_state = MAP_INTRO;
 			}
 			return;
 
 
-
 		case INIT_SUBMAP:
 
-			map_init();                     /* initialize the map */
-			game_save();                        /* save data in case of a restart */
+			map_init();  /* initialize the map */
+			game_save(); /* save data in case of a restart */
 			fb_clear();
-			ent_clprev();                   /* cleanup entities */
-			maps_paint();                     /* draw the map onto the buffer */
+			ent_clprev(); /* cleanup entities */
+			maps_paint(); /* draw the map onto the buffer */
 			ents_paintAll();
-			env_paintGame();              /* draw the status bar onto the buffer */
+			env_paintGame(); /* draw the status bar onto the buffer */
 #ifdef ENABLE_DEVTOOLS
 			env_paintXtra();
 #endif
-			game_rects = &draw_SCREENRECT;  /* request full screen refresh */
+			game_rects = &draw_SCREENRECT; /* request full screen refresh */
 			game_state = CTRL_ACTION;
 			return;
 
 
-
 		case SCROLL_UP:
 
-			switch (scroll_up())
-			{
-				case SCROLL_RUNNING:
-					return;
-				case SCROLL_DONE:
-					game_state = CTRL_ACTION;
-					break;
+			switch (scroll_up()) {
+			case SCROLL_RUNNING:
+				return;
+			case SCROLL_DONE:
+				game_state = CTRL_ACTION;
+				break;
 			}
 			break;
-
 
 
 		case SCROLL_DOWN:
 
-			switch (scroll_down())
-			{
-				case SCROLL_RUNNING:
-					return;
-				case SCROLL_DONE:
-					game_state = CTRL_ACTION;
-					break;
+			switch (scroll_down()) {
+			case SCROLL_RUNNING:
+				return;
+			case SCROLL_DONE:
+				game_state = CTRL_ACTION;
+				break;
 			}
 			break;
-
 
 
 		case RESTART:
@@ -656,7 +608,6 @@ static void game_cycle(void)
 			return;
 
 
-
 		case FADEOUT__GAMEOVER:
 
 			if (fb_fadeOut())
@@ -664,47 +615,41 @@ static void game_cycle(void)
 			return;
 
 
-
 		case GAMEOVER:
 
-			switch (screen_gameover())
-			{
-				case SCREEN_RUNNING:
-					return;
-				case SCREEN_DONE:
-					game_state = GETNAME;
-					break;
-				case SCREEN_EXIT:
-					game_state = EXIT;
-					break;
+			switch (screen_gameover()) {
+			case SCREEN_RUNNING:
+				return;
+			case SCREEN_DONE:
+				game_state = GETNAME;
+				break;
+			case SCREEN_EXIT:
+				game_state = EXIT;
+				break;
 			}
 			break;
-
 
 
 		case GETNAME:
 
-			switch (screen_getname())
-			{
-				case SCREEN_RUNNING:
-					return;
-				case SCREEN_DONE:
-					game_state = XRICK_CLR;
-					return;
-				case SCREEN_EXIT:
-					game_state = EXIT;
-					break;
+			switch (screen_getname()) {
+			case SCREEN_RUNNING:
+				return;
+			case SCREEN_DONE:
+				game_state = XRICK_CLR;
+				return;
+			case SCREEN_EXIT:
+				game_state = EXIT;
+				break;
 			}
 			break;
 
 
-
 		case EXIT:
 			return;
-    }
-  }
+		}
+	}
 }
-
 
 
 /*
@@ -715,47 +660,46 @@ static void game_cycle(void)
 static void
 init(void)
 {
-  U8 i;
+	U8 i;
 
-  E_RICK_STRST(0xff);
+	E_RICK_STRST(0xff);
 
-  env_lives = 6;
-  env_bombs = 6;
-  env_bullets = 6;
-  env_score = 0;
+	env_lives = 6;
+	env_bombs = 6;
+	env_bullets = 6;
+	env_score = 0;
 
-  env_map = sysarg_args_map;
+	env_map = sysarg_args_map;
 
-  if (sysarg_args_submap == 0) {
-    env_submap = map_maps[env_map].submap;
-    map_frow = (U8)map_maps[env_map].row;
-  }
-  else {
-    /* dirty hack to determine frow by chaining submaps...*/
-    env_submap = sysarg_args_submap;
-    i = 0;
-    while (i < 4 && map_maps[i++].submap <= env_submap);
-    env_map = i - 1;
-    i = 0;
-    while (i < MAP_NBR_CONNECT &&
-	   (map_connect[i].submap != env_submap ||
-	    map_connect[i].dir != RIGHT))
-      i++;
-    map_frow = map_connect[i].rowin - 0x10; // WHY 0x10??
-  }
+	if (sysarg_args_submap == 0) {
+		env_submap = map_maps[env_map].submap;
+		map_frow = (U8)map_maps[env_map].row;
+	} else {
+		/* dirty hack to determine frow by chaining submaps...*/
+		env_submap = sysarg_args_submap;
+		i = 0;
+		while (i < 4 && map_maps[i++].submap <= env_submap)
+			;
+		env_map = i - 1;
+		i = 0;
+		while (i < MAP_NBR_CONNECT &&
+		       (map_connect[i].submap != env_submap ||
+			map_connect[i].dir != RIGHT))
+			i++;
+		map_frow = map_connect[i].rowin - 0x10; // WHY 0x10??
+	}
 
-  ent_ents[1].x = map_maps[env_map].x;
-  ent_ents[1].y = map_maps[env_map].y;
-  ent_ents[1].w = 0x18;
-  ent_ents[1].h = 0x15;
-  ent_ents[1].n = 0x01;
-  ent_ents[1].sprite = 0x01;
-  ent_ents[1].front = FALSE;
-  ent_ents[ENT_ENTSNUM].n = 0xFF;
+	ent_ents[1].x = map_maps[env_map].x;
+	ent_ents[1].y = map_maps[env_map].y;
+	ent_ents[1].w = 0x18;
+	ent_ents[1].h = 0x15;
+	ent_ents[1].n = 0x01;
+	ent_ents[1].sprite = 0x01;
+	ent_ents[1].front = FALSE;
+	ent_ents[ENT_ENTSNUM].n = 0xFF;
 
-  map_resetMarks();
+	map_resetMarks();
 }
-
 
 
 /*
@@ -763,20 +707,21 @@ init(void)
  *
  * paints the entities.
  */
-static void game_paintEntities()
+static void
+game_paintEntities()
 {
 	static rect_t *r;
 
-	env_clearGame();  /* clear the status bar */
-	ents_paintAll();  /* draw all entities onto the buffer */
-	env_paintGame();  /* draw the status bar onto the buffer*/
+	env_clearGame(); /* clear the status bar */
+	ents_paintAll(); /* draw all entities onto the buffer */
+	env_paintGame(); /* draw the status bar onto the buffer*/
 
 	/* fixme: rectangle management!!*/
 	// should just do: fb_touchRect(env_GameRect)
-	r = &draw_STATUSRECT; r->next = ent_rects;  /* refresh status bar too */
-	game_rects = r;   /* take care to cleanup draw_STATUSRECT->next later! */
+	r = &draw_STATUSRECT;
+	r->next = ent_rects; /* refresh status bar too */
+	game_rects = r;	     /* take care to cleanup draw_STATUSRECT->next later! */
 }
-
 
 
 /*
@@ -785,9 +730,10 @@ static void game_paintEntities()
  * restarts the game after rick died. just come back to the beginning
  * of the current submap, restore positions and flags and...
  */
-static void restart(void)
+static void
+restart(void)
 {
-	E_RICK_STRST(E_RICK_STDEAD|E_RICK_STZOMBIE); // should be part of e_rick
+	E_RICK_STRST(E_RICK_STDEAD | E_RICK_STZOMBIE); // should be part of e_rick
 
 	env_bullets = 6;
 	env_bombs = 6;
@@ -801,10 +747,9 @@ static void restart(void)
 	game_save();
 	ent_clprev();
 	maps_paint();
-	env_paintGame(); // and Xtra???
-	game_rects = &draw_SCREENRECT; //fb_touchFb();
+	env_paintGame();	       // and Xtra???
+	game_rects = &draw_SCREENRECT; // fb_touchFb();
 }
-
 
 
 /*
@@ -813,12 +758,12 @@ static void restart(void)
  * save game state so it can be restored when rick dies, by <restart>.
  * it is NOT a "save game" option!
  */
-static void game_save(void)
+static void
+game_save(void)
 {
-  e_rick_save();
-  save_map_row = map_frow;
+	e_rick_save();
+	save_map_row = map_frow;
 }
-
 
 
 /*
@@ -826,7 +771,8 @@ static void game_save(void)
  *
  * loads data into cache.
  */
-static void loadData()
+static void
+loadData()
 {
 #ifdef ENABLE_SOUND
 	sounds_load();
@@ -834,19 +780,18 @@ static void loadData()
 }
 
 
-
 /*
  * freeData
  *
  * free cached data
  */
-static void freeData()
+static void
+freeData()
 {
 #ifdef ENABLE_SOUND
 	sounds_free();
 #endif
 }
-
 
 
 /* eof */

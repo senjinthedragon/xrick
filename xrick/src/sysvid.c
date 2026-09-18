@@ -11,22 +11,21 @@
  * You must not remove this notice, or any other, from this software.
  */
 
- /*
-  * The purpose of this file is to implement a set of functions so that the
-  * 8bit, palettized frame buffer onto which the entire game is painted can
-  * be displayed onto the computer's screen.
-  *
-  * The only dependency between this and the game is that here we know the
-  * frame buffer is 8bit. We don't know its size.
-  *
-  * Presentation goes through SDL_GPU (not the classic SDL_Renderer): the
-  * game composites its 8bit framebuffer into a plain RGBA texture on the
-  * CPU exactly as before, then a short chain of fullscreen-triangle GPU
-  * passes (upscale filter, then CRT effect -- each independently
-  * selectable and combinable) samples that texture onto the swapchain.
-  * See xrick/src/shaders/.
-  */
-
+/*
+ * The purpose of this file is to implement a set of functions so that the
+ * 8bit, palettized frame buffer onto which the entire game is painted can
+ * be displayed onto the computer's screen.
+ *
+ * The only dependency between this and the game is that here we know the
+ * frame buffer is 8bit. We don't know its size.
+ *
+ * Presentation goes through SDL_GPU (not the classic SDL_Renderer): the
+ * game composites its 8bit framebuffer into a plain RGBA texture on the
+ * CPU exactly as before, then a short chain of fullscreen-triangle GPU
+ * passes (upscale filter, then CRT effect -- each independently
+ * selectable and combinable) samples that texture onto the swapchain.
+ * See xrick/src/shaders/.
+ */
 
 
 #include <stdlib.h> /* malloc */
@@ -50,24 +49,33 @@
 #endif
 
 
-
 rect_t SCREENRECT = {0, 0, FB_WIDTH, FB_HEIGHT, NULL}; /* whole fb */
 
-static U16 paln; /* palette size */
+static U16 paln;		       /* palette size */
 static SDL_Color pals[256], pald[256]; /* fixme: explain */
-static U32* pixels; /* composited RGBA frame, CPU side */
+static U32 *pixels;		       /* composited RGBA frame, CPU side */
 static SDL_Window *screen;
 static U8 isFullscreen;
 static U8 gamma;
 static U16 fb_width, fb_height;
 
 /* three independent, freely-combinable axes -- see sysvid_cycleUpscale/Crt/Bezel */
-typedef enum { UPSCALE_NONE = 0, UPSCALE_FSR1, UPSCALE_COUNT } upscaleMode_t;
-typedef enum { CRT_NONE = 0, CRT_EASYMODE, CRT_ROYALE, CRT_COUNT } crtMode_t;
-typedef enum { BEZEL_NONE = 0, BEZEL_COMMODORE_1084S, BEZEL_COUNT } bezelMode_t;
+typedef enum { UPSCALE_NONE = 0,
+	       UPSCALE_FSR1,
+	       UPSCALE_COUNT } upscaleMode_t;
+typedef enum { CRT_NONE = 0,
+	       CRT_EASYMODE,
+	       CRT_ROYALE,
+	       CRT_COUNT } crtMode_t;
+typedef enum { BEZEL_NONE = 0,
+	       BEZEL_COMMODORE_1084S,
+	       BEZEL_COUNT } bezelMode_t;
 /* crt-royale's phosphor mask type -- startup-flag-only (no live toggle key
  * left free; see sysarg.c's -royale-mask), unlike the three axes above */
-typedef enum { ROYALE_MASK_SLOT = 0, ROYALE_MASK_GRILLE, ROYALE_MASK_SHADOW, ROYALE_MASK_COUNT } royaleMaskType_t;
+typedef enum { ROYALE_MASK_SLOT = 0,
+	       ROYALE_MASK_GRILLE,
+	       ROYALE_MASK_SHADOW,
+	       ROYALE_MASK_COUNT } royaleMaskType_t;
 static upscaleMode_t upscaleMode = UPSCALE_NONE;
 static crtMode_t crtMode = CRT_NONE;
 static bezelMode_t bezelMode = BEZEL_NONE;
@@ -84,28 +92,28 @@ typedef struct {
 static bezelInfo_t bezels[BEZEL_COUNT]; /* [BEZEL_NONE] left zeroed/unused */
 
 static SDL_GPUDevice *gpuDevice;
-static SDL_GPUTexture *gpuTexture;             /* holds the composited frame */
-static SDL_GPUTransferBuffer *gpuTransferBuf;  /* CPU->GPU upload staging */
+static SDL_GPUTexture *gpuTexture;	      /* holds the composited frame */
+static SDL_GPUTransferBuffer *gpuTransferBuf; /* CPU->GPU upload staging */
 static SDL_GPUSampler *gpuSampler;
 
 static SDL_GPUShader *gpuVertShader;
 static SDL_GPUShader *gpuPassthroughFragShader;
-static SDL_GPUShader *gpuCrtEasymodeFragShader;      /* pre-upscale: does its own resample */
-static SDL_GPUShader *gpuCrtEasymodePostFragShader;  /* post-upscale: samples 1:1 */
+static SDL_GPUShader *gpuCrtEasymodeFragShader;	    /* pre-upscale: does its own resample */
+static SDL_GPUShader *gpuCrtEasymodePostFragShader; /* post-upscale: samples 1:1 */
 static SDL_GPUShader *gpuEasuFragShader;
 static SDL_GPUShader *gpuRcasFragShader;
 
-static SDL_GPUGraphicsPipeline *gpuPassthroughPipeline;       /* bezel background draw, and the final "no curvature" blit -- both -> swapchain */
+static SDL_GPUGraphicsPipeline *gpuPassthroughPipeline;		      /* bezel background draw, and the final "no curvature" blit -- both -> swapchain */
 static SDL_GPUGraphicsPipeline *gpuPassthroughToIntermediatePipeline; /* no upscale, no crt -> gpuFinalIntermediate */
-static SDL_GPUGraphicsPipeline *gpuCrtEasymodePipeline;       /* no upscale, crt -> gpuFinalIntermediate */
-static SDL_GPUGraphicsPipeline *gpuEasuPipeline;               /* upscale pass 1 -> intermediate */
-static SDL_GPUGraphicsPipeline *gpuRcasToSwapchainPipeline;    /* upscale, no crt, pass 2 -> gpuFinalIntermediate */
-static SDL_GPUGraphicsPipeline *gpuRcasToIntermediatePipeline; /* upscale+crt, pass 2 -> intermediate */
-static SDL_GPUGraphicsPipeline *gpuCrtEasymodePostPipeline;    /* upscale+crt, pass 3 -> gpuFinalIntermediate */
+static SDL_GPUGraphicsPipeline *gpuCrtEasymodePipeline;		      /* no upscale, crt -> gpuFinalIntermediate */
+static SDL_GPUGraphicsPipeline *gpuEasuPipeline;		      /* upscale pass 1 -> intermediate */
+static SDL_GPUGraphicsPipeline *gpuRcasToSwapchainPipeline;	      /* upscale, no crt, pass 2 -> gpuFinalIntermediate */
+static SDL_GPUGraphicsPipeline *gpuRcasToIntermediatePipeline;	      /* upscale+crt, pass 2 -> intermediate */
+static SDL_GPUGraphicsPipeline *gpuCrtEasymodePostPipeline;	      /* upscale+crt, pass 3 -> gpuFinalIntermediate */
 static SDL_GPUShader *gpuCurvatureFragShader;
-static SDL_GPUGraphicsPipeline *gpuCurvaturePipeline;          /* final pass, bezel active: gpuFinalIntermediate -> swapchain, warped */
+static SDL_GPUGraphicsPipeline *gpuCurvaturePipeline; /* final pass, bezel active: gpuFinalIntermediate -> swapchain, warped */
 static SDL_GPUShader *gpuFinalEncodeFragShader;
-static SDL_GPUGraphicsPipeline *gpuFinalEncodePipeline;        /* final pass, no bezel: gpuFinalIntermediate -> swapchain, straight copy (+ crt-royale's deferred gamma-encode) */
+static SDL_GPUGraphicsPipeline *gpuFinalEncodePipeline; /* final pass, no bezel: gpuFinalIntermediate -> swapchain, straight copy (+ crt-royale's deferred gamma-encode) */
 
 /* intermediate textures for the upscale chain, sized to the output
  * viewport (so (re)allocated on demand as that changes with zoom/
@@ -140,8 +148,8 @@ static SDL_GPUGraphicsPipeline *gpuRoyaleVscanPipeline;
 static SDL_GPUGraphicsPipeline *gpuRoyaleBloomApproxPipeline;
 static SDL_GPUGraphicsPipeline *gpuRoyaleHscanMaskPipeline;
 static SDL_GPUGraphicsPipeline *gpuRoyaleBrightpassPipeline;
-static SDL_GPUGraphicsPipeline *gpuRoyaleBloomBlurPipeline;      /* run twice: v then h */
-static SDL_GPUGraphicsPipeline *gpuRoyaleReconstitutePipeline;   /* final pass -> swapchain (viewport-clipped to the bezel cutout when one's active) */
+static SDL_GPUGraphicsPipeline *gpuRoyaleBloomBlurPipeline;    /* run twice: v then h */
+static SDL_GPUGraphicsPipeline *gpuRoyaleReconstitutePipeline; /* final pass -> swapchain (viewport-clipped to the bezel cutout when one's active) */
 
 static SDL_GPUTexture *gpuPhosphorMaskTexture;
 static Uint32 phosphorMaskTexW, phosphorMaskTexH;
@@ -153,19 +161,19 @@ static float royaleMaskAmplify; /* 1 / (selected mask type's average color); set
 static SDL_GPUTexture *gpuRoyaleLinearized;
 static SDL_GPUTexture *gpuRoyaleBloomApprox;
 /* viewport-sized royale buffers, (re)allocated together on resize */
-static SDL_GPUTexture *gpuRoyaleVscan;           /* 320 x viewport height */
+static SDL_GPUTexture *gpuRoyaleVscan;		 /* 320 x viewport height */
 static SDL_GPUTexture *gpuRoyaleMaskedScanlines; /* full viewport */
-static SDL_GPUTexture *gpuRoyaleBrightpass;      /* full viewport */
-static SDL_GPUTexture *gpuRoyaleBloomV;          /* full viewport, vertically blurred brightpass */
-static SDL_GPUTexture *gpuRoyaleBloomH;          /* full viewport, fully blurred brightpass */
+static SDL_GPUTexture *gpuRoyaleBrightpass;	 /* full viewport */
+static SDL_GPUTexture *gpuRoyaleBloomV;		 /* full viewport, vertically blurred brightpass */
+static SDL_GPUTexture *gpuRoyaleBloomH;		 /* full viewport, fully blurred brightpass */
 static Uint32 royaleViewportW, royaleViewportH;
 
 static SDL_GPUSampler *gpuSamplerLinearClamp;  /* bilinear, clamp -- bloom-approx resize */
 static SDL_GPUSampler *gpuSamplerLinearRepeat; /* bilinear, repeat -- tiled phosphor mask */
 static SDL_GPUSampler *gpuSamplerMipmap;       /* trilinear, clamp -- curvature's warped lookup */
 
-static U8 zoom = 0; /* actual zoom level */
-static U8 wmzoom = SYSVID_ZOOM; /* window mode zoom level */
+static U8 zoom = 0;		    /* actual zoom level */
+static U8 wmzoom = SYSVID_ZOOM;	    /* window mode zoom level */
 static U8 mxzoom = SYSVID_ZOOM * 2; /* max zoom level */
 
 /*
@@ -186,40 +194,41 @@ static U32 osdExpireAt;
 
 /* tiny 5x7 bitmap font -- just the glyphs the current OSD messages use
  * ("SHADER: EASYMODE/NONE", "UPSCALING: FSR1/NONE"); add more as needed */
-typedef struct { char c; U8 rows[7]; } osdGlyph_t;
+typedef struct {
+	char c;
+	U8 rows[7];
+} osdGlyph_t;
 static const osdGlyph_t osdFont[] = {
-	{'0', {0x0E,0x11,0x13,0x15,0x19,0x11,0x0E}},
-	{'4', {0x02,0x06,0x0A,0x12,0x1F,0x02,0x02}},
-	{'8', {0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E}},
-	{'A', {0x0E,0x11,0x11,0x1F,0x11,0x11,0x11}},
-	{'B', {0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E}},
-	{'Z', {0x1F,0x01,0x02,0x04,0x08,0x10,0x1F}},
-	{'C', {0x0E,0x11,0x10,0x10,0x10,0x11,0x0E}},
-	{'D', {0x1E,0x11,0x11,0x11,0x11,0x11,0x1E}},
-	{'E', {0x1F,0x10,0x10,0x1E,0x10,0x10,0x1F}},
-	{'F', {0x1F,0x10,0x10,0x1E,0x10,0x10,0x10}},
-	{'G', {0x0E,0x11,0x10,0x17,0x11,0x11,0x0E}},
-	{'H', {0x11,0x11,0x11,0x1F,0x11,0x11,0x11}},
-	{'I', {0x1F,0x04,0x04,0x04,0x04,0x04,0x1F}},
-	{'L', {0x10,0x10,0x10,0x10,0x10,0x10,0x1F}},
-	{'M', {0x11,0x1B,0x15,0x11,0x11,0x11,0x11}},
-	{'N', {0x11,0x19,0x15,0x13,0x11,0x11,0x11}},
-	{'O', {0x0E,0x11,0x11,0x11,0x11,0x11,0x0E}},
-	{'P', {0x1E,0x11,0x11,0x1E,0x10,0x10,0x10}},
-	{'R', {0x1E,0x11,0x11,0x1E,0x14,0x12,0x11}},
-	{'S', {0x0F,0x10,0x10,0x0E,0x01,0x01,0x1E}},
-	{'U', {0x11,0x11,0x11,0x11,0x11,0x11,0x0E}},
-	{'Y', {0x11,0x11,0x0A,0x04,0x04,0x04,0x04}},
-	{'1', {0x04,0x0C,0x04,0x04,0x04,0x04,0x1F}},
-	{':', {0x00,0x04,0x04,0x00,0x04,0x04,0x00}},
-	{' ', {0x00,0x00,0x00,0x00,0x00,0x00,0x00}},
+    {'0', {0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E}},
+    {'4', {0x02, 0x06, 0x0A, 0x12, 0x1F, 0x02, 0x02}},
+    {'8', {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}},
+    {'A', {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
+    {'B', {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E}},
+    {'Z', {0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F}},
+    {'C', {0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E}},
+    {'D', {0x1E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1E}},
+    {'E', {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x1F}},
+    {'F', {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10}},
+    {'G', {0x0E, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0E}},
+    {'H', {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
+    {'I', {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F}},
+    {'L', {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F}},
+    {'M', {0x11, 0x1B, 0x15, 0x11, 0x11, 0x11, 0x11}},
+    {'N', {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11}},
+    {'O', {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
+    {'P', {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10}},
+    {'R', {0x1E, 0x11, 0x11, 0x1E, 0x14, 0x12, 0x11}},
+    {'S', {0x0F, 0x10, 0x10, 0x0E, 0x01, 0x01, 0x1E}},
+    {'U', {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
+    {'Y', {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
+    {'1', {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x1F}},
+    {':', {0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00}},
+    {' ', {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 };
 #define OSD_FONT_COUNT (sizeof(osdFont) / sizeof(osdFont[0]))
 
 
-
 #include "img_icon.e"
-
 
 
 /*
@@ -227,14 +236,14 @@ static const osdGlyph_t osdFont[] = {
  *
  * sets the palette according to an image palette.
  */
-void sysvid_setPaletteFromImg(img_t *img)
+void
+sysvid_setPaletteFromImg(img_t *img)
 {
 	U16 i; // FIXME is it ok to have 256 (not 255) colors?
 
 	if ((paln = img->ncolors) == 0) return;
 
-	for (i = 0; i < paln; ++i)
-	{
+	for (i = 0; i < paln; ++i) {
 		pals[i].r = img->colors[i].r;
 		pals[i].g = img->colors[i].g;
 		pals[i].b = img->colors[i].b;
@@ -244,20 +253,19 @@ void sysvid_setPaletteFromImg(img_t *img)
 }
 
 
-
 /*
  * sysvid_setPaletteFromRGB
  *
  * sets the palette according to RGB infos.
  */
-void sysvid_setPaletteFromRGB(U8 *r, U8 *g, U8 *b, U16 n)
+void
+sysvid_setPaletteFromRGB(U8 *r, U8 *g, U8 *b, U16 n)
 {
 	U16 i;
 
 	if ((paln = n) == 0) return;
 
-	for (i = 0; i < paln; ++i)
-	{
+	for (i = 0; i < paln; ++i) {
 		pals[i].r = r[i];
 		pals[i].g = g[i];
 		pals[i].b = b[i];
@@ -267,27 +275,25 @@ void sysvid_setPaletteFromRGB(U8 *r, U8 *g, U8 *b, U16 n)
 }
 
 
-
 /*
  * sysvid_setDisplayPalette
  *
  * sets (again) the display palette, useful when visibility has changed.
  */
-void sysvid_setDisplayPalette(void)
+void
+sysvid_setDisplayPalette(void)
 {
 	U16 i;
 
 	if (paln == 0) return;
 
-	for (i = 0; i < paln; i++)
-	{
+	for (i = 0; i < paln; i++) {
 		pald[i].r = pals[i].r * gamma / 255;
 		pald[i].g = pals[i].g * gamma / 255;
 		pald[i].b = pals[i].b * gamma / 255;
 		pald[i].a = 255;
 	}
 }
-
 
 
 /*
@@ -316,12 +322,11 @@ makeIconSurface(void)
 		U8 pix = src[i];
 		img_color_t *c = &IMG_ICON->colors[pix];
 		dst[i] = SDL_MapRGBA(SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_RGBA32), NULL,
-			c->r, c->g, c->b, pix == tpix ? 0 : 255);
+				     c->r, c->g, c->b, pix == tpix ? 0 : 255);
 	}
 
 	return s;
 }
-
 
 
 /*
@@ -356,7 +361,6 @@ computeLetterboxViewportFor(Uint32 srcW, Uint32 srcH, Uint32 winW, Uint32 winH, 
 }
 
 
-
 /*
  * computeLetterboxViewport
  *
@@ -367,7 +371,6 @@ computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
 {
 	computeLetterboxViewportFor(fb_width, fb_height, winW, winH, vp);
 }
-
 
 
 /*
@@ -399,7 +402,7 @@ computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
  * is fine. */
 static void
 computeBezelViewports(Uint32 winW, Uint32 winH, const bezelInfo_t *bz,
-	SDL_GPUViewport *outerVp, SDL_GPUViewport *innerVp)
+		      SDL_GPUViewport *outerVp, SDL_GPUViewport *innerVp)
 {
 	SDL_GPUViewport rawOuter;
 	float rawInnerH, scale;
@@ -426,7 +429,6 @@ computeBezelViewports(Uint32 winW, Uint32 winH, const bezelInfo_t *bz,
 	innerVp->min_depth = 0.0f;
 	innerVp->max_depth = 1.0f;
 }
-
 
 
 /*
@@ -463,7 +465,6 @@ ensureIntermediates(Uint32 w, Uint32 h)
 }
 
 
-
 /*
  * ensureFinalIntermediate
  *
@@ -488,7 +489,10 @@ ensureFinalIntermediate(Uint32 w, Uint32 h)
 
 	maxDim = (w > h) ? w : h;
 	levels = 1;
-	while (maxDim > 1) { maxDim >>= 1; levels++; }
+	while (maxDim > 1) {
+		maxDim >>= 1;
+		levels++;
+	}
 
 	memset(&texInfo, 0, sizeof(texInfo));
 	texInfo.type = SDL_GPU_TEXTURETYPE_2D;
@@ -515,7 +519,6 @@ ensureFinalIntermediate(Uint32 w, Uint32 h)
 	finalIntermediateW = w;
 	finalIntermediateH = h;
 }
-
 
 
 /*
@@ -584,7 +587,6 @@ ensureRoyaleIntermediates(Uint32 w, Uint32 h)
 }
 
 
-
 /*
  * runPass
  *
@@ -599,10 +601,10 @@ ensureRoyaleIntermediates(Uint32 w, Uint32 h)
  */
 static void
 runPassMulti(SDL_GPUCommandBuffer *cmd, SDL_GPUGraphicsPipeline *pipeline,
-	SDL_GPUTexture **srcTexs, SDL_GPUSampler **srcSamplers, Uint32 numTex,
-	SDL_GPUTexture *dstTex,
-	float vpX, float vpY, float vpW, float vpH, SDL_GPULoadOp loadOp,
-	const void *uniformData, Uint32 uniformLen)
+	     SDL_GPUTexture **srcTexs, SDL_GPUSampler **srcSamplers, Uint32 numTex,
+	     SDL_GPUTexture *dstTex,
+	     float vpX, float vpY, float vpW, float vpH, SDL_GPULoadOp loadOp,
+	     const void *uniformData, Uint32 uniformLen)
 {
 	SDL_GPUColorTargetInfo colorInfo;
 	SDL_GPURenderPass *pass;
@@ -624,8 +626,12 @@ runPassMulti(SDL_GPUCommandBuffer *cmd, SDL_GPUGraphicsPipeline *pipeline,
 	pass = SDL_BeginGPURenderPass(cmd, &colorInfo, 1, NULL);
 	SDL_BindGPUGraphicsPipeline(pass, pipeline);
 
-	vp.x = vpX; vp.y = vpY; vp.w = vpW; vp.h = vpH;
-	vp.min_depth = 0.0f; vp.max_depth = 1.0f;
+	vp.x = vpX;
+	vp.y = vpY;
+	vp.w = vpW;
+	vp.h = vpH;
+	vp.min_depth = 0.0f;
+	vp.max_depth = 1.0f;
 	SDL_SetGPUViewport(pass, &vp);
 
 	for (i = 0; i < numTex; i++) {
@@ -642,7 +648,6 @@ runPassMulti(SDL_GPUCommandBuffer *cmd, SDL_GPUGraphicsPipeline *pipeline,
 }
 
 
-
 /*
  * runPass
  *
@@ -656,13 +661,12 @@ runPass(SDL_GPUCommandBuffer *cmd, SDL_GPUGraphicsPipeline *pipeline,
 	float vpX, float vpY, float vpW, float vpH, SDL_GPULoadOp loadOp,
 	const void *uniformData, Uint32 uniformLen)
 {
-	SDL_GPUTexture *texs[1] = { srcTex };
-	SDL_GPUSampler *samplers[1] = { gpuSampler };
+	SDL_GPUTexture *texs[1] = {srcTex};
+	SDL_GPUSampler *samplers[1] = {gpuSampler};
 
 	runPassMulti(cmd, pipeline, texs, samplers, 1, dstTex,
-		vpX, vpY, vpW, vpH, loadOp, uniformData, uniformLen);
+		     vpX, vpY, vpW, vpH, loadOp, uniformData, uniformLen);
 }
-
 
 
 /*
@@ -693,7 +697,6 @@ createPipeline(SDL_GPUShader *fragShader, SDL_GPUTextureFormat targetFormat)
 
 	return SDL_CreateGPUGraphicsPipeline(gpuDevice, &pipeInfo);
 }
-
 
 
 /*
@@ -783,7 +786,6 @@ loadPNGTexture(const unsigned char *pngData, unsigned long pngLen, Uint32 *outW,
 }
 
 
-
 /*
  * loadMipmappedPNGTexture
  *
@@ -815,10 +817,14 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 	for (level = 0; level < numLevels; level++) {
 		pixels[level] = stbi_load_from_memory(pngData[level], (int)pngLen[level], &w, &h, &comp, 4);
 		if (!pixels[level]) {
-			while (--level >= 0) stbi_image_free(pixels[level]);
+			while (--level >= 0)
+				stbi_image_free(pixels[level]);
 			return NULL;
 		}
-		if (level == 0) { w0 = w; h0 = h; }
+		if (level == 0) {
+			w0 = w;
+			h0 = h;
+		}
 		totalSize += (size_t)w * h * 4;
 	}
 
@@ -833,7 +839,8 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 	texInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 	tex = SDL_CreateGPUTexture(gpuDevice, &texInfo);
 	if (!tex) {
-		for (level = 0; level < numLevels; level++) stbi_image_free(pixels[level]);
+		for (level = 0; level < numLevels; level++)
+			stbi_image_free(pixels[level]);
 		return NULL;
 	}
 
@@ -842,7 +849,8 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 	tbInfo.size = (Uint32)totalSize;
 	tb = SDL_CreateGPUTransferBuffer(gpuDevice, &tbInfo);
 	if (!tb) {
-		for (level = 0; level < numLevels; level++) stbi_image_free(pixels[level]);
+		for (level = 0; level < numLevels; level++)
+			stbi_image_free(pixels[level]);
 		SDL_ReleaseGPUTexture(gpuDevice, tex);
 		return NULL;
 	}
@@ -887,13 +895,13 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 }
 
 
-
 /*
  * sysvid_init
  *
  * initialize the video layer.
  */
-void sysvid_init(U16 width, U16 height)
+void
+sysvid_init(U16 width, U16 height)
 {
 	SDL_Surface *s;
 	SDL_WindowFlags flags;
@@ -915,40 +923,35 @@ void sysvid_init(U16 width, U16 height)
 	SDL_HideCursor();
 
 	s = makeIconSurface();
-IFDEBUG_VIDEO(
-	{
-		U8 tpix = *(IMG_ICON->pixels);
-		sys_printf("xrick/video: icon is %dx%d\n", IMG_ICON->w, IMG_ICON->h);
-		sys_printf("xrick/video: icon transp. color is #%d (%d,%d,%d)\n", tpix,
-			IMG_ICON->colors[tpix].r,
-			IMG_ICON->colors[tpix].g,
-			IMG_ICON->colors[tpix].b);
-	}
-);
+	IFDEBUG_VIDEO(
+	    {
+		    U8 tpix = *(IMG_ICON->pixels);
+		    sys_printf("xrick/video: icon is %dx%d\n", IMG_ICON->w, IMG_ICON->h);
+		    sys_printf("xrick/video: icon transp. color is #%d (%d,%d,%d)\n", tpix,
+			       IMG_ICON->colors[tpix].r,
+			       IMG_ICON->colors[tpix].g,
+			       IMG_ICON->colors[tpix].b);
+	    });
 
 	/* if a zoom was specified, use it -- but check it is ok */
-	if (sysarg_args_zoom)
-	{
+	if (sysarg_args_zoom) {
 		zoom = sysarg_args_zoom > 0 && sysarg_args_zoom <= mxzoom ? sysarg_args_zoom : mxzoom;
 	}
 
 	/* prepare for fullscreen, initialize zoom w/default values */
 	flags = 0;
-	if (sysarg_args_fullscreen)
-	{
+	if (sysarg_args_fullscreen) {
 		isFullscreen = TRUE;
 		flags |= SDL_WINDOW_FULLSCREEN;
 		zoom = 1;
-	}
-	else
-	{
+	} else {
 		isFullscreen = FALSE;
 		zoom = wmzoom;
 	}
 
 	/* create pixels */
 	/* FIXME free pixels! */
-	pixels = (U32*)malloc(fb_width * fb_height * sizeof(U32));
+	pixels = (U32 *)malloc(fb_width * fb_height * sizeof(U32));
 
 	/* create window/screen */
 	screen = SDL_CreateWindow("xrick", fb_width * zoom, fb_height * zoom, flags);
@@ -1111,12 +1114,7 @@ IFDEBUG_VIDEO(
 	shInfo.num_uniform_buffers = 1;
 	gpuFinalEncodeFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
 
-	if (!gpuVertShader || !gpuPassthroughFragShader || !gpuCrtEasymodeFragShader
-		|| !gpuCrtEasymodePostFragShader || !gpuEasuFragShader || !gpuRcasFragShader
-		|| !gpuRoyaleLinearizeFragShader || !gpuRoyaleVscanFragShader
-		|| !gpuRoyaleBloomApproxFragShader || !gpuRoyaleHscanMaskFragShader
-		|| !gpuRoyaleBrightpassFragShader || !gpuRoyaleBloomBlurFragShader
-		|| !gpuRoyaleReconstituteFragShader || !gpuCurvatureFragShader || !gpuFinalEncodeFragShader)
+	if (!gpuVertShader || !gpuPassthroughFragShader || !gpuCrtEasymodeFragShader || !gpuCrtEasymodePostFragShader || !gpuEasuFragShader || !gpuRcasFragShader || !gpuRoyaleLinearizeFragShader || !gpuRoyaleVscanFragShader || !gpuRoyaleBloomApproxFragShader || !gpuRoyaleHscanMaskFragShader || !gpuRoyaleBrightpassFragShader || !gpuRoyaleBloomBlurFragShader || !gpuRoyaleReconstituteFragShader || !gpuCurvatureFragShader || !gpuFinalEncodeFragShader)
 		sys_panic("xrick/video: could not compile GPU shaders (%s)", SDL_GetError());
 
 	/* sampled texture holding the composited frame */
@@ -1231,12 +1229,7 @@ IFDEBUG_VIDEO(
 	gpuCurvaturePipeline = createPipeline(gpuCurvatureFragShader, swapchainFormat);
 	gpuFinalEncodePipeline = createPipeline(gpuFinalEncodeFragShader, swapchainFormat);
 
-	if (!gpuPassthroughPipeline || !gpuPassthroughToIntermediatePipeline || !gpuCrtEasymodePipeline
-		|| !gpuRcasToSwapchainPipeline
-		|| !gpuCrtEasymodePostPipeline || !gpuEasuPipeline || !gpuRcasToIntermediatePipeline
-		|| !gpuRoyaleLinearizePipeline || !gpuRoyaleVscanPipeline || !gpuRoyaleBloomApproxPipeline
-		|| !gpuRoyaleHscanMaskPipeline || !gpuRoyaleBrightpassPipeline || !gpuRoyaleBloomBlurPipeline
-		|| !gpuRoyaleReconstitutePipeline || !gpuCurvaturePipeline || !gpuFinalEncodePipeline)
+	if (!gpuPassthroughPipeline || !gpuPassthroughToIntermediatePipeline || !gpuCrtEasymodePipeline || !gpuRcasToSwapchainPipeline || !gpuCrtEasymodePostPipeline || !gpuEasuPipeline || !gpuRcasToIntermediatePipeline || !gpuRoyaleLinearizePipeline || !gpuRoyaleVscanPipeline || !gpuRoyaleBloomApproxPipeline || !gpuRoyaleHscanMaskPipeline || !gpuRoyaleBrightpassPipeline || !gpuRoyaleBloomBlurPipeline || !gpuRoyaleReconstitutePipeline || !gpuCurvaturePipeline || !gpuFinalEncodePipeline)
 		sys_panic("xrick/video: could not create GPU pipelines (%s)", SDL_GetError());
 
 	/* crt-royale: phosphor mask LUT (mask type picked via -royale-mask,
@@ -1252,39 +1245,54 @@ IFDEBUG_VIDEO(
 
 		switch (royaleMaskType) {
 		case ROYALE_MASK_GRILLE:
-			maskPng[0] = mask_phosphor_grille_mip0_png; maskPngLen[0] = mask_phosphor_grille_mip0_png_len;
-			maskPng[1] = mask_phosphor_grille_mip1_png; maskPngLen[1] = mask_phosphor_grille_mip1_png_len;
-			maskPng[2] = mask_phosphor_grille_mip2_png; maskPngLen[2] = mask_phosphor_grille_mip2_png_len;
-			maskPng[3] = mask_phosphor_grille_mip3_png; maskPngLen[3] = mask_phosphor_grille_mip3_png_len;
-			maskPng[4] = mask_phosphor_grille_mip4_png; maskPngLen[4] = mask_phosphor_grille_mip4_png_len;
+			maskPng[0] = mask_phosphor_grille_mip0_png;
+			maskPngLen[0] = mask_phosphor_grille_mip0_png_len;
+			maskPng[1] = mask_phosphor_grille_mip1_png;
+			maskPngLen[1] = mask_phosphor_grille_mip1_png_len;
+			maskPng[2] = mask_phosphor_grille_mip2_png;
+			maskPngLen[2] = mask_phosphor_grille_mip2_png_len;
+			maskPng[3] = mask_phosphor_grille_mip3_png;
+			maskPngLen[3] = mask_phosphor_grille_mip3_png_len;
+			maskPng[4] = mask_phosphor_grille_mip4_png;
+			maskPngLen[4] = mask_phosphor_grille_mip4_png_len;
 			maskAvgColor = 53.0f / 255.0f;
 			break;
 		case ROYALE_MASK_SHADOW:
-			maskPng[0] = mask_phosphor_shadow_mip0_png; maskPngLen[0] = mask_phosphor_shadow_mip0_png_len;
-			maskPng[1] = mask_phosphor_shadow_mip1_png; maskPngLen[1] = mask_phosphor_shadow_mip1_png_len;
-			maskPng[2] = mask_phosphor_shadow_mip2_png; maskPngLen[2] = mask_phosphor_shadow_mip2_png_len;
-			maskPng[3] = mask_phosphor_shadow_mip3_png; maskPngLen[3] = mask_phosphor_shadow_mip3_png_len;
-			maskPng[4] = mask_phosphor_shadow_mip4_png; maskPngLen[4] = mask_phosphor_shadow_mip4_png_len;
+			maskPng[0] = mask_phosphor_shadow_mip0_png;
+			maskPngLen[0] = mask_phosphor_shadow_mip0_png_len;
+			maskPng[1] = mask_phosphor_shadow_mip1_png;
+			maskPngLen[1] = mask_phosphor_shadow_mip1_png_len;
+			maskPng[2] = mask_phosphor_shadow_mip2_png;
+			maskPngLen[2] = mask_phosphor_shadow_mip2_png_len;
+			maskPng[3] = mask_phosphor_shadow_mip3_png;
+			maskPngLen[3] = mask_phosphor_shadow_mip3_png_len;
+			maskPng[4] = mask_phosphor_shadow_mip4_png;
+			maskPngLen[4] = mask_phosphor_shadow_mip4_png_len;
 			maskAvgColor = 41.0f / 255.0f;
 			break;
 		case ROYALE_MASK_SLOT:
 		default:
-			maskPng[0] = mask_phosphor_slot_mip0_png; maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
-			maskPng[1] = mask_phosphor_slot_mip1_png; maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
-			maskPng[2] = mask_phosphor_slot_mip2_png; maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
-			maskPng[3] = mask_phosphor_slot_mip3_png; maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
-			maskPng[4] = mask_phosphor_slot_mip4_png; maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
+			maskPng[0] = mask_phosphor_slot_mip0_png;
+			maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
+			maskPng[1] = mask_phosphor_slot_mip1_png;
+			maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
+			maskPng[2] = mask_phosphor_slot_mip2_png;
+			maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
+			maskPng[3] = mask_phosphor_slot_mip3_png;
+			maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
+			maskPng[4] = mask_phosphor_slot_mip4_png;
+			maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
 			maskAvgColor = 46.0f / 255.0f;
 			break;
 		}
 		royaleMaskAmplify = 1.0f / maskAvgColor;
-		phosphorMaskTexW = 24; phosphorMaskTexH = 24;
+		phosphorMaskTexW = 24;
+		phosphorMaskTexH = 24;
 		gpuPhosphorMaskTexture = loadMipmappedPNGTexture(maskPng, maskPngLen, MASK_MIP_LEVELS);
 	}
 	IFDEBUG_VIDEO(
-		if (!gpuPhosphorMaskTexture)
-			sys_printf("xrick/video: could not load phosphor mask texture (%s)\n", SDL_GetError());
-	);
+	    if (!gpuPhosphorMaskTexture)
+		sys_printf("xrick/video: could not load phosphor mask texture (%s)\n", SDL_GetError()););
 
 	memset(&texInfo, 0, sizeof(texInfo));
 	texInfo.type = SDL_GPU_TEXTURETYPE_2D;
@@ -1313,16 +1321,15 @@ IFDEBUG_VIDEO(
 	 * color -- not re-derived at runtime. */
 	memset(bezels, 0, sizeof(bezels));
 	bezels[BEZEL_COMMODORE_1084S].texture = loadPNGTexture(
-		bezel_commodore_1084s_png, bezel_commodore_1084s_png_len,
-		&bezels[BEZEL_COMMODORE_1084S].texW, &bezels[BEZEL_COMMODORE_1084S].texH);
+	    bezel_commodore_1084s_png, bezel_commodore_1084s_png_len,
+	    &bezels[BEZEL_COMMODORE_1084S].texW, &bezels[BEZEL_COMMODORE_1084S].texH);
 	bezels[BEZEL_COMMODORE_1084S].screenX0 = 0.216326f;
 	bezels[BEZEL_COMMODORE_1084S].screenY0 = 0.075000f;
 	bezels[BEZEL_COMMODORE_1084S].screenX1 = 0.783673f;
 	bezels[BEZEL_COMMODORE_1084S].screenY1 = 0.848214f;
 	IFDEBUG_VIDEO(
-		if (!bezels[BEZEL_COMMODORE_1084S].texture)
-			sys_printf("xrick/video: could not load bezel 'commodore_1084s' (%s)\n", SDL_GetError());
-	);
+	    if (!bezels[BEZEL_COMMODORE_1084S].texture)
+		sys_printf("xrick/video: could not load bezel 'commodore_1084s' (%s)\n", SDL_GetError()););
 
 	bezelMode = (bezelMode_t)sysarg_args_bezel;
 	if (bezelMode != BEZEL_NONE && bezels[bezelMode].texture == NULL)
@@ -1330,7 +1337,6 @@ IFDEBUG_VIDEO(
 
 	IFDEBUG_VIDEO(sys_printf("xrick/video: ready\n"););
 }
-
 
 
 /*
@@ -1421,8 +1427,6 @@ sysvid_shutdown(void)
 }
 
 
-
-
 /*
  * sysvid_showOSD
  *
@@ -1435,7 +1439,6 @@ sysvid_showOSD(const char *msg)
 	osdMessage[OSD_MSG_MAX - 1] = '\0';
 	osdExpireAt = sys_gettime() + OSD_DURATION_MS;
 }
-
 
 
 /*
@@ -1454,7 +1457,6 @@ sysvid_osdActive(void)
 }
 
 
-
 static const U8 *
 osdFindGlyph(char c)
 {
@@ -1463,7 +1465,6 @@ osdFindGlyph(char c)
 		if (osdFont[i].c == c) return osdFont[i].rows;
 	return NULL; /* unknown char -- just skip it */
 }
-
 
 
 /*
@@ -1492,7 +1493,7 @@ drawOSD(void)
 			int px = x0 + gx;
 			U8 *p;
 			if (px < 0 || px >= (int)fb_width) continue;
-			p = (U8*)pixels + (py * fb_width + px) * 4;
+			p = (U8 *)pixels + (py * fb_width + px) * 4;
 			/* blend toward black at OSD_BG_ALPHA/255 opacity */
 			p[0] = (U8)((int)p[0] * (255 - OSD_BG_ALPHA) / 255);
 			p[1] = (U8)((int)p[1] * (255 - OSD_BG_ALPHA) / 255);
@@ -1515,15 +1516,17 @@ drawOSD(void)
 						int py = y0 + gy * OSD_SCALE + sy;
 						U8 *p;
 						if (px < 0 || px >= (int)fb_width || py < 0 || py >= (int)fb_height) continue;
-						p = (U8*)pixels + (py * fb_width + px) * 4;
-						p[0] = 255; p[1] = 255; p[2] = 255; p[3] = 255;
+						p = (U8 *)pixels + (py * fb_width + px) * 4;
+						p[0] = 255;
+						p[1] = 255;
+						p[2] = 255;
+						p[3] = 255;
 					}
 				}
 			}
 		}
 	}
 }
-
 
 
 /*
@@ -1538,15 +1541,13 @@ static void
 blitRectToPixels(rect_t *rect)
 {
 	U16 o = rect->x + rect->y * fb_width;
-	U8* src0 = ((U8*)& fb) + o;
-	U8* dst0 = (U8 *)pixels + o * 4;
-	for (int y = rect->y; y < rect->y + rect->height; y++)
-	{
-		U8* srcx = src0;
-		U8* dstx = dst0;
+	U8 *src0 = ((U8 *)&fb) + o;
+	U8 *dst0 = (U8 *)pixels + o * 4;
+	for (int y = rect->y; y < rect->y + rect->height; y++) {
+		U8 *srcx = src0;
+		U8 *dstx = dst0;
 
-		for (int x = rect->x; x < rect->x + rect->width; x++)
-		{
+		for (int x = rect->x; x < rect->x + rect->width; x++) {
 			/* R8G8B8A8, unlike the old SDL_Renderer ARGB8888 path */
 			*dstx = pald[*srcx].r;
 			dstx++;
@@ -1563,7 +1564,6 @@ blitRectToPixels(rect_t *rect)
 		dst0 += fb_width * 4;
 	}
 }
-
 
 
 /*
@@ -1597,14 +1597,12 @@ sysvid_update(rect_t *rects)
 		return;
 
 	rect = rects;
-	while (rect)
-	{
+	while (rect) {
 		blitRectToPixels(rect);
 		rect = rect->next;
 	}
 
-	if (osdActiveNow || osdWasActive)
-	{
+	if (osdActiveNow || osdWasActive) {
 		/* Always restore real game content under the OSD's fixed area
 		 * first, whether or not it was already part of the caller's
 		 * rects -- otherwise repeated draws while active would
@@ -1649,15 +1647,13 @@ sysvid_update(rect_t *rects)
 	SDL_UploadToGPUTexture(copyPass, &src, &dst, false);
 	SDL_EndGPUCopyPass(copyPass);
 
-	if (SDL_WaitAndAcquireGPUSwapchainTexture(cmd, screen, &swapTex, &swW, &swH) && swapTex)
-	{
+	if (SDL_WaitAndAcquireGPUSwapchainTexture(cmd, screen, &swapTex, &swW, &swH) && swapTex) {
 		SDL_GPUViewport vp;
 		float outputSize[2];
 		SDL_GPULoadOp finalLoadOp;
 		const bezelInfo_t *bz = (bezelMode != BEZEL_NONE) ? &bezels[bezelMode] : NULL;
 
-		if (bz)
-		{
+		if (bz) {
 			/* bezel active: fit the bezel image itself into the window,
 			 * draw it first (this is the only pass that clears the
 			 * swapchain), then the game's own output -- upscaled/CRT'd
@@ -1674,9 +1670,7 @@ sysvid_update(rect_t *rects)
 				outerVp.x, outerVp.y, outerVp.w, outerVp.h, SDL_GPU_LOADOP_CLEAR, NULL, 0);
 
 			finalLoadOp = SDL_GPU_LOADOP_LOAD;
-		}
-		else
-		{
+		} else {
 			computeLetterboxViewport(swW, swH, &vp);
 			finalLoadOp = SDL_GPU_LOADOP_CLEAR;
 		}
@@ -1694,8 +1688,7 @@ sysvid_update(rect_t *rects)
 		 * pipeline variants of every filter combination. */
 		ensureFinalIntermediate((Uint32)vp.w, (Uint32)vp.h);
 
-		if (crtMode == CRT_ROYALE)
-		{
+		if (crtMode == CRT_ROYALE) {
 			/* crt-royale is mutually exclusive with the upscale axis --
 			 * its own vertical/horizontal scanline passes already
 			 * resample to the full viewport resolution, the same job
@@ -1720,23 +1713,28 @@ sysvid_update(rect_t *rects)
 				0.0f, 0.0f, (float)fb_width, vp.h, SDL_GPU_LOADOP_DONT_CARE,
 				vscanUniform, sizeof(vscanUniform));
 
-			multiTex[0] = gpuRoyaleLinearized; multiSamp[0] = gpuSamplerLinearClamp;
+			multiTex[0] = gpuRoyaleLinearized;
+			multiSamp[0] = gpuSamplerLinearClamp;
 			runPassMulti(cmd, gpuRoyaleBloomApproxPipeline, multiTex, multiSamp, 1, gpuRoyaleBloomApprox,
-				0.0f, 0.0f, 320.0f, 240.0f, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
+				     0.0f, 0.0f, 320.0f, 240.0f, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
 
 			hscanUniform[0] = vp.w;
 			hscanUniform[1] = vp.h;
-			multiTex[0] = gpuRoyaleVscan; multiSamp[0] = gpuSampler;
-			multiTex[1] = gpuPhosphorMaskTexture; multiSamp[1] = gpuSamplerLinearRepeat;
+			multiTex[0] = gpuRoyaleVscan;
+			multiSamp[0] = gpuSampler;
+			multiTex[1] = gpuPhosphorMaskTexture;
+			multiSamp[1] = gpuSamplerLinearRepeat;
 			runPassMulti(cmd, gpuRoyaleHscanMaskPipeline, multiTex, multiSamp, 2, gpuRoyaleMaskedScanlines,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
-				hscanUniform, sizeof(hscanUniform));
+				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     hscanUniform, sizeof(hscanUniform));
 
-			multiTex[0] = gpuRoyaleMaskedScanlines; multiSamp[0] = gpuSampler;
-			multiTex[1] = gpuRoyaleBloomApprox; multiSamp[1] = gpuSamplerLinearClamp;
+			multiTex[0] = gpuRoyaleMaskedScanlines;
+			multiSamp[0] = gpuSampler;
+			multiTex[1] = gpuRoyaleBloomApprox;
+			multiSamp[1] = gpuSamplerLinearClamp;
 			runPassMulti(cmd, gpuRoyaleBrightpassPipeline, multiTex, multiSamp, 2, gpuRoyaleBrightpass,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
-				&royaleMaskAmplify, sizeof(royaleMaskAmplify));
+				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     &royaleMaskAmplify, sizeof(royaleMaskAmplify));
 
 			blurUniformV[0] = 0.0f;
 			blurUniformV[1] = 1.0f / vp.h;
@@ -1750,15 +1748,16 @@ sysvid_update(rect_t *rects)
 				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
 				blurUniformH, sizeof(blurUniformH));
 
-			multiTex[0] = gpuRoyaleBloomH; multiSamp[0] = gpuSampler;
-			multiTex[1] = gpuRoyaleMaskedScanlines; multiSamp[1] = gpuSampler;
-			multiTex[2] = gpuRoyaleBrightpass; multiSamp[2] = gpuSampler;
+			multiTex[0] = gpuRoyaleBloomH;
+			multiSamp[0] = gpuSampler;
+			multiTex[1] = gpuRoyaleMaskedScanlines;
+			multiSamp[1] = gpuSampler;
+			multiTex[2] = gpuRoyaleBrightpass;
+			multiSamp[2] = gpuSampler;
 			runPassMulti(cmd, gpuRoyaleReconstitutePipeline, multiTex, multiSamp, 3, gpuFinalIntermediate,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
-				&royaleMaskAmplify, sizeof(royaleMaskAmplify));
-		}
-		else if (upscaleMode == UPSCALE_FSR1)
-		{
+				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     &royaleMaskAmplify, sizeof(royaleMaskAmplify));
+		} else if (upscaleMode == UPSCALE_FSR1) {
 			float rcasUniform[3];
 
 			ensureIntermediates((Uint32)vp.w, (Uint32)vp.h);
@@ -1771,28 +1770,21 @@ sysvid_update(rect_t *rects)
 			runPass(cmd, gpuEasuPipeline, gpuTexture, gpuIntermediate1,
 				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 
-			if (crtMode == CRT_EASYMODE)
-			{
+			if (crtMode == CRT_EASYMODE) {
 				/* pass 2: RCAS -> intermediate2; pass 3: CRT post -> gpuFinalIntermediate */
 				runPass(cmd, gpuRcasToIntermediatePipeline, gpuIntermediate1, gpuIntermediate2,
 					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
 				runPass(cmd, gpuCrtEasymodePostPipeline, gpuIntermediate2, gpuFinalIntermediate,
 					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
-			}
-			else
-			{
+			} else {
 				/* pass 2: RCAS -> gpuFinalIntermediate */
 				runPass(cmd, gpuRcasToSwapchainPipeline, gpuIntermediate1, gpuFinalIntermediate,
 					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
 			}
-		}
-		else if (crtMode == CRT_EASYMODE)
-		{
+		} else if (crtMode == CRT_EASYMODE) {
 			runPass(cmd, gpuCrtEasymodePipeline, gpuTexture, gpuFinalIntermediate,
 				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
-		}
-		else
-		{
+		} else {
 			runPass(cmd, gpuPassthroughToIntermediatePipeline, gpuTexture, gpuFinalIntermediate,
 				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
 		}
@@ -1807,10 +1799,9 @@ sysvid_update(rect_t *rects)
 		{
 			float applyGamma = (crtMode == CRT_ROYALE) ? 1.0f : 0.0f;
 
-			if (bz)
-			{
-				SDL_GPUTexture *curvTex[1] = { gpuFinalIntermediate };
-				SDL_GPUSampler *curvSamp[1] = { gpuSamplerMipmap };
+			if (bz) {
+				SDL_GPUTexture *curvTex[1] = {gpuFinalIntermediate};
+				SDL_GPUSampler *curvSamp[1] = {gpuSamplerMipmap};
 
 				/* must run outside any render pass; build the mip chain
 				 * gpuSamplerMipmap relies on to avoid aliasing the mask/
@@ -1818,9 +1809,8 @@ sysvid_update(rect_t *rects)
 				SDL_GenerateMipmapsForGPUTexture(cmd, gpuFinalIntermediate);
 
 				runPassMulti(cmd, gpuCurvaturePipeline, curvTex, curvSamp, 1, swapTex,
-					vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
-			}
-			else
+					     vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
+			} else
 				runPass(cmd, gpuFinalEncodePipeline, gpuFinalIntermediate, swapTex,
 					vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
 		}
@@ -1828,7 +1818,6 @@ sysvid_update(rect_t *rects)
 
 	SDL_SubmitGPUCommandBuffer(cmd);
 }
-
 
 
 /*
@@ -1841,14 +1830,12 @@ sysvid_zoom(S8 z)
 {
 	if (isFullscreen) return;
 
-	if ((z < 0 && zoom + z > 0) || (z > 0 && zoom + z <= mxzoom))
-	{
+	if ((z < 0 && zoom + z > 0) || (z > 0 && zoom + z <= mxzoom)) {
 		zoom += z;
 		wmzoom = zoom;
 
 		IFDEBUG_VIDEO(
-			sys_printf("xrick/video: zoom=%d window=%dx%d\n", zoom, fb_width * zoom, fb_height * zoom);
-		);
+		    sys_printf("xrick/video: zoom=%d window=%dx%d\n", zoom, fb_width * zoom, fb_height * zoom););
 
 		SDL_SetWindowSize(screen, fb_width * zoom, fb_height * zoom);
 
@@ -1856,7 +1843,6 @@ sysvid_zoom(S8 z)
 		sysvid_update(&SCREENRECT); /* repaint all */ /* FIXME */
 	}
 }
-
 
 
 /*
@@ -1877,7 +1863,6 @@ sysvid_toggleFullscreen(void)
 }
 
 
-
 /*
  * sysvid_cycleUpscale
  *
@@ -1889,13 +1874,11 @@ sysvid_cycleUpscale(void)
 	upscaleMode = (upscaleMode + 1) % UPSCALE_COUNT;
 
 	IFDEBUG_VIDEO(
-		sys_printf("xrick/video: upscale=%d\n", upscaleMode);
-	);
+	    sys_printf("xrick/video: upscale=%d\n", upscaleMode););
 
 	sysvid_showOSD(upscaleMode == UPSCALE_NONE ? "UPSCALING: NONE" : "UPSCALING: FSR1");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
-
 
 
 /*
@@ -1911,14 +1894,12 @@ sysvid_cycleCrt(void)
 	} while (crtMode == CRT_ROYALE && gpuPhosphorMaskTexture == NULL);
 
 	IFDEBUG_VIDEO(
-		sys_printf("xrick/video: crt=%d\n", crtMode);
-	);
+	    sys_printf("xrick/video: crt=%d\n", crtMode););
 
-	sysvid_showOSD(crtMode == CRT_NONE ? "SHADER: NONE" :
-		crtMode == CRT_EASYMODE ? "SHADER: EASYMODE" : "SHADER: ROYALE");
+	sysvid_showOSD(crtMode == CRT_NONE ? "SHADER: NONE" : crtMode == CRT_EASYMODE ? "SHADER: EASYMODE"
+										      : "SHADER: ROYALE");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
-
 
 
 /*
@@ -1939,13 +1920,11 @@ sysvid_cycleBezel(void)
 	bezelMode = next;
 
 	IFDEBUG_VIDEO(
-		sys_printf("xrick/video: bezel=%d\n", bezelMode);
-	);
+	    sys_printf("xrick/video: bezel=%d\n", bezelMode););
 
 	sysvid_showOSD(bezelMode == BEZEL_NONE ? "BEZEL: NONE" : "BEZEL: 1084S");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
-
 
 
 /*
@@ -1953,13 +1932,13 @@ sysvid_cycleBezel(void)
  *
  * sets a "gamma" indication ranging from 0 (dark) to 255 (normal).
  */
-void sysvid_setGamma(U8 g)
+void
+sysvid_setGamma(U8 g)
 {
 	// FIXME changing the GAMMA without changing the PALETTE just CANNOT WORK if GAMMA is not HARDWARE?
 	gamma = g;
 	sysvid_setDisplayPalette();
 }
-
 
 
 /* eof */

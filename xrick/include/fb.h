@@ -60,7 +60,7 @@ void fb_initPalette();
 /*
  * sets the palette from the image
  */
-void fb_setPaletteFromImg(img_t* img);
+void fb_setPaletteFromImg(img_t *img);
 
 #endif
 

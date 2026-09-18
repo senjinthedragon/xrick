@@ -43,7 +43,7 @@
  * as long as the code has not been cleared -- there are so many of them...
  */
 
-#pragma warning( disable : 4761 )
+#pragma warning(disable : 4761)
 #endif
 
 /*
@@ -54,12 +54,12 @@
 #endif
 
 /* there are true at least on x86 platforms */
-typedef unsigned char U8;         /*  8 bits unsigned */
-typedef unsigned short int U16;   /* 16 bits unsigned */
-typedef unsigned int U32;         /* 32 bits unsigned */
-typedef signed char S8;           /*  8 bits signed   */
-typedef signed short int S16;     /* 16 bits signed   */
-typedef signed int S32;           /* 32 bits signed   */
+typedef unsigned char U8;	/*  8 bits unsigned */
+typedef unsigned short int U16; /* 16 bits unsigned */
+typedef unsigned int U32;	/* 32 bits unsigned */
+typedef signed char S8;		/*  8 bits signed   */
+typedef signed short int S16;	/* 16 bits signed   */
+typedef signed int S32;		/* 32 bits signed   */
 
 #define TRUE 1
 #define FALSE 0
@@ -74,5 +74,3 @@ extern void sys_sleep(int);
 #endif
 
 /* eof */
-
-

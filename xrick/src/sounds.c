@@ -17,25 +17,26 @@
 
 #ifdef ENABLE_SOUND
 
-sound_t* WAV_GAMEOVER;
-sound_t* WAV_SBONUS2;
-sound_t* WAV_BULLET;
-sound_t* WAV_BOMBSHHT;
-sound_t* WAV_EXPLODE;
-sound_t* WAV_STICK;
-sound_t* WAV_WALK;
-sound_t* WAV_CRAWL;
-sound_t* WAV_JUMP;
-sound_t* WAV_PAD;
-sound_t* WAV_BOX;
-sound_t* WAV_BONUS;
-sound_t* WAV_SBONUS1;
-sound_t* WAV_DIE;
-sound_t* WAV_ENTITY[10];
+sound_t *WAV_GAMEOVER;
+sound_t *WAV_SBONUS2;
+sound_t *WAV_BULLET;
+sound_t *WAV_BOMBSHHT;
+sound_t *WAV_EXPLODE;
+sound_t *WAV_STICK;
+sound_t *WAV_WALK;
+sound_t *WAV_CRAWL;
+sound_t *WAV_JUMP;
+sound_t *WAV_PAD;
+sound_t *WAV_BOX;
+sound_t *WAV_BONUS;
+sound_t *WAV_SBONUS1;
+sound_t *WAV_DIE;
+sound_t *WAV_ENTITY[10];
 
-static sound_t* music_snd;
+static sound_t *music_snd;
 
-void sounds_load(void)
+void
+sounds_load(void)
 {
 	/*
 	 * Cache sounds
@@ -67,7 +68,8 @@ void sounds_load(void)
 	WAV_ENTITY[8] = syssnd_load("sounds/ent8.ogg");
 }
 
-void sounds_free(void)
+void
+sounds_free(void)
 {
 	syssnd_stopall();
 	syssnd_free(WAV_GAMEOVER);
@@ -100,18 +102,17 @@ void sounds_free(void)
  *
  * sets the current background music.
  */
-void sounds_setMusic(char* name, U8 loop)
+void
+sounds_setMusic(char *name, U8 loop)
 {
 	if (music_snd)
 		sounds_stopMusic();
 	music_snd = syssnd_load(name);
-	if (music_snd)
-	{
+	if (music_snd) {
 		music_snd->dispose = TRUE; /* music is always "fire and forget" */
 		syssnd_play(music_snd, loop);
 	}
 }
-
 
 
 /*
@@ -119,7 +120,8 @@ void sounds_setMusic(char* name, U8 loop)
  *
  * stops the current background music.
  */
-void sounds_stopMusic(void)
+void
+sounds_stopMusic(void)
 {
 	syssnd_stopsound(music_snd);
 	music_snd = NULL;
@@ -127,4 +129,4 @@ void sounds_stopMusic(void)
 
 #endif /* ENABLE_SOUND */
 
- /* eof */
+/* eof */

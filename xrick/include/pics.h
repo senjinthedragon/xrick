@@ -21,5 +21,3 @@ extern U32 pic_splash[];
 #endif
 
 /* eof */
-
-

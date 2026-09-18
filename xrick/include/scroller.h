@@ -25,5 +25,3 @@ extern U8 scroll_down(void);
 #endif
 
 /* eof */
-
-

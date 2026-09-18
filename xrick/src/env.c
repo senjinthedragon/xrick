@@ -12,14 +12,12 @@
  */
 
 
-
 #include "system.h"
 #include "config.h"
 #include "env.h"
 
 #include "fb.h"
 #include "tiles.h"
-
 
 
 U8 env_trainer = FALSE;
@@ -60,7 +58,8 @@ U8 env_changeSubmap = FALSE;
  *
  * paints the game environment (score, lives, bullets, bombs).
  */
-void env_paintGame(void)
+void
+env_paintGame(void)
 {
 	S8 i;
 	U32 sv;
@@ -68,8 +67,7 @@ void env_paintGame(void)
 
 	tiles_setBank(0);
 
-	for (i = 5, sv = env_score; i >= 0; i--)
-	{
+	for (i = 5, sv = env_score; i >= 0; i--) {
 		s[i] = 0x30 + (U8)(sv % 10);
 		sv /= 10;
 	}
@@ -92,7 +90,8 @@ void env_paintGame(void)
  *
  * paints the extra environment (cheats, modes...).
  */
-void env_paintXtra(void)
+void
+env_paintXtra(void)
 {
 	S8 i;
 	U32 sv;
@@ -121,7 +120,7 @@ void env_paintXtra(void)
 		sv /= 10;
 	}
 
-	tiles_paintListAt(s, 0, DRAW_STATUS_Y + 8*2);
+	tiles_paintListAt(s, 0, DRAW_STATUS_Y + 8 * 2);
 }
 
 
@@ -142,20 +141,16 @@ env_clearGame(void)
 	tiles_setBank(0);
 #endif
 
-  f = fb_at(DRAW_STATUS_SCORE_X, DRAW_STATUS_Y);
+	f = fb_at(DRAW_STATUS_SCORE_X, DRAW_STATUS_Y);
 #ifdef GFXPC
-	for (i = 0; i < DRAW_STATUS_LIVES_X/8 + 6 - DRAW_STATUS_SCORE_X/8; i++)
+	for (i = 0; i < DRAW_STATUS_LIVES_X / 8 + 6 - DRAW_STATUS_SCORE_X / 8; i++)
 		f = tile_paint(map_map[MAP_ROW_SCRTOP + (DRAW_STATUS_Y / 8)][i], f);
 #endif
 #ifdef GFXST
-	for (i = 0; i < DRAW_STATUS_LIVES_X/8 + 6 - DRAW_STATUS_SCORE_X/8; i++)
+	for (i = 0; i < DRAW_STATUS_LIVES_X / 8 + 6 - DRAW_STATUS_SCORE_X / 8; i++)
 		f = tiles_paint('@', f);
 #endif
 }
-
-
-
-
 
 
 /* eof */

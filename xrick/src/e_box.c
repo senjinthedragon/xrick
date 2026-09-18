@@ -50,7 +50,7 @@ static void explode(U8);
 void
 e_box_action(U8 e)
 {
-	static U8 sp[] = {0x24, 0x25, 0x26, 0x27, 0x28};  /* explosion sprites sequence */
+	static U8 sp[] = {0x24, 0x25, 0x26, 0x27, 0x28}; /* explosion sprites sequence */
 
 	if (ent_ents[e].n & ENT_LETHAL) {
 		/*
@@ -73,22 +73,19 @@ e_box_action(U8 e)
 #endif
 			if (ent_ents[e].n == 0x10)
 				env_bombs = GAME_BOMBS_INIT;
-			else  /* 0x11 */
+			else /* 0x11 */
 				env_bullets = GAME_BULLETS_INIT;
 			ent_ents[e].n = 0;
 			map_marks[ent_ents[e].mark].ent |= MAP_MARK_NACT;
-		}
-		else if (E_RICK_STTST(E_RICK_STSTOP) &&
-				u_fboxtest(e, e_rick_stop_x, e_rick_stop_y)) {
+		} else if (E_RICK_STTST(E_RICK_STSTOP) &&
+			   u_fboxtest(e, e_rick_stop_x, e_rick_stop_y)) {
 			/* rick's stick: explode */
 			explode(e);
-		}
-		else if (E_BULLET_ENT.n && u_fboxtest(e, e_bullet_xc, e_bullet_yc)) {
+		} else if (E_BULLET_ENT.n && u_fboxtest(e, e_bullet_xc, e_bullet_yc)) {
 			/* bullet: explode (and stop bullet) */
 			E_BULLET_ENT.n = 0;
 			explode(e);
-		}
-		else if (e_bomb_lethal && e_bomb_hit(e)) {
+		} else if (e_bomb_lethal && e_bomb_hit(e)) {
 			/* bomb: explode */
 			explode(e);
 		}
@@ -99,7 +96,8 @@ e_box_action(U8 e)
 /*
  * Explode when
  */
-static void explode(U8 e)
+static void
+explode(U8 e)
 {
 	ent_ents[e].cnt = SEQ_INIT;
 	ent_ents[e].n |= ENT_LETHAL;
@@ -109,5 +107,3 @@ static void explode(U8 e)
 }
 
 /* eof */
-
-

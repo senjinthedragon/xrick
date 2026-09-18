@@ -70,27 +70,30 @@ static void map_eflg_expand(U8);
 void
 map_expand(void)
 {
-  U8 i, j, k, l;
-  U8 row, col;
-  U16 pbnum;
+	U8 i, j, k, l;
+	U8 row, col;
+	U16 pbnum;
 
-  pbnum = map_submaps[env_submap].bnum + ((2 * map_frow) & 0xfff8);
-  row = col = 0;
+	pbnum = map_submaps[env_submap].bnum + ((2 * map_frow) & 0xfff8);
+	row = col = 0;
 
-  for (i = 0; i < 0x0b; i++) {  /* 0x0b rows of blocks */
-    for (j = 0; j < 0x08; j++) {  /* 0x08 blocks per row */
-      for (k = 0, l = 0; k < 0x04; k++) {  /* expand one block */
-	map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
-	map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
-	map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
-	map_map[row][col]   = map_blocks[map_bnums[pbnum]][l++];
-	row += 1; col -= 3;
-      }
-      row -= 4; col += 4;
-      pbnum++;
-    }
-    row += 4; col = 0;
-  }
+	for (i = 0; i < 0x0b; i++) {			    /* 0x0b rows of blocks */
+		for (j = 0; j < 0x08; j++) {		    /* 0x08 blocks per row */
+			for (k = 0, l = 0; k < 0x04; k++) { /* expand one block */
+				map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
+				map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
+				map_map[row][col++] = map_blocks[map_bnums[pbnum]][l++];
+				map_map[row][col] = map_blocks[map_bnums[pbnum]][l++];
+				row += 1;
+				col -= 3;
+			}
+			row -= 4;
+			col += 4;
+			pbnum++;
+		}
+		row += 4;
+		col = 0;
+	}
 }
 
 
@@ -116,18 +119,18 @@ map_init(void)
 
 	/* entities that are in the visible part of the map */
 	ent_actvis(
-		map_frow + MAPS_TOPHEIGHT_TL,
-		map_frow + MAPS_TOPHEIGHT_TL+MAPS_VISHEIGHT_TL-1);
+	    map_frow + MAPS_TOPHEIGHT_TL,
+	    map_frow + MAPS_TOPHEIGHT_TL + MAPS_VISHEIGHT_TL - 1);
 
 	/* entities that are in the hidden top of the map */
 	ent_actvis(
-		map_frow + 0,
-		map_frow + MAPS_TOPHEIGHT_TL-1);
+	    map_frow + 0,
+	    map_frow + MAPS_TOPHEIGHT_TL - 1);
 
 	/* entities that are in the hidden bottom of the map */
 	ent_actvis(
-		map_frow + MAPS_TOPHEIGHT_TL+MAPS_VISHEIGHT_TL,
-		map_frow + MAPS_TOPHEIGHT_TL+MAPS_VISHEIGHT_TL+MAPS_BOTHEIGHT_TL-1);
+	    map_frow + MAPS_TOPHEIGHT_TL + MAPS_VISHEIGHT_TL,
+	    map_frow + MAPS_TOPHEIGHT_TL + MAPS_VISHEIGHT_TL + MAPS_BOTHEIGHT_TL - 1);
 }
 
 
@@ -139,12 +142,13 @@ map_init(void)
 void
 map_eflg_expand(U8 offs)
 {
-  U8 i, j, k;
+	U8 i, j, k;
 
-  for (i = 0, k = 0; i < 0x10; i++) {
-    j = map_eflg_c[offs + i++];
-    while (j--) map_eflg[k++] = map_eflg_c[offs + i];
-  }
+	for (i = 0, k = 0; i < 0x10; i++) {
+		j = map_eflg_c[offs + i++];
+		while (j--)
+			map_eflg[k++] = map_eflg_c[offs + i];
+	}
 }
 
 
@@ -158,101 +162,93 @@ map_eflg_expand(U8 offs)
 U8
 map_chain(void)
 {
-  U16 c, t;
+	U16 c, t;
 
-  env_changeSubmap = 0; /* FIXME but not used?! */
-  e_sbonus_counting = FALSE; /* FIXME what? move this out of here!! */
+	env_changeSubmap = 0;	   /* FIXME but not used?! */
+	e_sbonus_counting = FALSE; /* FIXME what? move this out of here!! */
 
-  /* find connection */
-  c = map_submaps[env_submap].connect;
-  t = 3;
+	/* find connection */
+	c = map_submaps[env_submap].connect;
+	t = 3;
 
-  IFDEBUG_MAPS(
-    sys_printf("xrick/maps: chain submap=%#04x frow=%#04x .connect=%#04x %s\n",
-	       env_submap, map_frow, c,
-	       (game_dir == LEFT ? "-> left" : "-> right"));
-  );
+	IFDEBUG_MAPS(
+	    sys_printf("xrick/maps: chain submap=%#04x frow=%#04x .connect=%#04x %s\n",
+		       env_submap, map_frow, c,
+		       (game_dir == LEFT ? "-> left" : "-> right")););
 
-  /*
-   * look for the first connector with compatible row number. if none
-   * found, the player reached this submap's edge at a row the level
-   * data doesn't have an exit for -- normally unreachable (solid tiles
-   * are supposed to block you until you're at the right height), but
-   * if it happens anyway, treat the edge as a wall instead of crashing:
-   * push back in-bounds and let the caller know there's nothing to
-   * chain to.
-   */
-  for (c = map_submaps[env_submap].connect; ; c++) {
-    if (map_connect[c].dir == 0xff) {
-      IFDEBUG_MAPS(
-	sys_printf("xrick/maps: no connector for env_submap=%#04x map_frow=%#04x "
-		   "ent_y=%#06x (y>>3)=%#04x game_dir=%s -- blocking instead of chaining\n",
-		   env_submap, map_frow, ent_ents[1].y, ent_ents[1].y >> 3,
-		   (game_dir == LEFT ? "LEFT" : "RIGHT"));
-      );
-      /* NOT 0x04/0xe2 -- those are where e_rick.c leaves rick positioned
-       * assuming a transition INTO a fresh submap succeeds (matching
-       * that submap's own entry-side layout, which has open space
-       * there by design). We're staying in the CURRENT submap instead,
-       * whose matching edge is normally never actually stood on (you'd
-       * already have transitioned away) and is solid wall right up to
-       * the boundary -- landing exactly there left rick wedged with no
-       * headroom, stuck crouched with no way to stand back up. Push in
-       * a full two tiles instead, safely clear of that edge wall. */
-      ent_ents[1].x = (game_dir == LEFT) ? 0x10 : 0xd8;
-      /* rick can also trigger an edge-exit while climbing or crawling
-       * (e_rick.c's climbing/horizontal-move handlers set e_rick_atExit
-       * without clearing these) -- normally harmless because a real
-       * transition lands you in a new submap whose own layout continues
-       * the climb/crawl, but here we're denying the transition and
-       * leaving rick in the SAME submap, where nothing does that: left
-       * uncleared, rick gets stuck permanently animating/colliding as
-       * if still on a ladder or crawling through a gap that isn't
-       * there, with no way to recover except quitting. */
-      E_RICK_STRST(E_RICK_STCLIMB|E_RICK_STCRAWL);
-      return MAP_CHAIN_BLOCKED;
-    }
-    IFDEBUG_MAPS(
-      sys_printf("xrick/maps: candidate c=%#04x dir=%#04x rowout=%#04x submap=%#04x rowin=%#04x "
-		 "-- (y>>3)+frow=%#04x t=%#04x\n",
-		 c, map_connect[c].dir, map_connect[c].rowout, map_connect[c].submap,
-		 map_connect[c].rowin, (ent_ents[1].y >> 3) + map_frow,
-		 (U16)((ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout));
-    );
-    if (map_connect[c].dir != game_dir) continue;
-    t = (ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout;
-    if (t < 3) break;
-  }
+	/*
+	 * look for the first connector with compatible row number. if none
+	 * found, the player reached this submap's edge at a row the level
+	 * data doesn't have an exit for -- normally unreachable (solid tiles
+	 * are supposed to block you until you're at the right height), but
+	 * if it happens anyway, treat the edge as a wall instead of crashing:
+	 * push back in-bounds and let the caller know there's nothing to
+	 * chain to.
+	 */
+	for (c = map_submaps[env_submap].connect;; c++) {
+		if (map_connect[c].dir == 0xff) {
+			IFDEBUG_MAPS(
+			    sys_printf("xrick/maps: no connector for env_submap=%#04x map_frow=%#04x "
+				       "ent_y=%#06x (y>>3)=%#04x game_dir=%s -- blocking instead of chaining\n",
+				       env_submap, map_frow, ent_ents[1].y, ent_ents[1].y >> 3,
+				       (game_dir == LEFT ? "LEFT" : "RIGHT")););
+			/* NOT 0x04/0xe2 -- those are where e_rick.c leaves rick positioned
+			 * assuming a transition INTO a fresh submap succeeds (matching
+			 * that submap's own entry-side layout, which has open space
+			 * there by design). We're staying in the CURRENT submap instead,
+			 * whose matching edge is normally never actually stood on (you'd
+			 * already have transitioned away) and is solid wall right up to
+			 * the boundary -- landing exactly there left rick wedged with no
+			 * headroom, stuck crouched with no way to stand back up. Push in
+			 * a full two tiles instead, safely clear of that edge wall. */
+			ent_ents[1].x = (game_dir == LEFT) ? 0x10 : 0xd8;
+			/* rick can also trigger an edge-exit while climbing or crawling
+			 * (e_rick.c's climbing/horizontal-move handlers set e_rick_atExit
+			 * without clearing these) -- normally harmless because a real
+			 * transition lands you in a new submap whose own layout continues
+			 * the climb/crawl, but here we're denying the transition and
+			 * leaving rick in the SAME submap, where nothing does that: left
+			 * uncleared, rick gets stuck permanently animating/colliding as
+			 * if still on a ladder or crawling through a gap that isn't
+			 * there, with no way to recover except quitting. */
+			E_RICK_STRST(E_RICK_STCLIMB | E_RICK_STCRAWL);
+			return MAP_CHAIN_BLOCKED;
+		}
+		IFDEBUG_MAPS(
+		    sys_printf("xrick/maps: candidate c=%#04x dir=%#04x rowout=%#04x submap=%#04x rowin=%#04x "
+			       "-- (y>>3)+frow=%#04x t=%#04x\n",
+			       c, map_connect[c].dir, map_connect[c].rowout, map_connect[c].submap,
+			       map_connect[c].rowin, (ent_ents[1].y >> 3) + map_frow,
+			       (U16)((ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout)););
+		if (map_connect[c].dir != game_dir) continue;
+		t = (ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout;
+		if (t < 3) break;
+	}
 
-  /* got it */
-  IFDEBUG_MAPS(
-    sys_printf("xrick/maps: chain frow=%#04x y=%#06x\n",
-	       map_frow, ent_ents[1].y);
-    sys_printf("xrick/maps: chain connect=%#04x rowout=%#04x - ",
-	       c, map_connect[c].rowout);
-    );
+	/* got it */
+	IFDEBUG_MAPS(
+	    sys_printf("xrick/maps: chain frow=%#04x y=%#06x\n",
+		       map_frow, ent_ents[1].y);
+	    sys_printf("xrick/maps: chain connect=%#04x rowout=%#04x - ",
+		       c, map_connect[c].rowout););
 
-  if (map_connect[c].submap == 0xff) {
-    /* no next submap - request next map */
-    IFDEBUG_MAPS(
-      sys_printf("chain to next map\n");
-      );
-    return FALSE;
-  }
-  else  {
-    /* next submap */
-    IFDEBUG_MAPS(
-      sys_printf("chain to submap=%#04x rowin=%#04x\n",
-		 map_connect[c].submap, map_connect[c].rowin);
-      );
-    map_frow = map_frow - map_connect[c].rowout + map_connect[c].rowin;
-    env_submap = map_connect[c].submap;
-    IFDEBUG_MAPS(
-      sys_printf("xrick/maps: chain frow=%#04x\n",
-		 map_frow);
-      );
-    return TRUE;
-  }
+	if (map_connect[c].submap == 0xff) {
+		/* no next submap - request next map */
+		IFDEBUG_MAPS(
+		    sys_printf("chain to next map\n"););
+		return FALSE;
+	} else {
+		/* next submap */
+		IFDEBUG_MAPS(
+		    sys_printf("chain to submap=%#04x rowin=%#04x\n",
+			       map_connect[c].submap, map_connect[c].rowin););
+		map_frow = map_frow - map_connect[c].rowout + map_connect[c].rowin;
+		env_submap = map_connect[c].submap;
+		IFDEBUG_MAPS(
+		    sys_printf("xrick/maps: chain frow=%#04x\n",
+			       map_frow););
+		return TRUE;
+	}
 }
 
 
@@ -265,9 +261,9 @@ map_chain(void)
 void
 map_resetMarks(void)
 {
-  U16 i;
-  for (i = 0; i < MAP_NBR_MARKS; i++)
-    map_marks[i].ent &= ~MAP_MARK_NACT;
+	U16 i;
+	for (i = 0; i < MAP_NBR_MARKS; i++)
+		map_marks[i].ent &= ~MAP_MARK_NACT;
 }
 
 
@@ -278,7 +274,8 @@ map_resetMarks(void)
  *
  * paints the current map to the frame buffer.
  */
-void maps_paint(void)
+void
+maps_paint(void)
 {
 	U8 i, j;
 	U8 *f;
@@ -299,14 +296,14 @@ void maps_paint(void)
 }
 
 
-
 /*
  * maps_paintRect
  *
  * paints a portion of the map at <x>, <y> of size <width>, <height>.
  * <x>, <y> expressed in map/px.
  */
-void maps_paintRect(U16 x, U16 y, U16 width, U16 height)
+void
+maps_paintRect(U16 x, U16 y, U16 width, U16 height)
 {
 	U16 x_fb, y_fb;
 	U8 *fb;
@@ -316,7 +313,7 @@ void maps_paintRect(U16 x, U16 y, U16 width, U16 height)
 	maps_alignRect(&x, &y, &width, &height);
 
 	/* clip */
-	if (maps_clip(&x, &y, &width, &height))  /* return if not visible */
+	if (maps_clip(&x, &y, &width, &height)) /* return if not visible */
 		return;
 
 	/* convert to fb/px */
@@ -346,7 +343,6 @@ void maps_paintRect(U16 x, U16 y, U16 width, U16 height)
 }
 
 
-
 /*
  * maps_alignRect
  *
@@ -354,12 +350,13 @@ void maps_paintRect(U16 x, U16 y, U16 width, U16 height)
  * coordinates expressed in map/px.
  * resulting rectangle might be bigger.
  */
-void maps_alignRect(U16 *x, U16 *y, U16 *width, U16 *height)
+void
+maps_alignRect(U16 *x, U16 *y, U16 *width, U16 *height)
 {
 	U16 xa, ya;
 	U16 wa, ha;
 
-  	/* align to column and row */
+	/* align to column and row */
 	xa = *x & 0xfff8;
 	ya = *y & 0xfff8;
 
@@ -376,7 +373,6 @@ void maps_alignRect(U16 *x, U16 *y, U16 *width, U16 *height)
 }
 
 
-
 /*
  * maps_clip
  *
@@ -384,52 +380,40 @@ void maps_alignRect(U16 *x, U16 *y, U16 *width, U16 *height)
  * <x>, <y> expressed in map/px.
  * returns TRUE if fully clipped, FALSE if still (at least partly) visible.
  */
-U8 maps_clip(U16 *x, U16 *y, U16 *width, U16 *height)
+U8
+maps_clip(U16 *x, U16 *y, U16 *width, U16 *height)
 {
-	if (*x < 0)
-	{
+	if (*x < 0) {
 		if (*x + *width < 0)
 			return TRUE;
-		else
-		{
+		else {
 			*width += *x;
 			*x = 0;
 		}
-	}
-	else
-	{
+	} else {
 		if (*x > MAPS_WIDTH_PX)
 			return TRUE;
-		else
-		if (*x + *width > MAPS_WIDTH_PX)
-		{
+		else if (*x + *width > MAPS_WIDTH_PX) {
 			*width = MAPS_WIDTH_PX - *x;
 		}
 	}
 
-	if (*y < MAPS_TOPHEIGHT_PX)
-	{
+	if (*y < MAPS_TOPHEIGHT_PX) {
 		if ((*y + *height) < MAPS_TOPHEIGHT_PX)
 			return TRUE;
-		else
-		{
+		else {
 			*height += *y - MAPS_TOPHEIGHT_PX;
 			*y = MAPS_TOPHEIGHT_PX;
 		}
-	}
-	else
-	{
-		if (*y >= MAPS_TOPHEIGHT_PX+MAPS_VISHEIGHT_PX)
+	} else {
+		if (*y >= MAPS_TOPHEIGHT_PX + MAPS_VISHEIGHT_PX)
 			return TRUE;
-		else
-		if (*y + *height > MAPS_TOPHEIGHT_PX+MAPS_VISHEIGHT_PX)
-			*height = MAPS_TOPHEIGHT_PX+MAPS_VISHEIGHT_PX - *y;
+		else if (*y + *height > MAPS_TOPHEIGHT_PX + MAPS_VISHEIGHT_PX)
+			*height = MAPS_TOPHEIGHT_PX + MAPS_VISHEIGHT_PX - *y;
 	}
 
 	return FALSE;
 }
-
-
 
 
 /* eof */

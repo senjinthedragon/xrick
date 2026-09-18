@@ -35,8 +35,7 @@ screen_xrick(void)
 	static U8 seq = 0;
 	static U8 wait = 0;
 
-	if (seq == 0)
-	{
+	if (seq == 0) {
 		fb_clear();
 		sysvid_setGamma(255);
 		img_paintImg(IMG_SPLASH);
@@ -44,11 +43,9 @@ screen_xrick(void)
 		seq = 1;
 	}
 
-	switch (seq)
-	{
-	case 1:  /* wait */
-		if (wait++ > 0x2)
-		{
+	switch (seq) {
+	case 1: /* wait */
+		if (wait++ > 0x2) {
 #ifdef ENABLE_SOUND
 			sounds_setMusic("sounds/bullet.ogg", 1);
 #endif
@@ -57,15 +54,14 @@ screen_xrick(void)
 		}
 		break;
 
-	case 2:  /* wait */
-		if (wait++ > 0x20)
-		{
+	case 2: /* wait */
+		if (wait++ > 0x20) {
 			seq = 99;
 			wait = 0;
 		}
 	}
 
-	if (control_status & CONTROL_EXIT)  /* check for exit request */
+	if (control_status & CONTROL_EXIT) /* check for exit request */
 		return SCREEN_EXIT;
 
 	if (seq == 99) /* we're done */
@@ -79,4 +75,3 @@ screen_xrick(void)
 }
 
 /* eof */
-

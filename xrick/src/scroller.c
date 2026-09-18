@@ -33,65 +33,64 @@ static U8 period;
 U8
 scroll_up(void)
 {
-  U8 i, j;
-  static U8 n = 0;
+	U8 i, j;
+	static U8 n = 0;
 
-  /* last call: restore */
-  if (n == 8) {
-    n = 0;
-    game_period = period;
-    return SCROLL_DONE;
-  }
+	/* last call: restore */
+	if (n == 8) {
+		n = 0;
+		game_period = period;
+		return SCROLL_DONE;
+	}
 
-  /* first call: prepare */
-  if (n == 0) {
-    period = game_period;
-    game_period = SCROLL_PERIOD;
-  }
+	/* first call: prepare */
+	if (n == 0) {
+		period = game_period;
+		game_period = SCROLL_PERIOD;
+	}
 
-  /* translate map */
-  for (i = MAP_ROW_SCRTOP; i < MAP_ROW_HBBOT; i++)
-    for (j = 0x00; j < 0x20; j++)
-      map_map[i][j] = map_map[i + 1][j];
+	/* translate map */
+	for (i = MAP_ROW_SCRTOP; i < MAP_ROW_HBBOT; i++)
+		for (j = 0x00; j < 0x20; j++)
+			map_map[i][j] = map_map[i + 1][j];
 
-  /* translate entities */
-  for (i = 0; ent_ents[i].n != 0xFF; i++) {
-    if (ent_ents[i].n) {
-      ent_ents[i].ysave -= 8;
-      ent_ents[i].trig_y -= 8;
-      ent_ents[i].y -= 8;
-      if (ent_ents[i].y & 0x8000) {  /* map coord. from 0x0000 to 0x0140 */
-	IFDEBUG_SCROLLER(
-	  sys_printf("xrick/scroller: entity %#04X is gone\n", i);
-	  );
-	ent_ents[i].n = 0;
-      }
-    }
-  }
+	/* translate entities */
+	for (i = 0; ent_ents[i].n != 0xFF; i++) {
+		if (ent_ents[i].n) {
+			ent_ents[i].ysave -= 8;
+			ent_ents[i].trig_y -= 8;
+			ent_ents[i].y -= 8;
+			if (ent_ents[i].y & 0x8000) { /* map coord. from 0x0000 to 0x0140 */
+				IFDEBUG_SCROLLER(
+				    sys_printf("xrick/scroller: entity %#04X is gone\n", i););
+				ent_ents[i].n = 0;
+			}
+		}
+	}
 
-  /* display */
+	/* display */
 	maps_paint();
-  ents_paintAll();
-  env_paintGame();
-  map_frow++;
+	ents_paintAll();
+	env_paintGame();
+	map_frow++;
 
-  /* loop */
-  if (n++ == 7) {
-    /* activate visible entities */
-    ent_actvis(map_frow + MAP_ROW_HBTOP, map_frow + MAP_ROW_HBBOT);
+	/* loop */
+	if (n++ == 7) {
+		/* activate visible entities */
+		ent_actvis(map_frow + MAP_ROW_HBTOP, map_frow + MAP_ROW_HBBOT);
 
-    /* prepare map */
-    map_expand();
+		/* prepare map */
+		map_expand();
 
-    /* display */
-	maps_paint();
-    ents_paintAll();
-    env_paintGame();
-  }
+		/* display */
+		maps_paint();
+		ents_paintAll();
+		env_paintGame();
+	}
 
-  game_rects = &draw_SCREENRECT;
+	game_rects = &draw_SCREENRECT;
 
-  return SCROLL_RUNNING;
+	return SCROLL_RUNNING;
 }
 
 /*
@@ -101,65 +100,64 @@ scroll_up(void)
 U8
 scroll_down(void)
 {
-  U8 i, j;
-  static U8 n = 0;
+	U8 i, j;
+	static U8 n = 0;
 
-  /* last call: restore */
-  if (n == 8) {
-    n = 0;
-    game_period = period;
-    return SCROLL_DONE;
-  }
+	/* last call: restore */
+	if (n == 8) {
+		n = 0;
+		game_period = period;
+		return SCROLL_DONE;
+	}
 
-  /* first call: prepare */
-  if (n == 0) {
-    period = game_period;
-    game_period = SCROLL_PERIOD;
-  }
+	/* first call: prepare */
+	if (n == 0) {
+		period = game_period;
+		game_period = SCROLL_PERIOD;
+	}
 
-  /* translate map */
-  for (i = MAP_ROW_SCRBOT; i > MAP_ROW_HTTOP; i--)
-    for (j = 0x00; j < 0x20; j++)
-      map_map[i][j] = map_map[i - 1][j];
+	/* translate map */
+	for (i = MAP_ROW_SCRBOT; i > MAP_ROW_HTTOP; i--)
+		for (j = 0x00; j < 0x20; j++)
+			map_map[i][j] = map_map[i - 1][j];
 
-  /* translate entities */
-  for (i = 0; ent_ents[i].n != 0xFF; i++) {
-    if (ent_ents[i].n) {
-      ent_ents[i].ysave += 8;
-      ent_ents[i].trig_y += 8;
-      ent_ents[i].y += 8;
-      if (ent_ents[i].y > 0x0140) {  /* map coord. from 0x0000 to 0x0140 */
-	IFDEBUG_SCROLLER(
-	  sys_printf("xrick/scroller: entity %#04X is gone\n", i);
-	  );
-	ent_ents[i].n = 0;
-      }
-    }
-  }
+	/* translate entities */
+	for (i = 0; ent_ents[i].n != 0xFF; i++) {
+		if (ent_ents[i].n) {
+			ent_ents[i].ysave += 8;
+			ent_ents[i].trig_y += 8;
+			ent_ents[i].y += 8;
+			if (ent_ents[i].y > 0x0140) { /* map coord. from 0x0000 to 0x0140 */
+				IFDEBUG_SCROLLER(
+				    sys_printf("xrick/scroller: entity %#04X is gone\n", i););
+				ent_ents[i].n = 0;
+			}
+		}
+	}
 
-  /* display */
+	/* display */
 	maps_paint();
-  ents_paintAll();
-  env_paintGame();
-  map_frow--;
+	ents_paintAll();
+	env_paintGame();
+	map_frow--;
 
-  /* loop */
-  if (n++ == 7) {
-    /* activate visible entities */
-    ent_actvis(map_frow + MAP_ROW_HTTOP, map_frow + MAP_ROW_HTBOT);
+	/* loop */
+	if (n++ == 7) {
+		/* activate visible entities */
+		ent_actvis(map_frow + MAP_ROW_HTTOP, map_frow + MAP_ROW_HTBOT);
 
-    /* prepare map */
-    map_expand();
+		/* prepare map */
+		map_expand();
 
-    /* display */
-	maps_paint();
-    ents_paintAll();
-    env_paintGame();
-  }
+		/* display */
+		maps_paint();
+		ents_paintAll();
+		env_paintGame();
+	}
 
-  game_rects = &draw_SCREENRECT;
+	game_rects = &draw_SCREENRECT;
 
-  return SCROLL_RUNNING;
+	return SCROLL_RUNNING;
 }
 
 /* eof */

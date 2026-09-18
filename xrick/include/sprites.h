@@ -42,11 +42,11 @@ void sprites_paint2(U8, U16, U16, U8);
 #define SPRITES_NBR_SPRITES (0x9b)
 
 typedef struct {
-  U16 mask;
-  U16 pict;
+	U16 mask;
+	U16 pict;
 } spriteX_t;
 
-typedef spriteX_t sprite_t[4][0x15];   /* one sprite */
+typedef spriteX_t sprite_t[4][0x15]; /* one sprite */
 
 extern sprite_t sprites_data[SPRITES_NBR_SPRITES];
 
@@ -56,7 +56,7 @@ extern sprite_t sprites_data[SPRITES_NBR_SPRITES];
 
 #define SPRITES_NBR_SPRITES (0xD5)
 
-typedef U32 sprite_t[0x54];  /* 0x15 per 0x04 */
+typedef U32 sprite_t[0x54]; /* 0x15 per 0x04 */
 
 extern sprite_t sprites_data[SPRITES_NBR_SPRITES];
 
@@ -65,4 +65,3 @@ extern sprite_t sprites_data[SPRITES_NBR_SPRITES];
 #endif
 
 /* eof */
-

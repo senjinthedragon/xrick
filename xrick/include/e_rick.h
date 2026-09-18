@@ -43,5 +43,3 @@ extern U8 e_rick_boxtest(U8);
 #endif
 
 /* eof */
-
-
