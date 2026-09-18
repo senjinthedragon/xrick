@@ -50,7 +50,7 @@ screen_xrick(void)
 		if (wait++ > 0x2)
 		{
 #ifdef ENABLE_SOUND
-			sounds_setMusic("sounds/bullet.wav", 1);
+			sounds_setMusic("sounds/bullet.ogg", 1);
 #endif
 			seq = 2;
 			wait = 0;

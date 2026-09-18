@@ -16,6 +16,8 @@
 #include <memory.h>
 #include <string.h> /* strlen, strncpy */
 
+#include <vorbis/vorbisfile.h>
+
 #include "syssnd.h"
 
 #ifdef ENABLE_SOUND
@@ -48,11 +50,6 @@ static SDL_Mutex *sndlock;
 /*
  * prototypes
  */
-static int sdlRWops_open(SDL_RWops *context, char *name);
-static int sdlRWops_seek(SDL_RWops *context, int offset, int whence);
-static int sdlRWops_read(SDL_RWops *context, void *ptr, int size, int maxnum);
-static int sdlRWops_write(SDL_RWops *context, const void *ptr, int size, int num);
-static int sdlRWops_close(SDL_RWops *context);
 static void end_channel(U8);
 
 /*
@@ -66,13 +63,13 @@ static void
 syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_amount, UNUSED(int total_amount))
 {
 	U8 c;
-	S16 s;
+	S32 s;
 	int i;
-	static U8 mixbuf[SYSSND_MIXSAMPLES]; /* scratch space, resized below if needed */
-	U8 *buf;
-	int nsamples = additional_amount;
+	static S16 mixbuf[SYSSND_MIXSAMPLES]; /* scratch space, resized below if needed */
+	S16 *buf;
+	int nsamples = additional_amount / (int)sizeof(S16);
 
-	buf = (nsamples <= (int)sizeof(mixbuf)) ? mixbuf : malloc(nsamples);
+	buf = (nsamples <= (int)(sizeof(mixbuf)/sizeof(mixbuf[0]))) ? mixbuf : malloc(nsamples * sizeof(S16));
 	if (!buf) return;
 
 	SDL_LockMutex(sndlock);
@@ -86,7 +83,7 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 			{
 				if (channel[c].len > 0) /* not ending */
 				{
-					s += ADJVOL(*channel[c].buf - 0x80);
+					s += ADJVOL(*channel[c].buf);
 					channel[c].buf++;
 					channel[c].len--;
 				}
@@ -98,7 +95,7 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 						IFDEBUG_AUDIO2(sys_printf("xrick/audio: channel %d - loop\n", c););
 						channel[c].buf = channel[c].snd->buf;
 						channel[c].len = channel[c].snd->len;
-						s += ADJVOL(*channel[c].buf - 0x80);
+						s += ADJVOL(*channel[c].buf);
 						channel[c].buf++;
 						channel[c].len--;
 					}
@@ -113,20 +110,19 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 
 		if (sndMute)
 		{
-			buf[i] = 0x80;
+			buf[i] = 0;
 		}
 		else
 		{
-			s += 0x80;
-			if (s > 0xff) s = 0xff;
-			if (s < 0x00) s = 0x00;
-			buf[i] = (U8)s;
+			if (s > 32767) s = 32767;
+			if (s < -32768) s = -32768;
+			buf[i] = (S16)s;
 		}
 	}
 
 	SDL_UnlockMutex(sndlock);
 
-	SDL_PutAudioStreamData(stream, buf, nsamples);
+	SDL_PutAudioStreamData(stream, buf, nsamples * (int)sizeof(S16));
 
 	if (buf != mixbuf) free(buf);
 }
@@ -154,7 +150,7 @@ syssnd_init(void)
   }
 
   desired.freq = SYSSND_FREQ;
-  desired.format = SDL_AUDIO_U8;
+  desired.format = SDL_AUDIO_S16;
   desired.channels = SYSSND_CHANNELS;
 
   audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &desired, syssnd_callback, NULL);
@@ -361,25 +357,89 @@ syssnd_stopall(void)
 }
 
 /*
- * Load a sound.
+ * Vorbisfile I/O callbacks, wrapping our data_file_t abstraction (plain
+ * directory, or in-memory zip entry -- see data.c).
+ */
+static size_t
+vorbisIO_read(void *ptr, size_t size, size_t nmemb, void *datasource)
+{
+	int n = data_file_read((data_file_t *)datasource, ptr, size, nmemb);
+	return n < 0 ? 0 : (size_t)n;
+}
+
+static int
+vorbisIO_seek(void *datasource, ogg_int64_t offset, int whence)
+{
+	return data_file_seek((data_file_t *)datasource, (long)offset, whence);
+}
+
+static int
+vorbisIO_close(void *datasource)
+{
+	data_file_close((data_file_t *)datasource);
+	return 0;
+}
+
+static long
+vorbisIO_tell(void *datasource)
+{
+	return data_file_tell((data_file_t *)datasource);
+}
+
+/*
+ * Load a sound (Ogg Vorbis, mono), fully decoded to S16 PCM up-front.
  */
 sound_t *
 syssnd_load(char *name)
 {
 	sound_t *s;
-	SDL_RWops *context;
-	SDL_AudioSpec audiospec;
-
-	/* alloc context */
-	context = malloc(sizeof(SDL_RWops));
-	context->seek = sdlRWops_seek;
-	context->read = sdlRWops_read;
-	context->write = sdlRWops_write;
-	context->close = sdlRWops_close;
+	OggVorbis_File vf;
+	ov_callbacks cb = { vorbisIO_read, vorbisIO_seek, vorbisIO_close, vorbisIO_tell };
+	data_file_t *f;
+	vorbis_info *vi;
+	S16 *pcm;
+	long cap, used, n;
+	int bitstream;
 
 	/* open */
-	if (sdlRWops_open(context, name) == -1)
+	f = data_file_open(name);
+	if (!f) return NULL;
+
+	if (ov_open_callbacks(f, &vf, NULL, 0, cb) < 0) {
+		data_file_close(f);
 		return NULL;
+	}
+
+	vi = ov_info(&vf, -1);
+	if (!vi || vi->channels != 1) {
+		ov_clear(&vf); /* also closes f via vorbisIO_close */
+		return NULL;
+	}
+
+	cap = 65536; /* bytes; grows as needed */
+	used = 0;
+	pcm = malloc(cap);
+	if (!pcm) {
+		ov_clear(&vf);
+		return NULL;
+	}
+
+	while ((n = ov_read(&vf, (char *)pcm + used, (int)(cap - used), 0, 2, 1, &bitstream)) > 0) {
+		used += n;
+		if (used == cap) {
+			S16 *grown;
+			cap *= 2;
+			grown = realloc(pcm, cap);
+			if (!grown) {
+				free(pcm);
+				ov_clear(&vf);
+				return NULL;
+			}
+			pcm = grown;
+		}
+	}
+
+	ov_clear(&vf);
 
 	/* alloc sound */
 	s = malloc(sizeof(sound_t));
@@ -388,14 +448,8 @@ syssnd_load(char *name)
 	strncpy(s->name, name, strlen(name) + 1);
 #endif
 
-	/* read */
-	/* second param == 1 -> close source once read */
-	if (!SDL_LoadWAV_RW(context, 1, &audiospec, &(s->buf), &(s->len)))
-	{
-		free(s);
-		return NULL;
-	}
-
+	s->buf = pcm;
+	s->len = (U32)(used / (long)sizeof(S16));
 	s->dispose = FALSE;
 
 	return s;
@@ -408,57 +462,11 @@ void
 syssnd_free(sound_t *s)
 {
 	if (!s) return;
-	if (s->buf) SDL_FreeWAV(s->buf);
+	if (s->buf) free(s->buf);
 	s->buf = NULL;
 	s->len = 0;
-}
-
-/*
- *
- */
-static int
-sdlRWops_open(SDL_RWops *context, char *name)
-{
-	data_file_t *f;
-
-	f = data_file_open(name);
-	if (!f) return -1;
-	context->hidden.unknown.data1 = (void *)f;
-
-	return 0;
-}
-
-static int
-sdlRWops_seek(SDL_RWops *context, int offset, int whence)
-{
-	return data_file_seek((data_file_t *)(context->hidden.unknown.data1), offset, whence);
-}
-
-static int
-sdlRWops_read(SDL_RWops *context, void *ptr, int size, int maxnum)
-{
-	return data_file_read((data_file_t *)(context->hidden.unknown.data1), ptr, size, maxnum);
-}
-
-static int
-sdlRWops_write(SDL_RWops *context, const void *ptr, int size, int num)
-{
-	/* not implemented */
-	return -1;
-}
-
-static int
-sdlRWops_close(SDL_RWops *context)
-{
-	if (context)
-	{
-		data_file_close((data_file_t *)(context->hidden.unknown.data1));
-		free(context);
-	}
-	return 0;
 }
 
 #endif /* ENABLE_SOUND */
 
 /* eof */
-

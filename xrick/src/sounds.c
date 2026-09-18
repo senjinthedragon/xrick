@@ -40,31 +40,31 @@ void sounds_load(void)
 	/*
 	 * Cache sounds
 	 *
-	 * tune[0-5].wav not cached
+	 * tune[0-5].ogg not cached
 	 */
-	WAV_GAMEOVER = syssnd_load("sounds/gameover.wav");
-	WAV_SBONUS2 = syssnd_load("sounds/sbonus2.wav");
-	WAV_BULLET = syssnd_load("sounds/bullet.wav");
-	WAV_BOMBSHHT = syssnd_load("sounds/bombshht.wav");
-	WAV_EXPLODE = syssnd_load("sounds/explode.wav");
-	WAV_STICK = syssnd_load("sounds/stick.wav");
-	WAV_WALK = syssnd_load("sounds/walk.wav");
-	WAV_CRAWL = syssnd_load("sounds/crawl.wav");
-	WAV_JUMP = syssnd_load("sounds/jump.wav");
-	WAV_PAD = syssnd_load("sounds/pad.wav");
-	WAV_BOX = syssnd_load("sounds/box.wav");
-	WAV_BONUS = syssnd_load("sounds/bonus.wav");
-	WAV_SBONUS1 = syssnd_load("sounds/sbonus1.wav");
-	WAV_DIE = syssnd_load("sounds/die.wav");
-	WAV_ENTITY[0] = syssnd_load("sounds/ent0.wav");
-	WAV_ENTITY[1] = syssnd_load("sounds/ent1.wav");
-	WAV_ENTITY[2] = syssnd_load("sounds/ent2.wav");
-	WAV_ENTITY[3] = syssnd_load("sounds/ent3.wav");
-	WAV_ENTITY[4] = syssnd_load("sounds/ent4.wav");
-	WAV_ENTITY[5] = syssnd_load("sounds/ent5.wav");
-	WAV_ENTITY[6] = syssnd_load("sounds/ent6.wav");
-	WAV_ENTITY[7] = syssnd_load("sounds/ent7.wav");
-	WAV_ENTITY[8] = syssnd_load("sounds/ent8.wav");
+	WAV_GAMEOVER = syssnd_load("sounds/gameover.ogg");
+	WAV_SBONUS2 = syssnd_load("sounds/sbonus2.ogg");
+	WAV_BULLET = syssnd_load("sounds/bullet.ogg");
+	WAV_BOMBSHHT = syssnd_load("sounds/bombshht.ogg");
+	WAV_EXPLODE = syssnd_load("sounds/explode.ogg");
+	WAV_STICK = syssnd_load("sounds/stick.ogg");
+	WAV_WALK = syssnd_load("sounds/walk.ogg");
+	WAV_CRAWL = syssnd_load("sounds/crawl.ogg");
+	WAV_JUMP = syssnd_load("sounds/jump.ogg");
+	WAV_PAD = syssnd_load("sounds/pad.ogg");
+	WAV_BOX = syssnd_load("sounds/box.ogg");
+	WAV_BONUS = syssnd_load("sounds/bonus.ogg");
+	WAV_SBONUS1 = syssnd_load("sounds/sbonus1.ogg");
+	WAV_DIE = syssnd_load("sounds/die.ogg");
+	WAV_ENTITY[0] = syssnd_load("sounds/ent0.ogg");
+	WAV_ENTITY[1] = syssnd_load("sounds/ent1.ogg");
+	WAV_ENTITY[2] = syssnd_load("sounds/ent2.ogg");
+	WAV_ENTITY[3] = syssnd_load("sounds/ent3.ogg");
+	WAV_ENTITY[4] = syssnd_load("sounds/ent4.ogg");
+	WAV_ENTITY[5] = syssnd_load("sounds/ent5.ogg");
+	WAV_ENTITY[6] = syssnd_load("sounds/ent6.ogg");
+	WAV_ENTITY[7] = syssnd_load("sounds/ent7.ogg");
+	WAV_ENTITY[8] = syssnd_load("sounds/ent8.ogg");
 }
 
 void sounds_free(void)
