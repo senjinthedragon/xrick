@@ -24,7 +24,7 @@ This is all work-in-progress and will be updated.
 ## About this fork
 
 This fork takes the #050500 codebase and ports it from SDL2 to **SDL3**, replacing the old
-`SDL_Renderer` backend with a custom `SDL_GPU` pipeline. Emscripten support has been removed —
+`SDL_Renderer` backend with a custom `SDL_GPU` pipeline. Emscripten support has been removed -
 this fork targets a native, self-contained desktop build only.
 
 What's new here:
@@ -34,10 +34,10 @@ What's new here:
   phosphor mask, bloom, spherical curvature), both ported from the real RetroArch `slang-shaders`.
 * **Monitor bezel** compositing (Commodore 1084S), with screen curvature tied to it.
 * **Self-contained binary**: game data, shaders, and bezel/mask art are embedded directly into
-  the executable (via C23 `#embed`) — no loose data files needed at runtime.
+  the executable (via C23 `#embed`) - no loose data files needed at runtime.
 * **Audio** converted from 8-bit PCM WAV to Ogg Vorbis, decoded via `libvorbisfile`.
 * A number of real, pre-existing bugs found and fixed along the way (see commit history for
-  specifics — none were introduced by the port itself).
+  specifics - none were introduced by the port itself).
 
 ### Building
 
