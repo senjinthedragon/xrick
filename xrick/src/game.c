@@ -177,7 +177,7 @@ static void game_exit(void);
 void
 game_run(char *path)
 {
-	sys_printf("xrick/game: path='%s'\n", path ? path : "");
+	sys_printf("xrick/game: path='%s'\n", path ? path : "(embedded)");
 
 	data_setpath(path);
 	loadData(); /* load cached data */

@@ -141,6 +141,13 @@ extern unzFile ZEXPORT unzOpen OF((const char *path));
 	   of this unzip package.
 */
 
+extern unzFile ZEXPORT unzOpenMemory OF((const void *data, long size));
+/*
+  Open a Zip file held entirely in memory (e.g. embedded in the executable
+  via #embed) rather than on disk. <data>/<size> must remain valid for as
+  long as the returned handle, and any handle unzDup()'d from it, are open.
+*/
+
 extern int ZEXPORT unzClose OF((unzFile file));
 /*
   Close a ZipFile opened with unzipOpen.

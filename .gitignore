@@ -4,3 +4,6 @@ Debug/
 Release/
 build.tmp/
 data.zip
+build/linux/
+build/xrick
+build/shaders/

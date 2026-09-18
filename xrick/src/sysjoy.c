@@ -11,7 +11,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "config.h"
 
@@ -25,40 +25,41 @@ static SDL_Joystick *j = NULL;
 void
 sysjoy_init(void)
 {
-  U8 i, jcount;
+  int jcount, i;
+  SDL_JoystickID *ids;
 
-  if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0) {
+  if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
     IFDEBUG_JOYSTICK(
       sys_printf("xrick/joystick: can not initialize joystick subsystem\n");
       );
     return;
   }
 
-  jcount = SDL_NumJoysticks();
-  if (!jcount) {  /* no joystick on this system */
+  ids = SDL_GetJoysticks(&jcount);
+  if (!ids || !jcount) {  /* no joystick on this system */
     IFDEBUG_JOYSTICK(sys_printf("xrick/joystick: no joystick available\n"););
+    SDL_free(ids);
     return;
   }
 
   /* use the first joystick that we can open */
   for (i = 0; i < jcount; i++) {
-    j = SDL_JoystickOpen(i);
+    j = SDL_OpenJoystick(ids[i]);
     if (j)
       break;
   }
+  SDL_free(ids);
 
-  /* enable events */
-  SDL_JoystickEventState(SDL_ENABLE);
+  /* joystick events are enabled by default in SDL3 */
 }
 
 void
 sysjoy_shutdown(void)
 {
   if (j)
-    SDL_JoystickClose(j);
+    SDL_CloseJoystick(j);
 }
 
 #endif /* ENABLE_JOYSTICK */
 
 /* eof */
-

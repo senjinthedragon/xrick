@@ -27,6 +27,11 @@ extern int sysarg_args_vol;
 #endif
 extern char* sysarg_args_data;
 
+extern int sysarg_args_upscale;  /* upscaleMode_t value, see sysvid.h */
+extern int sysarg_args_crt;      /* crtMode_t value, see sysvid.h */
+extern int sysarg_args_bezel;    /* bezelMode_t value, see sysvid.h */
+extern int sysarg_args_royale_mask; /* royaleMaskType_t value, see sysvid.h */
+
 extern void sysarg_init(int, char**);
 
 #endif /* _SYSARG_H */

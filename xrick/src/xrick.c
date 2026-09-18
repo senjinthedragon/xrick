@@ -17,8 +17,10 @@
 #include "game.h"
 #include "fb.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef __WIN32__
 #include <windows.h>
 #endif
@@ -27,7 +29,7 @@
 /*
  * Sets a console, if possible
  */
-static setConsole()
+static void setConsole(void)
 {
 	// NOTE: does not handle parent process console being redirected
 	// eg "./xrick > stdout.txt" still writes to the actual console
@@ -58,7 +60,7 @@ sys_init(int argc, char** argv)
 	sysarg_init(argc, argv);
 
 	// FIXME not writing to stdxxx.txt files anymore?
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0)
+	if (!SDL_Init(SDL_INIT_VIDEO))
 		sys_panic("xrick/video: could not init SDL\n");
 
 	// FIXME logging
@@ -112,13 +114,8 @@ main(int argc, char *argv[])
 {
 	sys_init(argc, argv);
 
-	char* path;
-	if (sysarg_args_data)
-		path = sysarg_args_data;
-	else
-		path = "data.zip";
-
-	game_run(path);
+	/* NULL means: use the data archive embedded in this executable */
+	game_run(sysarg_args_data);
 
 	sys_shutdown();
 	return 0;

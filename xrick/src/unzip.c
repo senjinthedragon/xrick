@@ -127,6 +127,10 @@ typedef struct
     file_in_zip_read_info_s* pfile_in_zip_read; /* structure about the current
 	                                    file if we are decompressing it */
 	char *filename;
+	const void *mem_data;        /* non-NULL if opened via unzOpenMemory() --
+	                                 lets unzDup() reopen off the same buffer
+	                                 instead of fopen()'ing filename */
+	long mem_size;
 } unz_s;
 
 
@@ -142,7 +146,9 @@ extern unzFile ZEXPORT unzDup(unzFile file)
 	t = *x;
 
 	/* tweek */
-	t.file = fopen(x->filename, "rb");
+	t.file = x->mem_data ?
+		fmemopen((void *)x->mem_data, (size_t)x->mem_size, "rb") :
+		fopen(x->filename, "rb");
 	t.pfile_in_zip_read = NULL;
 
 	/* cast & return */
@@ -366,13 +372,16 @@ local uLong unzlocal_SearchCentralDir(fin)
      Else, the return value is a unzFile Handle, usable with other function
 	   of this unzip package.
 */
-extern unzFile ZEXPORT unzOpen (path)
-	const char *path;
+/*
+ * Shared body of unzOpen/unzOpenMemory: parses the central directory off
+ * an already-opened FILE* (from fopen() or fmemopen()).
+ */
+static unzFile
+unzlocal_OpenFin(FILE *fin, const char *filename, const void *mem_data, long mem_size)
 {
 	unz_s us;
 	unz_s *s;
 	uLong central_pos,uL;
-	FILE * fin ;
 
 	uLong number_disk;          /* number of the current dist, used for
 								   spaning ZIP, unsupported, always 0*/
@@ -384,10 +393,6 @@ extern unzFile ZEXPORT unzOpen (path)
 
 	int err=UNZ_OK;
 
-    if (unz_copyright[0]!=' ')
-        return NULL;
-
-    fin=fopen(path,"rb");
 	if (fin==NULL)
 		return NULL;
 
@@ -452,13 +457,46 @@ extern unzFile ZEXPORT unzOpen (path)
 	us.central_pos = central_pos;
     us.pfile_in_zip_read = NULL;
 
-    us.filename = path;
+    us.filename = (char *)filename;
+    us.mem_data = mem_data;
+    us.mem_size = mem_size;
 
 
 	s=(unz_s*)ALLOC(sizeof(unz_s));
 	*s=us;
 	unzGoToFirstFile((unzFile)s);
 	return (unzFile)s;
+}
+
+extern unzFile ZEXPORT unzOpen (path)
+	const char *path;
+{
+	FILE *fin;
+
+    if (unz_copyright[0]!=' ')
+        return NULL;
+
+    fin=fopen(path,"rb");
+	if (fin==NULL)
+		return NULL;
+
+	return unzlocal_OpenFin(fin, path, NULL, 0);
+}
+
+extern unzFile ZEXPORT unzOpenMemory(data, size)
+	const void *data;
+	long size;
+{
+	FILE *fin;
+
+    if (unz_copyright[0]!=' ')
+        return NULL;
+
+	fin=fmemopen((void *)data, (size_t)size, "rb");
+	if (fin==NULL)
+		return NULL;
+
+	return unzlocal_OpenFin(fin, NULL, data, size);
 }
 
 

@@ -22,8 +22,8 @@ typedef struct {
 #ifdef DEBUG
 	char* name;
 #endif
-	U8* buf;
-	U32 len;
+	S16* buf;  /* decoded PCM samples */
+	U32 len;   /* sample count, not bytes */
 	U8 dispose;
 } sound_t;
 
@@ -40,7 +40,7 @@ extern int syssnd_isplaying(sound_t*);
 extern sound_t* syssnd_load(char* name);
 extern void syssnd_free(sound_t*);
 
-/* 8-bit mono at 22050Hz */
+/* 16-bit mono at 22050Hz (sound files are Ogg Vorbis, decoded to S16 PCM) */
 #define SYSSND_FREQ 22050
 #define SYSSND_CHANNELS 1
 #define SYSSND_MAXVOL 10
@@ -53,8 +53,8 @@ extern void syssnd_free(sound_t*);
 
 typedef struct {
 	sound_t *snd;
-	U8 *buf;
-	U32 len;
+	S16 *buf;
+	U32 len;   /* sample count remaining, not bytes */
 	S8 loop;
 } channel_t;
 

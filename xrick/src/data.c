@@ -18,6 +18,7 @@
 #include "data.h"
 
 #include "unzip.h"
+#include "data_embedded.h"
 
 /*
  * Private typedefs
@@ -57,6 +58,16 @@ data_setpath(char *name)
 #ifdef WITH_ZLIB
 	unzFile zip;
 	char *n;
+
+	if (name == NULL) {
+		/* no -data given: use the archive embedded in the executable */
+		zip = unzOpenMemory(data_embedded_zip, (long)data_embedded_zip_len);
+		if (!zip)
+			sys_panic("(data) can not open embedded data");
+		path.zip = zip;
+		path.name = NULL;
+		return;
+	}
 
 	if (str_zipext(name)) {
 		/* path has .zip extension */

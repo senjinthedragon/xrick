@@ -18,7 +18,7 @@
 #include <stdlib.h>  /* atoi */
 #include <string.h>  /* strcasecmp */
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "system.h"
 #include "syskbd.h"
@@ -33,7 +33,7 @@
 #endif
 
 typedef struct {
-  char name[16];
+  char name[20];
   int code;
 } sdlcodes_t;
 
@@ -51,6 +51,11 @@ int sysarg_args_nosound = 0;
 int sysarg_args_vol = 0;
 char *sysarg_args_data = NULL;
 
+int sysarg_args_upscale = 0;  /* 0=none, 1=fsr1 */
+int sysarg_args_crt = 0;      /* 0=none, 1=easymode, 2=royale */
+int sysarg_args_bezel = 0;    /* 0=none, 1=1084s */
+int sysarg_args_royale_mask = 0; /* 0=slot, 1=grille, 2=shadow */
+
 /*
  * Fail
  */
@@ -58,9 +63,9 @@ void
 sysarg_fail(char *msg)
 {
 #ifdef ENABLE_SOUND
-	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -nosound : Disable sounds. The default is to play with sounds enabled.\n  -vol <vol> : Play sounds at volume <vol>. <vol> must be an integer\n    between 0 (silence) and %d (max). The default is to play sounds\n    at maximal volume (%d).\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS, SYSSND_MAXVOL, SYSSND_MAXVOL);
+	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -nosound : Disable sounds. The default is to play with sounds enabled.\n  -vol <vol> : Play sounds at volume <vol>. <vol> must be an integer\n    between 0 (silence) and %d (max). The default is to play sounds\n    at maximal volume (%d).\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS, SYSSND_MAXVOL, SYSSND_MAXVOL);
 #else
-	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS);
+	sys_printf("xrick [version #%s]: %s\nusage: xrick [<options>]\n<option> =\n  -h, -help : Display this information.\n-fullscreen : Run in fullscreen mode.\n    The default is to run in a window.\n  -speed <speed> : Run at speed <speed>. Speed must be an integer between 1\n    (fast) and 100 (slow). The default is %d\n  -zoom <zoom> : Display with zoom factor <zoom>. <zoom> must be an integer\n   between 1 (320x200) and x (x times bigger). The default is 2.\n  -map <map> : Start at map number <map>. <map> must be an integer between\n    1 and %d. The default is to start at map number 1\n  -submap <submap> : Start at submap <submap>. <submap> must be an integer\n    between 1 and %d. The default is to start at submap number 1 or, if a map\n    was specified, at the first submap of that map.\n  -keys <left>-<right>-<up>-<down>-<fire> : Override the default key\n    bindings (cf. KeyCodes)\n  -upscale <none|fsr1> : Select the startup upscale filter. Default: none.\n  -crt <none|easymode|royale> : Select the startup CRT effect. Default: none.\n  -bezel <none|1084s> : Select the startup bezel. Default: none.\n  -royale-mask <slot|grille|shadow> : Select the crt-royale phosphor mask type. Default: slot.\n", VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS);
 #endif
 	exit(1);
 }
@@ -200,10 +205,42 @@ sysarg_init(int argc, char **argv)
       sysarg_args_nosound = 1;
     }
 #endif
+#ifdef ENABLE_DEVTOOLS
 	else if (!strcmp(argv[i], "-data")) {
 		if (++i == argc) sysarg_fail("missing data");
 		sysarg_args_data = argv[i];
 	}
+#endif
+
+    else if (!strcmp(argv[i], "-upscale")) {
+      if (++i == argc) sysarg_fail("missing upscale mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_upscale = 0;
+      else if (!strcasecmp(argv[i], "fsr1")) sysarg_args_upscale = 1;
+      else sysarg_fail("invalid upscale mode");
+    }
+
+    else if (!strcmp(argv[i], "-crt")) {
+      if (++i == argc) sysarg_fail("missing crt mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_crt = 0;
+      else if (!strcasecmp(argv[i], "easymode")) sysarg_args_crt = 1;
+      else if (!strcasecmp(argv[i], "royale")) sysarg_args_crt = 2;
+      else sysarg_fail("invalid crt mode");
+    }
+
+    else if (!strcmp(argv[i], "-bezel")) {
+      if (++i == argc) sysarg_fail("missing bezel mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_bezel = 0;
+      else if (!strcasecmp(argv[i], "1084s")) sysarg_args_bezel = 1;
+      else sysarg_fail("invalid bezel mode");
+    }
+
+    else if (!strcmp(argv[i], "-royale-mask")) {
+      if (++i == argc) sysarg_fail("missing royale mask type");
+      if (!strcasecmp(argv[i], "slot")) sysarg_args_royale_mask = 0;
+      else if (!strcasecmp(argv[i], "grille")) sysarg_args_royale_mask = 1;
+      else if (!strcasecmp(argv[i], "shadow")) sysarg_args_royale_mask = 2;
+      else sysarg_fail("invalid royale mask type");
+    }
 
     else {
       sysarg_fail("invalid argument(s)");

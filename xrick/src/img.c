@@ -16,10 +16,6 @@
 
 
 
-img_t *IMG_SPLASH;
-
-
-
 /*
  * paints an image of size <width>,<height> with data in <pic> at
  * position <x>,<y> (fb/px).
