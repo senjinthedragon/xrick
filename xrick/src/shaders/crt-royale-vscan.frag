@@ -6,8 +6,7 @@
  * is lit by 3 nearby source scanlines through a color-dependent Gaussian
  * falloff (brighter colors -> wider beam), not a plain resize filter.
  * Ported from crt-royale-scanlines-vertical-interlacing.slang, with two
- * simplifications justified by the real default settings (see
- * ~/.claude/.../project_xrick_sdl3_port.md for the full writeup):
+ * simplifications justified by the real default settings:
  *   - beam_generalized_gaussian is set to its documented "false" (plain
  *     Gaussian, not generalized) option, avoiding a full incomplete-gamma-
  *     function implementation for a subtle shape difference.
