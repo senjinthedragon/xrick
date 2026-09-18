@@ -66,7 +66,8 @@ fullscreen, F2/F3 zoom, F4-F6 sound mute/volume, F7-F9 cheats.
 
 `-controls classic` (the default) is the original game: hold **fire** and press **up**/**down**
 to shoot/drop a bomb. `-controls modern` adds dedicated shoot/bomb keys (**A**/**S** by default)
-on top of that, without removing the classic combo.
+on top of that, without removing the classic combo. Either way, you need to be standing still
+to shoot or drop a bomb - moving or crouching first, same as the original game.
 
 ### Credits
 
