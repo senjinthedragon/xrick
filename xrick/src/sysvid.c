@@ -673,16 +673,32 @@ runPass(SDL_GPUCommandBuffer *cmd, SDL_GPUGraphicsPipeline *pipeline,
  * createPipeline
  *
  * small helper: fullscreen-triangle pipeline, shared vertex shader,
- * given fragment shader and color target format.
+ * given fragment shader and color target format. enableBlend turns on
+ * standard src-alpha/one-minus-src-alpha blending -- needed only for
+ * the bezel background draw, whose PNG has transparent pixels outside
+ * the artwork (their RGB is meaningless "don't care" filler picked by
+ * whatever tool exported the PNG -- must not be trusted as an opaque
+ * color, only the alpha channel says what's really visible). Every
+ * other pipeline draws fully opaque content, for which blending is a
+ * no-op, so this only needs to be true at the one bezel call site.
  */
 static SDL_GPUGraphicsPipeline *
-createPipeline(SDL_GPUShader *fragShader, SDL_GPUTextureFormat targetFormat)
+createPipeline(SDL_GPUShader *fragShader, SDL_GPUTextureFormat targetFormat, bool enableBlend)
 {
 	SDL_GPUColorTargetDescription colorTarget;
 	SDL_GPUGraphicsPipelineCreateInfo pipeInfo;
 
 	memset(&colorTarget, 0, sizeof(colorTarget));
 	colorTarget.format = targetFormat;
+	if (enableBlend) {
+		colorTarget.blend_state.enable_blend = true;
+		colorTarget.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+		colorTarget.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+		colorTarget.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+		colorTarget.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+		colorTarget.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
+		colorTarget.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+	}
 
 	memset(&pipeInfo, 0, sizeof(pipeInfo));
 	pipeInfo.vertex_shader = gpuVertShader;
@@ -1210,24 +1226,24 @@ sysvid_init(U16 width, U16 height)
 	 * write straight to the swapchain. Every filter combination's own
 	 * "tail" pass now targets gpuFinalIntermediate (R8G8B8A8_UNORM)
 	 * instead -- see sysvid_update()'s unified final-pass comment. */
-	gpuPassthroughPipeline = createPipeline(gpuPassthroughFragShader, swapchainFormat);
-	gpuPassthroughToIntermediatePipeline = createPipeline(gpuPassthroughFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
-	gpuCrtEasymodePipeline = createPipeline(gpuCrtEasymodeFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
-	gpuRcasToSwapchainPipeline = createPipeline(gpuRcasFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
-	gpuCrtEasymodePostPipeline = createPipeline(gpuCrtEasymodePostFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
-	gpuEasuPipeline = createPipeline(gpuEasuFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
-	gpuRcasToIntermediatePipeline = createPipeline(gpuRcasFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+	gpuPassthroughPipeline = createPipeline(gpuPassthroughFragShader, swapchainFormat, true);
+	gpuPassthroughToIntermediatePipeline = createPipeline(gpuPassthroughFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuCrtEasymodePipeline = createPipeline(gpuCrtEasymodeFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuRcasToSwapchainPipeline = createPipeline(gpuRcasFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuCrtEasymodePostPipeline = createPipeline(gpuCrtEasymodePostFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuEasuPipeline = createPipeline(gpuEasuFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, false);
+	gpuRcasToIntermediatePipeline = createPipeline(gpuRcasFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, false);
 
-	gpuRoyaleLinearizePipeline = createPipeline(gpuRoyaleLinearizeFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
-	gpuRoyaleVscanPipeline = createPipeline(gpuRoyaleVscanFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT);
-	gpuRoyaleBloomApproxPipeline = createPipeline(gpuRoyaleBloomApproxFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
-	gpuRoyaleHscanMaskPipeline = createPipeline(gpuRoyaleHscanMaskFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT);
-	gpuRoyaleBrightpassPipeline = createPipeline(gpuRoyaleBrightpassFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT);
-	gpuRoyaleBloomBlurPipeline = createPipeline(gpuRoyaleBloomBlurFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT);
-	gpuRoyaleReconstitutePipeline = createPipeline(gpuRoyaleReconstituteFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT);
+	gpuRoyaleLinearizePipeline = createPipeline(gpuRoyaleLinearizeFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, false);
+	gpuRoyaleVscanPipeline = createPipeline(gpuRoyaleVscanFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false);
+	gpuRoyaleBloomApproxPipeline = createPipeline(gpuRoyaleBloomApproxFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, false);
+	gpuRoyaleHscanMaskPipeline = createPipeline(gpuRoyaleHscanMaskFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false);
+	gpuRoyaleBrightpassPipeline = createPipeline(gpuRoyaleBrightpassFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false);
+	gpuRoyaleBloomBlurPipeline = createPipeline(gpuRoyaleBloomBlurFragShader, SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT, false);
+	gpuRoyaleReconstitutePipeline = createPipeline(gpuRoyaleReconstituteFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
 
-	gpuCurvaturePipeline = createPipeline(gpuCurvatureFragShader, swapchainFormat);
-	gpuFinalEncodePipeline = createPipeline(gpuFinalEncodeFragShader, swapchainFormat);
+	gpuCurvaturePipeline = createPipeline(gpuCurvatureFragShader, swapchainFormat, false);
+	gpuFinalEncodePipeline = createPipeline(gpuFinalEncodeFragShader, swapchainFormat, false);
 
 	if (!gpuPassthroughPipeline || !gpuPassthroughToIntermediatePipeline || !gpuCrtEasymodePipeline || !gpuRcasToSwapchainPipeline || !gpuCrtEasymodePostPipeline || !gpuEasuPipeline || !gpuRcasToIntermediatePipeline || !gpuRoyaleLinearizePipeline || !gpuRoyaleVscanPipeline || !gpuRoyaleBloomApproxPipeline || !gpuRoyaleHscanMaskPipeline || !gpuRoyaleBrightpassPipeline || !gpuRoyaleBloomBlurPipeline || !gpuRoyaleReconstitutePipeline || !gpuCurvaturePipeline || !gpuFinalEncodePipeline)
 		sys_panic("xrick/video: could not create GPU pipelines (%s)", SDL_GetError());
