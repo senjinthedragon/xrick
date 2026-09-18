@@ -39,6 +39,7 @@ extern void e_rick_restore(void);
 extern void e_rick_action(U8);
 extern void e_rick_gozombie(void);
 extern U8 e_rick_boxtest(U8);
+extern void e_rick_resetShootDebounce(void);
 
 #endif
 

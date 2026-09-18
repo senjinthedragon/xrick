@@ -27,6 +27,7 @@
 
 #include "control.h"
 #include "draw.h"
+#include "e_rick.h"
 
 #define SYSJOY_RANGE 3280
 
@@ -137,9 +138,11 @@ processEvent()
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
 			CLRBIT(control_status, CONTROL_FIRE | CONTROL_UP);
 			control_last = CONTROL_FIRE;
+			e_rick_resetShootDebounce();
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
 			CLRBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
 			control_last = CONTROL_FIRE;
+			e_rick_resetShootDebounce();
 		}
 		break;
 	case SDL_EVENT_QUIT:

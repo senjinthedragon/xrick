@@ -80,6 +80,24 @@ e_rick_boxtest(U8 e)
 
 
 /*
+ * Reset the "not an automatic gun" shoot debounce (see e_rick_action2).
+ *
+ * The classic fire+up/fire+down combo only ever resets this by keeping
+ * fire held while switching away from exactly fire+up for a frame (e.g.
+ * fire+down, or fire alone) -- releasing fire completely skips that
+ * reset entirely. Modern controls' dedicated shoot/bomb keys release
+ * fire and the direction together, so they need to reset this
+ * explicitly instead, or the shot after the first one is silently
+ * blocked forever.
+ */
+void
+e_rick_resetShootDebounce(void)
+{
+	trigger = FALSE;
+}
+
+
+/*
  * Go zombie
  *
  * ASM 1851
