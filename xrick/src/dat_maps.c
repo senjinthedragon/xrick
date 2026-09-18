@@ -77,7 +77,16 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
   /* map 0 */
 
   /* map 0 submap 0 */
-  {0x01, 0x18, 0xff, 0x00},
+  {0xfe, 0x18, 0xff, 0x00}, /* was {0x01,...}: LEFT at the very start of a map
+                             * with submap=0xff is map_chain()'s "map finished,
+                             * advance" signal misapplied to "nothing behind
+                             * the start" -- was never reachable in the
+                             * original (you start against the left wall),
+                             * but is in this port; dir=0xfe permanently
+                             * disables this entry so it falls through to the
+                             * MAP_CHAIN_BLOCKED wall instead of skipping a
+                             * whole map. Same pattern at every map's first
+                             * submap -- see project memory / map_chain(). */
   {0000, 0x38, 0x01, 0x18},
   {0xff, 0x00, 0x00, 0x00},
   /* map 0 submap 1 */
@@ -117,7 +126,7 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
 
   /* map 1 submap 9 */
   {0000, 0x18, 0x0a, 0x60},
-  {0x01, 0x78, 0xff, 0x00},
+  {0xfe, 0x78, 0xff, 0x00}, /* was {0x01,...} -- see map 0 submap 0's note */
   {0xff, 0x00, 0x00, 0x00},
   /* map 1 submap a */
   {0000, 0x18, 0x0b, 0x30},
@@ -163,7 +172,7 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
   /* map 2 */
 
   /* map 2 submap 14 */     /* sequence 14-15-16-17 is clean */
-  {0x01, 0x20, 0xff, 0x00},
+  {0xfe, 0x20, 0xff, 0x00}, /* was {0x01,...} -- see map 0 submap 0's note */
   {0000, 0x40, 0x15, 0x18},
   {0xff, 0x00, 0x00, 0x00},
   /* map 2 submap 15 */
@@ -249,8 +258,8 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
 
   /* map 3 */
 
-  /* map 3 submap 26 */
-  {0x01, 0x20, 0xff, 0x00},
+  /* map 3 submap 26 */ /* also map 4's start submap -- see map_maps[] */
+  {0xfe, 0x20, 0xff, 0x00}, /* was {0x01,...} -- see map 0 submap 0's note */
   {0000, 0x28, 0x27, 0x68},
   {0xff, 0x00, 0x00, 0x00},
   /* map 3 submap 27 */

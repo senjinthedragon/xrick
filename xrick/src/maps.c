@@ -39,6 +39,7 @@
 #include "ents.h"
 #include "draw.h"
 #include "screens.h"
+#include "e_rick.h"
 #include "e_sbonus.h"
 #include "tiles.h"
 #include "fb.h"
@@ -174,11 +175,50 @@ map_chain(void)
 
   /*
    * look for the first connector with compatible row number. if none
-   * found, then panic
+   * found, the player reached this submap's edge at a row the level
+   * data doesn't have an exit for -- normally unreachable (solid tiles
+   * are supposed to block you until you're at the right height), but
+   * if it happens anyway, treat the edge as a wall instead of crashing:
+   * push back in-bounds and let the caller know there's nothing to
+   * chain to.
    */
   for (c = map_submaps[env_submap].connect; ; c++) {
-    if (map_connect[c].dir == 0xff)
-      sys_panic("(map_chain) can not find connector\n");
+    if (map_connect[c].dir == 0xff) {
+      IFDEBUG_MAPS(
+	sys_printf("xrick/maps: no connector for env_submap=%#04x map_frow=%#04x "
+		   "ent_y=%#06x (y>>3)=%#04x game_dir=%s -- blocking instead of chaining\n",
+		   env_submap, map_frow, ent_ents[1].y, ent_ents[1].y >> 3,
+		   (game_dir == LEFT ? "LEFT" : "RIGHT"));
+      );
+      /* NOT 0x04/0xe2 -- those are where e_rick.c leaves rick positioned
+       * assuming a transition INTO a fresh submap succeeds (matching
+       * that submap's own entry-side layout, which has open space
+       * there by design). We're staying in the CURRENT submap instead,
+       * whose matching edge is normally never actually stood on (you'd
+       * already have transitioned away) and is solid wall right up to
+       * the boundary -- landing exactly there left rick wedged with no
+       * headroom, stuck crouched with no way to stand back up. Push in
+       * a full two tiles instead, safely clear of that edge wall. */
+      ent_ents[1].x = (game_dir == LEFT) ? 0x10 : 0xd8;
+      /* rick can also trigger an edge-exit while climbing or crawling
+       * (e_rick.c's climbing/horizontal-move handlers set e_rick_atExit
+       * without clearing these) -- normally harmless because a real
+       * transition lands you in a new submap whose own layout continues
+       * the climb/crawl, but here we're denying the transition and
+       * leaving rick in the SAME submap, where nothing does that: left
+       * uncleared, rick gets stuck permanently animating/colliding as
+       * if still on a ladder or crawling through a gap that isn't
+       * there, with no way to recover except quitting. */
+      E_RICK_STRST(E_RICK_STCLIMB|E_RICK_STCRAWL);
+      return MAP_CHAIN_BLOCKED;
+    }
+    IFDEBUG_MAPS(
+      sys_printf("xrick/maps: candidate c=%#04x dir=%#04x rowout=%#04x submap=%#04x rowin=%#04x "
+		 "-- (y>>3)+frow=%#04x t=%#04x\n",
+		 c, map_connect[c].dir, map_connect[c].rowout, map_connect[c].submap,
+		 map_connect[c].rowin, (ent_ents[1].y >> 3) + map_frow,
+		 (U16)((ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout));
+    );
     if (map_connect[c].dir != game_dir) continue;
     t = (ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout;
     if (t < 3) break;

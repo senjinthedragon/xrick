@@ -155,7 +155,9 @@ void game_toggleCheat(U8 nbr)
 			break;
 		}
 
+#ifdef ENABLE_DEVTOOLS
 		env_paintXtra(); /* fixme -- shouldn't this be done elswhere? */
+#endif
 
 		/* FIXME this should probably only raise a flag ... */
 		/* plus we only need to update INFORECT not the whole screen */
@@ -191,8 +193,8 @@ game_run(char *path)
 	// callback, fps, simulate_infinite_loop
 	//
 	// "If called on the main browser thread, setting 0 or a negative value as the fps will
-	// use the browser’s requestAnimationFrame mechanism to call the main loop function."
-	// "This is HIGHLY recommended if you are doing rendering, as the browser’s
+	// use the browserï¿½s requestAnimationFrame mechanism to call the main loop function."
+	// "This is HIGHLY recommended if you are doing rendering, as the browserï¿½s
 	// requestAnimationFrame will make sure you render at a proper smooth rate that lines
 	// up properly with the browser and monitor."
 	//
@@ -403,7 +405,9 @@ static void game_cycle(void)
 				maps_paint();                     /* draw the map onto the buffer */
 				//ents_paintAll();
 				env_paintGame();              /* draw the status bar onto the buffer */
+#ifdef ENABLE_DEVTOOLS
 				env_paintXtra();                   /* draw the info bar onto the buffer */
+#endif
 				game_rects = &draw_SCREENRECT;  /* request full buffer refresh */
 				game_state = FADEIN__CTRL_ACTION;
 			}
@@ -580,13 +584,21 @@ static void game_cycle(void)
 
 		case NEXT_SUBMAP:
 
-			if (map_chain())
+			switch (map_chain())
 			{
+			case MAP_CHAIN_BLOCKED:
+				/* reached the edge at a row this submap has no exit
+				 * for -- treat it as a wall (map_chain() already
+				 * pushed rick back in-bounds) and just resume play */
+				game_state = PAINT;
+				break;
+
+			case TRUE:
 				/* next submap, now initialize */
 				game_state = INIT_SUBMAP;
-			}
-			else
-			{
+				break;
+
+			default:
 				/* end of submap, chain to next map */
 
 				env_bullets = 0x06;
@@ -600,6 +612,7 @@ static void game_cycle(void)
 				}
 
 				game_state = NEXT_MAP;
+				break;
 			}
 			break;
 
@@ -635,7 +648,9 @@ static void game_cycle(void)
 			maps_paint();                     /* draw the map onto the buffer */
 			ents_paintAll();
 			env_paintGame();              /* draw the status bar onto the buffer */
+#ifdef ENABLE_DEVTOOLS
 			env_paintXtra();
+#endif
 			game_rects = &draw_SCREENRECT;  /* request full screen refresh */
 			game_state = CTRL_ACTION;
 			return;

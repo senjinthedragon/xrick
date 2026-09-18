@@ -129,7 +129,7 @@ e_rick_z_action(void)
 	ylow = i;
 
 	/* dead when out of screen */
-	if (E_RICK_ENT.y < 0 || E_RICK_ENT.y > 0x0140)
+	if ((S16)E_RICK_ENT.y < 0 || E_RICK_ENT.y > 0x0140)
 		E_RICK_STSET(E_RICK_STDEAD);
 }
 
@@ -214,7 +214,7 @@ e_rick_action2(void)
 	if (control_status & CONTROL_LEFT) {  /* move left */
 		x = E_RICK_ENT.x - 2;
 		game_dir = LEFT;
-		if (x < 0) {  /* prev submap */
+		if ((S16)x < 0) {  /* prev submap */
 			e_rick_atExit = TRUE;
 			E_RICK_ENT.x = 0xe2;
 			return;
@@ -408,7 +408,7 @@ e_rick_action2(void)
     /* left-right: calc new x and test environment */
     if (control_status & CONTROL_LEFT) {
       x = E_RICK_ENT.x - 0x02;
-      if (x < 0) {  /* (i.e. negative) prev submap */
+      if ((S16)x < 0) {  /* (i.e. negative) prev submap */
 	e_rick_atExit = TRUE;
 	/*6dbd = 0x00;*/
 	E_RICK_ENT.x = 0xe2;

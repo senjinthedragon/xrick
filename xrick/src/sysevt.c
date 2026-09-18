@@ -229,10 +229,25 @@ sysevt_wait(void)
 
 #ifdef EMSCRIPTEN
   if (SDL_PollEvent(&event))
-#else
-  SDL_WaitEvent(&event);
-#endif
   processEvent();
+#else
+  /* Block indefinitely as usual, except while the OSD's few-second
+   * message is still counting down: bound the wait so the game loop
+   * keeps ticking (and sysvid_update() keeps checking the OSD timer)
+   * even on an otherwise-static screen like a menu or Hall of Fame,
+   * where nothing else would wake this loop up before the next real
+   * input event -- which could be much later than 5 seconds away. */
+  if (sysvid_osdActive())
+  {
+    if (SDL_WaitEventTimeout(&event, 100))
+      processEvent();
+  }
+  else
+  {
+    SDL_WaitEvent(&event);
+    processEvent();
+  }
+#endif
 }
 
 /* eof */

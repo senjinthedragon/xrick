@@ -42,7 +42,9 @@
 
 /* development tools */
 #undef ENABLE_DEVTOOLS
-#define DEBUG /* see include/debug.h */
+#undef DEBUG /* see include/debug.h -- turns on verbose per-subsystem
+              * logging (video/audio/ents/maps/scroller); leave off for
+              * normal play */
 
 /* zlib */
 #ifndef NOZLIB

@@ -24,9 +24,18 @@
  * Private typedefs
  */
 #ifdef WITH_ZLIB
+/*
+ * minizip's unzip.c only supports sequential decompression, not random
+ * seeking within a compressed entry. Since data files (sounds) are small,
+ * we fully decompress each entry into memory when opened, then serve
+ * size/seek/tell/read entirely out of that buffer -- same as the plain
+ * directory (FILE*) path below.
+ */
 typedef struct {
 	char *name;
-	unzFile zip;
+	U8 *buf;
+	long size;
+	long pos;
 } zipped_t;
 #endif
 
@@ -117,16 +126,42 @@ data_file_open(char *name)
 	FILE *fh;
 #ifdef WITH_ZLIB
 	zipped_t *z;
+	unzFile zf;
+	unz_file_info info;
+	long got;
+	int r;
 
 	if (path.zip) {
-	    z = malloc(sizeof(zipped_t));
-	    z->name = _strdup(name);
-	    z->zip = unzDup(path.zip);
-	    if (unzLocateFile(z->zip, name, 0) != UNZ_OK ||
-	    	unzOpenCurrentFile(z->zip) != UNZ_OK) {
-			unzClose(z->zip);
-			z = NULL;
+		zf = unzDup(path.zip);
+		if (unzLocateFile(zf, name, 0) != UNZ_OK ||
+			unzGetCurrentFileInfo(zf, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK ||
+			unzOpenCurrentFile(zf) != UNZ_OK) {
+			unzClose(zf);
+			return NULL;
 		}
+
+		z = malloc(sizeof(zipped_t));
+		z->name = strdup(name);
+		z->size = (long)info.uncompressed_size;
+		z->pos = 0;
+		z->buf = malloc(z->size ? z->size : 1);
+
+		got = 0;
+		while (got < z->size) {
+			r = unzReadCurrentFile(zf, z->buf + got, (unsigned)(z->size - got));
+			if (r <= 0) break;
+			got += r;
+		}
+		unzCloseCurrentFile(zf);
+		unzClose(zf);
+
+		if (got != z->size) {
+			free(z->buf);
+			free(z->name);
+			free(z);
+			return NULL;
+		}
+
 	    return (data_file_t *)z;
 	} else {
 #endif
@@ -146,7 +181,7 @@ data_file_size(data_file_t *file)
 	int s;
 #ifdef WITH_ZLIB
 	if (path.zip) {
-		/* not implemented */
+		s = (int)((zipped_t *)file)->size;
 	} else {
 #endif
 		fseek((FILE *)file, 0, SEEK_END);
@@ -166,8 +201,18 @@ data_file_seek(data_file_t *file, long offset, int origin)
 {
 #ifdef WITH_ZLIB
 	if (path.zip) {
-		/* not implemented */
-		return -1;
+		zipped_t *z = (zipped_t *)file;
+		long base;
+		switch (origin) {
+		case SEEK_SET: base = 0; break;
+		case SEEK_CUR: base = z->pos; break;
+		case SEEK_END: base = z->size; break;
+		default: return -1;
+		}
+		base += offset;
+		if (base < 0 || base > z->size) return -1;
+		z->pos = base;
+		return 0;
 	} else {
 #endif
 		return fseek((FILE *)file, offset, origin);
@@ -184,8 +229,7 @@ data_file_tell(data_file_t *file)
 {
 #ifdef WITH_ZLIB
 	if (path.zip) {
-		/* not implemented */
-		return -1;
+		return (int)((zipped_t *)file)->pos;
 	} else {
 #endif
 		return ftell((FILE *)file);
@@ -202,7 +246,15 @@ data_file_read(data_file_t *file, void *buf, size_t size, size_t count)
 {
 #ifdef WITH_ZLIB
 	if (path.zip) {
-		return unzReadCurrentFile(((zipped_t *)file)->zip, buf, size * count) / size;
+		zipped_t *z = (zipped_t *)file;
+		size_t avail = (size_t)(z->size - z->pos);
+		size_t want = size * count;
+		size_t n = want <= avail ? want : avail;
+		size_t elems = size ? n / size : 0;
+		n = elems * size;
+		memcpy(buf, z->buf + z->pos, n);
+		z->pos += n;
+		return (int)elems;
 	} else {
 #endif
 		return fread(buf, size, count, (FILE *)file);
@@ -220,10 +272,10 @@ data_file_close(data_file_t *file)
 {
 #ifdef WITH_ZLIB
 	if (path.zip) {
-		unzClose(((zipped_t *)file)->zip);
-		((zipped_t *)file)->zip = NULL;
-		free(((zipped_t *)file)->name);
-		((zipped_t *)file)->name = NULL;
+		zipped_t *z = (zipped_t *)file;
+		free(z->buf);
+		free(z->name);
+		free(z);
 	} else {
 #endif
 		fclose((FILE *)file);

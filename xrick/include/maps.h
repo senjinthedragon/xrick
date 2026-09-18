@@ -165,6 +165,14 @@ extern U8 map_tilesBank;
 
 extern void map_expand(void);
 extern void map_init(void);
+/* map_chain()'s return values -- TRUE/FALSE are the original two (next
+ * submap OK / map finished); MAP_CHAIN_BLOCKED is new: the player
+ * reached the submap's edge at a row this connector table has no entry
+ * for (the level data assumes you can only reach an edge within a
+ * narrow row window, normally enforced by solid tiles blocking you
+ * until you're at the right height -- if that doesn't hold, this used
+ * to panic instead of just treating it as a wall). */
+#define MAP_CHAIN_BLOCKED 2
 extern U8 map_chain(void);
 extern void map_resetMarks(void);
 

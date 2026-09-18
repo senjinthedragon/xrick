@@ -54,6 +54,7 @@ screen_gameover(void)
 
 	switch (seq) {
 	case 1:  /* display banner */
+		sysvid_setGamma(255); /* fb_fadeOut() left gamma at 0 */
 #ifdef GFXST
 		fb_clear();
 		tm = sys_gettime();

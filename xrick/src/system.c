@@ -27,7 +27,7 @@ void
 sys_panic(char *err, ...)
 {
 	va_list argptr;
-	char s[1024];
+	char s[2048];
 
 	/* FIXME what is this? */
 	/* change stdin to non blocking */
@@ -37,7 +37,7 @@ sys_panic(char *err, ...)
 
 	/* prepare message */
 	va_start(argptr, err);
-	vsprintf(s, err, argptr);
+	vsnprintf(s, sizeof(s), err, argptr);
 	va_end(argptr);
 
 	/* print message and die */
@@ -54,7 +54,7 @@ sys_printf(char *msg, ...)
 {
 #ifdef ENABLE_LOG
 	va_list argptr;
-	char s[1024];
+	char s[2048];
 
 	/* FIXME what is this? */
 	/* change stdin to non blocking */
@@ -64,9 +64,10 @@ sys_printf(char *msg, ...)
 
 	/* prepare message */
 	va_start(argptr, msg);
-	vsprintf(s, msg, argptr);
+	vsnprintf(s, sizeof(s), msg, argptr);
 	va_end(argptr);
-	printf(s);
+	printf("%s", s);
+	fflush(stdout); /* stdout is fully-buffered when redirected to a file/pipe -- without this, a hard exit/abort can lose everything printed since the last flush */
 #endif
 }
 
