@@ -61,4 +61,15 @@ Produces `build/xrick`. Requires SDL3 and libvorbisfile.
 ```
 
 Upscale/CRT/bezel modes can also be cycled live with **F10**/**F11**/**F12**. F1 toggles
-fullscreen, F2/F3 zoom, F4–F6 sound mute/volume, F7–F9 cheats.
+fullscreen, F2/F3 zoom, F4-F6 sound mute/volume, F7-F9 cheats.
+
+### Credits
+
+Beyond bigorno's original xrick decompilation, this fork's shader/bezel pipeline builds on work
+by others:
+* **crt-royale** CRT shader by [TroggleMonkey](https://github.com/libretro/slang-shaders/blob/master/crt/shaders/crt-royale/README.TXT) (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders).
+* **crt-easymode** CRT shader by EasyMode (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders).
+* **FSR1** (FidelityFX Super Resolution 1.0) by AMD (MIT), via the RetroArch/libretro slang port (Unlicense).
+* **Commodore 1084S bezel** image by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0).
+* **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain).
+* **unzip.c** (minizip) by Gilles Vollant (zlib-style license).
