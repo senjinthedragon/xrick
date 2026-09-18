@@ -20,3 +20,45 @@ So far, it contains:
 * With adjustments so it can build with [emscripten](https://emscripten.org/)
 
 This is all work-in-progress and will be updated.
+
+## About this fork
+
+This fork takes the #050500 codebase and ports it from SDL2 to **SDL3**, replacing the old
+`SDL_Renderer` backend with a custom `SDL_GPU` pipeline. Emscripten support has been removed —
+this fork targets a native, self-contained desktop build only.
+
+What's new here:
+* **SDL3 + SDL_GPU renderer**, laying the groundwork for real-time upscale/CRT shaders.
+* **Upscaling**: AMD FSR1 (EASU + RCAS).
+* **CRT emulation**: crt-easymode, and a condensed multi-pass port of crt-royale (scanlines,
+  phosphor mask, bloom, spherical curvature), both ported from the real RetroArch `slang-shaders`.
+* **Monitor bezel** compositing (Commodore 1084S), with screen curvature tied to it.
+* **Self-contained binary**: game data, shaders, and bezel/mask art are embedded directly into
+  the executable (via C23 `#embed`) — no loose data files needed at runtime.
+* **Audio** converted from 8-bit PCM WAV to Ogg Vorbis, decoded via `libvorbisfile`.
+* A number of real, pre-existing bugs found and fixed along the way (see commit history for
+  specifics — none were introduced by the port itself).
+
+### Building
+
+```sh
+make install
+```
+
+Produces `build/xrick`. Requires SDL3 and libvorbisfile.
+
+### Runtime options
+
+```
+-fullscreen           start in fullscreen
+-zoom <n>             window scale factor
+-upscale <none|fsr1>
+-crt <none|easymode|royale>
+-bezel <none|1084s>
+-royale-mask <slot|grille|shadow>
+-vol <n> / -nosound
+-speed <n>            game speed
+```
+
+Upscale/CRT/bezel modes can also be cycled live with **F10**/**F11**/**F12**. F1 toggles
+fullscreen, F2/F3 zoom, F4–F6 sound mute/volume, F7–F9 cheats.
