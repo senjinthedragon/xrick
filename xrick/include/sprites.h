@@ -36,7 +36,6 @@
 void sprites_setDepth(U8);
 void sprites_paint(U8, U16, U16);
 void sprites_paint2(U8, U16, U16, U8);
-void sprites_clear(U16, U16);
 
 #ifdef GFXPC
 

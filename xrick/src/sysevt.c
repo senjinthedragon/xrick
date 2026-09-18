@@ -224,13 +224,6 @@ sysevt_poll(void)
 void
 sysevt_wait(void)
 {
-  // SDL_WaitEvent locks emscripten
-  // this is only for pause really
-
-#ifdef EMSCRIPTEN
-  if (SDL_PollEvent(&event))
-  processEvent();
-#else
   /* Block indefinitely as usual, except while the OSD's few-second
    * message is still counting down: bound the wait so the game loop
    * keeps ticking (and sysvid_update() keeps checking the OSD timer)
@@ -247,7 +240,6 @@ sysevt_wait(void)
     SDL_WaitEvent(&event);
     processEvent();
   }
-#endif
 }
 
 /* eof */

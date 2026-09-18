@@ -37,10 +37,6 @@
 #include "tiles.h"
 #include "draw.h"
 
-#ifdef EMSCRIPTEN
-#include "emscripten.h"
-#endif
-
 #ifdef ENABLE_DEVTOOLS
 #include "devtools.h"
 #endif
@@ -189,27 +185,10 @@ game_run(char *path)
 	game_state = XRICK;
 
 	/* main loop */
-#ifdef EMSCRIPTEN
-	// callback, fps, simulate_infinite_loop
-	//
-	// "If called on the main browser thread, setting 0 or a negative value as the fps will
-	// use the browser�s requestAnimationFrame mechanism to call the main loop function."
-	// "This is HIGHLY recommended if you are doing rendering, as the browser�s
-	// requestAnimationFrame will make sure you render at a proper smooth rate that lines
-	// up properly with the browser and monitor."
-	//
-	// if fps == -1 then it uses the browser requestAnimatedFrame() period - what if I want
-	// to be slower? is it better to pass a fps here, or to just do nothing (NOT wait!) in
-	// game_loop?
-	// 
-	int fps = (24 * GAME_PERIOD) / game_period;
-	emscripten_set_main_loop(game_loop, fps, 1);
-#else
 	while (game_state != EXIT)
 	{
 		game_loop();
 	}
-#endif
 
 	game_exit();
 }
@@ -223,15 +202,9 @@ static void game_exit(void)
 static void game_loop(void)
 {
 	/* timer */
-#ifdef EMSCRIPTEN
-	// nothing - emscripten should invoke the loop every game_period
-	// and we should not sys_sleep in emscripten apps
-	// (see game_run above)
-#else
 	// sys_gettime() and sys_sleep() use milliseconds
 	tmx = tm; tm = sys_gettime(); tmx = tm - tmx;
 	if (tmx < game_period) sys_sleep(game_period - tmx);
-#endif
 
 	/* video */
 	/*DEBUG*//*game_rects=&draw_SCREENRECT;*//*DEBUG*/
@@ -256,15 +229,6 @@ static void game_loop(void)
 	 * - updates fb_updatedRects
 	 */
 	game_cycle();
-
-#ifdef EMSCRIPTEN
-	if (game_state == EXIT)
-	{
-		game_exit();
-		sys_shutdown();
-		emscripten_cancel_main_loop();
-	}
-#endif
 }
 
 
@@ -778,7 +742,6 @@ init(void)
 	    map_connect[i].dir != RIGHT))
       i++;
     map_frow = map_connect[i].rowin - 0x10; // WHY 0x10??
-    ent_ents[1].y = 0x10 << 3; // FIXME?
   }
 
   ent_ents[1].x = map_maps[env_map].x;

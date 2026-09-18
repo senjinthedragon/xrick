@@ -102,15 +102,13 @@ void sounds_free(void)
  */
 void sounds_setMusic(char* name, U8 loop)
 {
-	U8 channel;
-
 	if (music_snd)
 		sounds_stopMusic();
 	music_snd = syssnd_load(name);
 	if (music_snd)
 	{
 		music_snd->dispose = TRUE; /* music is always "fire and forget" */
-		channel = syssnd_play(music_snd, loop);
+		syssnd_play(music_snd, loop);
 	}
 }
 

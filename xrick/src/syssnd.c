@@ -27,11 +27,6 @@
 #include "debug.h"
 #include "data.h"
 
-#ifdef EMSCRIPTEN
-#define SDL_LockMutex(m)
-#define SDL_UnlockMutex(m)
-#endif
-
 /* SDL3 dropped SDL_MIX_MAXVOLUME; this is the same value SDL2 used */
 #define MIX_MAXVOLUME 128
 
@@ -161,7 +156,6 @@ syssnd_init(void)
     return;
   }
 
-#ifndef EMSCRIPTEN
   sndlock = SDL_CreateMutex();
   if (sndlock == NULL) {
     IFDEBUG_AUDIO(sys_printf("xrick/audio: can not create lock\n"););
@@ -169,7 +163,6 @@ syssnd_init(void)
     audioStream = NULL;
     return;
   }
-#endif
 
   if (sysarg_args_vol != 0) {
     sndUVol = sysarg_args_vol;

@@ -334,10 +334,6 @@ ent_addrect(U16 x, U16 y, U16 width, U16 height)
  * NOTE This may need to be part of draw.c. Also needs better comments,
  * NOTE and probably better rectangles management.
  */
-void ents_clearAll()
-{
-}
-
 void ents_paintAll()
 {
 	U8 i;
