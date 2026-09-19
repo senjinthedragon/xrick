@@ -26,6 +26,7 @@
 /* loaded volume/mute, applied once audio is initialised */
 static int loadedVolume = -1;
 static int loadedMute = -1;
+static int fileVersion = 1; /* files without a version key are from before v1.2 */
 
 typedef struct {
 	const char *name;
@@ -57,7 +58,6 @@ static const intSetting_t intSettings[] = {
     {"crt", &sysarg_args_crt, 0, 3},
     {"aspect", &sysarg_args_aspect, 0, 1},
     {"bezel", &sysarg_args_bezel, 0, 2},
-    {"royale_mask", &sysarg_args_royale_mask, 0, 2},
     {"controls", &sysarg_args_controls, 0, 1},
     {"speed_period", &sysarg_args_period, 0, 100},
     {"pad_jump", &sysjoy_btn_jump, 0, SDL_GAMEPAD_BUTTON_COUNT - 1},
@@ -111,10 +111,19 @@ settings_load(void)
 		for (i = 0; i < COUNT(keySettings); i++)
 			if (!strcmp(line, keySettings[i].name) && v >= 0 && v <= 255)
 				*keySettings[i].value = (U8)v;
+		if (!strcmp(line, "version")) fileVersion = v;
 		if (!strcmp(line, "volume") && v >= 0 && v <= SYSSND_MAXVOL) loadedVolume = v;
 		if (!strcmp(line, "mute") && (v == 0 || v == 1)) loadedMute = v;
 	}
 	fclose(f);
+
+	/* v1.2 reordered the upscaler/CRT/bezel choices (sharp, lottes and the
+	 * SC1224 slot in ahead of the older ones): translate older numbers */
+	if (fileVersion < 2) {
+		if (sysarg_args_upscale == 1) sysarg_args_upscale = 2; /* fsr1 */
+		if (sysarg_args_crt == 2) sysarg_args_crt = 3;	       /* royale */
+		if (sysarg_args_bezel == 1) sysarg_args_bezel = 2;     /* 1084s */
+	}
 }
 
 void
@@ -136,6 +145,8 @@ settings_save(void)
 	free(path);
 	if (!f) return;
 
+	fprintf(f, "version=2\n");
+
 	/* video/audio: read back from the live state */
 	fprintf(f, "fullscreen=%d\n", sysvid_isFullscreen() ? 1 : 0);
 	fprintf(f, "zoom=%d\n", sysvid_getWindowZoom());
@@ -143,7 +154,6 @@ settings_save(void)
 	fprintf(f, "crt=%d\n", sysvid_getCrt());
 	fprintf(f, "bezel=%d\n", sysvid_getBezel());
 	fprintf(f, "aspect=%d\n", sysvid_getAspect());
-	fprintf(f, "royale_mask=%d\n", sysvid_getRoyaleMask());
 	fprintf(f, "volume=%d\n", syssnd_getVol());
 	fprintf(f, "mute=%d\n", syssnd_getMute() ? 1 : 0);
 
@@ -151,7 +161,7 @@ settings_save(void)
 	for (i = 0; i < COUNT(intSettings); i++) {
 		const char *n = intSettings[i].name;
 		if (!strcmp(n, "fullscreen") || !strcmp(n, "zoom") || !strcmp(n, "upscale") ||
-		    !strcmp(n, "crt") || !strcmp(n, "aspect") || !strcmp(n, "bezel") || !strcmp(n, "royale_mask"))
+		    !strcmp(n, "crt") || !strcmp(n, "aspect") || !strcmp(n, "bezel"))
 			continue;
 		fprintf(f, "%s=%d\n", n, *intSettings[i].value);
 	}

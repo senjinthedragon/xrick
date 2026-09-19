@@ -62,31 +62,24 @@ static U16 fb_width, fb_height;
 
 /* three independent, freely-combinable axes -- see sysvid_cycleUpscale/Crt/Bezel */
 typedef enum { UPSCALE_NONE = 0,
-	       UPSCALE_FSR1,
 	       UPSCALE_SHARP,
+	       UPSCALE_FSR1,
 	       UPSCALE_COUNT } upscaleMode_t;
 typedef enum { CRT_NONE = 0,
 	       CRT_EASYMODE,
-	       CRT_ROYALE,
 	       CRT_LOTTES,
+	       CRT_ROYALE,
 	       CRT_COUNT } crtMode_t;
 typedef enum { BEZEL_NONE = 0,
-	       BEZEL_COMMODORE_1084S,
 	       BEZEL_ATARI_SC1224,
+	       BEZEL_COMMODORE_1084S,
 	       BEZEL_COUNT } bezelMode_t;
-/* crt-royale's phosphor mask type -- startup-flag-only (no live toggle key
- * left free; see sysarg.c's -royale-mask), unlike the three axes above */
-typedef enum { ROYALE_MASK_SLOT = 0,
-	       ROYALE_MASK_GRILLE,
-	       ROYALE_MASK_SHADOW,
-	       ROYALE_MASK_COUNT } royaleMaskType_t;
 static upscaleMode_t upscaleMode = UPSCALE_NONE;
 static crtMode_t crtMode = CRT_NONE;
 static bezelMode_t bezelMode = BEZEL_NONE;
 /* 0: 4:3 pixel-aspect corrected (the original's 320x200 was shown on 4:3
  * monitors, so pixels were slightly tall); 1: square pixels (1.6:1) */
 static U8 aspectMode = 0;
-static royaleMaskType_t royaleMaskType = ROYALE_MASK_SLOT;
 
 /* a static bezel: a monitor photo with a "screen" area the game's own
  * output gets composited into. screenX0/Y0/X1/Y1 are that area's bounds,
@@ -963,72 +956,30 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 /*
  * loadRoyaleMask
  *
- * (re)loads crt-royale's phosphor mask LUT for <type>, releasing the
- * previous one if any. Used at startup and when the mask is changed live
- * from the settings menu.
+ * loads crt-royale's phosphor mask LUT (the slot mask -- crt-royale's own
+ * default).  mask_slot_avg_color is crt-royale's documented constant
+ * (user-cgp-constants.h); maskAmplify = 1/avg_color.
  */
 static void
-loadRoyaleMask(royaleMaskType_t type)
+loadRoyaleMask(void)
 {
 	const unsigned char *maskPng[MASK_MIP_LEVELS];
 	unsigned long maskPngLen[MASK_MIP_LEVELS];
-	float maskAvgColor;
-	SDL_GPUTexture *newTex;
 
-	royaleMaskType = type;
-	switch (type) {
-	case ROYALE_MASK_GRILLE:
-		maskPng[0] = mask_phosphor_grille_mip0_png;
-		maskPngLen[0] = mask_phosphor_grille_mip0_png_len;
-		maskPng[1] = mask_phosphor_grille_mip1_png;
-		maskPngLen[1] = mask_phosphor_grille_mip1_png_len;
-		maskPng[2] = mask_phosphor_grille_mip2_png;
-		maskPngLen[2] = mask_phosphor_grille_mip2_png_len;
-		maskPng[3] = mask_phosphor_grille_mip3_png;
-		maskPngLen[3] = mask_phosphor_grille_mip3_png_len;
-		maskPng[4] = mask_phosphor_grille_mip4_png;
-		maskPngLen[4] = mask_phosphor_grille_mip4_png_len;
-		maskAvgColor = 53.0f / 255.0f;
-		break;
-	case ROYALE_MASK_SHADOW:
-		maskPng[0] = mask_phosphor_shadow_mip0_png;
-		maskPngLen[0] = mask_phosphor_shadow_mip0_png_len;
-		maskPng[1] = mask_phosphor_shadow_mip1_png;
-		maskPngLen[1] = mask_phosphor_shadow_mip1_png_len;
-		maskPng[2] = mask_phosphor_shadow_mip2_png;
-		maskPngLen[2] = mask_phosphor_shadow_mip2_png_len;
-		maskPng[3] = mask_phosphor_shadow_mip3_png;
-		maskPngLen[3] = mask_phosphor_shadow_mip3_png_len;
-		maskPng[4] = mask_phosphor_shadow_mip4_png;
-		maskPngLen[4] = mask_phosphor_shadow_mip4_png_len;
-		maskAvgColor = 41.0f / 255.0f;
-		break;
-	case ROYALE_MASK_SLOT:
-	default:
-		maskPng[0] = mask_phosphor_slot_mip0_png;
-		maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
-		maskPng[1] = mask_phosphor_slot_mip1_png;
-		maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
-		maskPng[2] = mask_phosphor_slot_mip2_png;
-		maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
-		maskPng[3] = mask_phosphor_slot_mip3_png;
-		maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
-		maskPng[4] = mask_phosphor_slot_mip4_png;
-		maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
-		maskAvgColor = 46.0f / 255.0f;
-		break;
-	}
-	royaleMaskAmplify = 1.0f / maskAvgColor;
+	maskPng[0] = mask_phosphor_slot_mip0_png;
+	maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
+	maskPng[1] = mask_phosphor_slot_mip1_png;
+	maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
+	maskPng[2] = mask_phosphor_slot_mip2_png;
+	maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
+	maskPng[3] = mask_phosphor_slot_mip3_png;
+	maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
+	maskPng[4] = mask_phosphor_slot_mip4_png;
+	maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
+	royaleMaskAmplify = 255.0f / 46.0f;
 	phosphorMaskTexW = 24;
 	phosphorMaskTexH = 24;
-	newTex = loadMipmappedPNGTexture(maskPng, maskPngLen, MASK_MIP_LEVELS);
-	if (newTex) {
-		if (gpuPhosphorMaskTexture) {
-			SDL_WaitForGPUIdle(gpuDevice);
-			SDL_ReleaseGPUTexture(gpuDevice, gpuPhosphorMaskTexture);
-		}
-		gpuPhosphorMaskTexture = newTex;
-	}
+	gpuPhosphorMaskTexture = loadMipmappedPNGTexture(maskPng, maskPngLen, MASK_MIP_LEVELS);
 }
 
 
@@ -1399,7 +1350,7 @@ sysvid_init(U16 width, U16 height)
 	 * never depend on the output viewport (see the static declarations
 	 * above). mask_*_avg_color values are crt-royale's own documented
 	 * constants (user-cgp-constants.h); maskAmplify = 1/avg_color. */
-	loadRoyaleMask((royaleMaskType_t)sysarg_args_royale_mask);
+	loadRoyaleMask();
 	IFDEBUG_VIDEO(
 	    if (!gpuPhosphorMaskTexture)
 		sys_printf("xrick/video: could not load phosphor mask texture (%s)\n", SDL_GetError()););
@@ -2226,20 +2177,6 @@ sysvid_setBezel(int v)
 {
 	if (v >= 0 && v < BEZEL_COUNT && (v == BEZEL_NONE || bezels[v].texture != NULL))
 		bezelMode = (bezelMode_t)v;
-	sysvid_update(&SCREENRECT);
-}
-
-int
-sysvid_getRoyaleMask(void)
-{
-	return royaleMaskType;
-}
-
-void
-sysvid_setRoyaleMask(int v)
-{
-	if (v >= 0 && v < ROYALE_MASK_COUNT && v != (int)royaleMaskType)
-		loadRoyaleMask((royaleMaskType_t)v);
 	sysvid_update(&SCREENRECT);
 }
 

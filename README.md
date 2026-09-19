@@ -54,11 +54,10 @@ Produces `build/xrick`. Requires SDL3 and libvorbisfile.
 ```
 -fullscreen           start in fullscreen
 -zoom <n>             window scale factor
--upscale <none|fsr1|sharp>
--crt <none|easymode|royale|lottes>
--bezel <none|1084s|sc1224>
+-upscale <none|sharp|fsr1>
+-crt <none|easymode|lottes|royale>
+-bezel <none|sc1224|1084s>
 -aspect <4:3|square>
--royale-mask <slot|grille|shadow>
 -controls <classic|modern>
 -vol <n> / -nosound
 -speed <n>            game speed

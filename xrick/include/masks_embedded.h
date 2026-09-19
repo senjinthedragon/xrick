@@ -29,28 +29,6 @@ extern const unsigned long mask_phosphor_slot_mip3_png_len;
 extern const unsigned char mask_phosphor_slot_mip4_png[];
 extern const unsigned long mask_phosphor_slot_mip4_png_len;
 
-extern const unsigned char mask_phosphor_grille_mip0_png[];
-extern const unsigned long mask_phosphor_grille_mip0_png_len;
-extern const unsigned char mask_phosphor_grille_mip1_png[];
-extern const unsigned long mask_phosphor_grille_mip1_png_len;
-extern const unsigned char mask_phosphor_grille_mip2_png[];
-extern const unsigned long mask_phosphor_grille_mip2_png_len;
-extern const unsigned char mask_phosphor_grille_mip3_png[];
-extern const unsigned long mask_phosphor_grille_mip3_png_len;
-extern const unsigned char mask_phosphor_grille_mip4_png[];
-extern const unsigned long mask_phosphor_grille_mip4_png_len;
-
-extern const unsigned char mask_phosphor_shadow_mip0_png[];
-extern const unsigned long mask_phosphor_shadow_mip0_png_len;
-extern const unsigned char mask_phosphor_shadow_mip1_png[];
-extern const unsigned long mask_phosphor_shadow_mip1_png_len;
-extern const unsigned char mask_phosphor_shadow_mip2_png[];
-extern const unsigned long mask_phosphor_shadow_mip2_png_len;
-extern const unsigned char mask_phosphor_shadow_mip3_png[];
-extern const unsigned long mask_phosphor_shadow_mip3_png_len;
-extern const unsigned char mask_phosphor_shadow_mip4_png[];
-extern const unsigned long mask_phosphor_shadow_mip4_png_len;
-
 #endif
 
 /* eof */

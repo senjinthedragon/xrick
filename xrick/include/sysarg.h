@@ -30,7 +30,6 @@ extern char *sysarg_args_data;
 extern int sysarg_args_upscale;	    /* upscaleMode_t value, see sysvid.h */
 extern int sysarg_args_crt;	    /* crtMode_t value, see sysvid.h */
 extern int sysarg_args_bezel;	    /* bezelMode_t value, see sysvid.h */
-extern int sysarg_args_royale_mask; /* royaleMaskType_t value, see sysvid.h */
 extern int sysarg_args_aspect;	    /* 0 = 4:3 corrected, 1 = square pixels */
 extern int sysarg_args_controls;    /* controlsMode_t value, see control.h */
 

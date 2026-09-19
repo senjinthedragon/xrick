@@ -40,8 +40,6 @@ extern int sysvid_getCrt(void);
 extern void sysvid_setCrt(int);
 extern int sysvid_getBezel(void);
 extern void sysvid_setBezel(int);
-extern int sysvid_getRoyaleMask(void);
-extern void sysvid_setRoyaleMask(int);
 extern void sysvid_overlayRect(int x, int y, int w, int h, U8 r, U8 g, U8 b, U8 a);
 extern int sysvid_overlayTextWidth(const char *);
 extern void sysvid_overlayText(int x, int y, const char *, U8 r, U8 g, U8 b);

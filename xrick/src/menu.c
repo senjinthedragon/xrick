@@ -52,7 +52,6 @@ typedef enum {
 	I_ASPECT,
 	I_UPSCALE,
 	I_CRT,
-	I_MASK,
 	I_BEZEL,
 	I_VOLUME,
 	I_MUTE,
@@ -83,7 +82,7 @@ typedef struct {
 
 static const pagedef_t pages[PG_COUNT] = {
     {"SETTINGS", PG_MAIN, 7, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_QUIT}},
-    {"VIDEO", PG_MAIN, 8, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_MASK, I_BEZEL, I_BACK}},
+    {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
     {"GAME", PG_MAIN, 6, {I_CONTROLS, I_SPEED, I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_BACK}},
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
@@ -97,11 +96,10 @@ static int *const padVar[PAD_COUNT] = {&sysjoy_btn_jump, &sysjoy_btn_fire, &sysj
 static const char *const padLabel[PAD_COUNT] = {"JUMP", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE", "MENU"};
 
 static const char *const onOff[] = {"OFF", "ON"};
-static const char *const upscaleNames[] = {"NONE", "FSR1", "SHARP"};
-static const char *const crtNames[] = {"NONE", "EASYMODE", "ROYALE", "LOTTES"};
-static const char *const maskNames[] = {"SLOT", "GRILLE", "SHADOW"};
+static const char *const upscaleNames[] = {"NONE", "SHARP", "FSR1"};
+static const char *const crtNames[] = {"NONE", "EASYMODE", "LOTTES", "ROYALE"};
 static const char *const aspectNames[] = {"4:3", "SQUARE"};
-static const char *const bezelNames[] = {"NONE", "1084S", "SC1224"};
+static const char *const bezelNames[] = {"NONE", "SC1224", "1084S"};
 static const char *const controlNames[] = {"CLASSIC", "MODERN"};
 
 static U8 active = FALSE;
@@ -254,9 +252,6 @@ adjust(int it, int dir)
 		}
 		break;
 	}
-	case I_MASK:
-		sysvid_setRoyaleMask(cycle(sysvid_getRoyaleMask(), dir, 3));
-		break;
 	case I_BEZEL:
 		sysvid_setBezel(cycle(sysvid_getBezel(), dir, 3));
 		break;
@@ -602,9 +597,6 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_CRT:
 		label = "CRT SHADER";
 		break;
-	case I_MASK:
-		label = "ROYALE MASK";
-		break;
 	case I_BEZEL:
 		label = "BEZEL";
 		break;
@@ -686,9 +678,6 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		break;
 	case I_CRT:
 		choiceText(xr, y, crtNames[sysvid_getCrt()]);
-		break;
-	case I_MASK:
-		choiceText(xr, y, maskNames[sysvid_getRoyaleMask()]);
 		break;
 	case I_BEZEL:
 		choiceText(xr, y, bezelNames[sysvid_getBezel()]);
