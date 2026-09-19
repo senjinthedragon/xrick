@@ -69,9 +69,10 @@ to shoot/drop a bomb. `-controls modern` adds dedicated shoot/bomb keys (**A**/*
 on top of that, without removing the classic combo. Either way, you need to be standing still
 to shoot or drop a bomb - moving or crouching first, same as the original game.
 
-Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **A**/**Y** (the
-bottom/top face buttons) act as fire, **Start** pauses and **Back** exits. With `-controls modern`,
-**X** shoots and **B** drops a bomb; with `classic`, all four face buttons are just fire.
+Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **Cross** (bottom
+face button) jumps, **Triangle** (top) is fire and **Start** pauses. With `-controls modern`,
+**Circle** (right) shoots and **Square** (left) drops a bomb; with `classic`, Circle and Square are
+just fire too. On an Xbox-style pad, Cross/Circle/Square/Triangle are A/B/X/Y.
 
 ### Credits
 

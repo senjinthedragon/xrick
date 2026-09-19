@@ -73,13 +73,13 @@ setBomb(int down)
  * can overlap, so track each, and only ever clear the bits the gamepad
  * itself set -- not ones a held keyboard key is also contributing.
  */
-static U8 padStick = 0, padDpad = 0, padApplied = 0;
+static U8 padStick = 0, padDpad = 0, padJump = 0, padApplied = 0;
 static U8 padFire = 0, padShoot = 0, padBomb = 0;
 
 static void
 padApplyDirs(void)
 {
-	U8 want = padStick | padDpad;
+	U8 want = padStick | padDpad | padJump;
 
 	CLRBIT(control_status, padApplied & ~want);
 	SETBIT(control_status, want);
@@ -127,11 +127,14 @@ padButton(int button, int down)
 		padSetBit(&padDpad, CONTROL_RIGHT, down);
 		control_last = CONTROL_RIGHT;
 		break;
-	case SDL_GAMEPAD_BUTTON_SOUTH:
-	case SDL_GAMEPAD_BUTTON_NORTH:
+	case SDL_GAMEPAD_BUTTON_SOUTH: /* cross: jump (same as up) */
+		padSetBit(&padJump, CONTROL_UP, down);
+		control_last = CONTROL_UP;
+		break;
+	case SDL_GAMEPAD_BUTTON_NORTH: /* triangle */
 		padSetFire(down);
 		break;
-	case SDL_GAMEPAD_BUTTON_WEST:
+	case SDL_GAMEPAD_BUTTON_EAST: /* circle */
 		if (sysarg_args_controls == CONTROLS_MODERN) {
 			setShoot(down);
 			padShoot = down;
@@ -139,7 +142,7 @@ padButton(int button, int down)
 			padSetFire(down);
 		}
 		break;
-	case SDL_GAMEPAD_BUTTON_EAST:
+	case SDL_GAMEPAD_BUTTON_WEST: /* square */
 		if (sysarg_args_controls == CONTROLS_MODERN) {
 			setBomb(down);
 			padBomb = down;
@@ -154,13 +157,6 @@ padButton(int button, int down)
 			CLRBIT(control_status, CONTROL_PAUSE);
 		control_last = CONTROL_PAUSE;
 		break;
-	case SDL_GAMEPAD_BUTTON_BACK:
-		if (down)
-			SETBIT(control_status, CONTROL_EXIT);
-		else
-			CLRBIT(control_status, CONTROL_EXIT);
-		control_last = CONTROL_EXIT;
-		break;
 	}
 }
 
@@ -168,7 +164,7 @@ padButton(int button, int down)
 static void
 padReleaseAll(void)
 {
-	padStick = padDpad = 0;
+	padStick = padDpad = padJump = 0;
 	padApplyDirs();
 	if (padShoot)
 		setShoot(0);
