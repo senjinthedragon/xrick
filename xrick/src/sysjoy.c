@@ -18,45 +18,75 @@
 #ifdef ENABLE_JOYSTICK
 
 #include "system.h"
+#include "sysjoy.h"
 #include "debug.h"
 
-static SDL_Joystick *j = NULL;
+/*
+ * Gamepad support, via SDL's gamepad API (which normalizes button layouts
+ * across controllers). One gamepad is active at a time: the first one found,
+ * or the next one available if it's unplugged.
+ */
+static SDL_Gamepad *pad = NULL;
+
+static void
+openFirst(void)
+{
+	int count, i;
+	SDL_JoystickID *ids;
+
+	ids = SDL_GetGamepads(&count);
+	if (!ids)
+		return;
+	for (i = 0; i < count && !pad; i++)
+		pad = SDL_OpenGamepad(ids[i]);
+	SDL_free(ids);
+}
 
 void
 sysjoy_init(void)
 {
-	int jcount, i;
-	SDL_JoystickID *ids;
-
-	if (!SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
+	if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
 		IFDEBUG_JOYSTICK(
-		    sys_printf("xrick/joystick: can not initialize joystick subsystem\n"););
+		    sys_printf("xrick/joystick: can not initialize gamepad subsystem\n"););
 		return;
 	}
 
-	ids = SDL_GetJoysticks(&jcount);
-	if (!ids || !jcount) { /* no joystick on this system */
-		IFDEBUG_JOYSTICK(sys_printf("xrick/joystick: no joystick available\n"););
-		SDL_free(ids);
-		return;
-	}
+	openFirst();
+}
 
-	/* use the first joystick that we can open */
-	for (i = 0; i < jcount; i++) {
-		j = SDL_OpenJoystick(ids[i]);
-		if (j)
-			break;
-	}
-	SDL_free(ids);
+void
+sysjoy_added(SDL_JoystickID id)
+{
+	if (!pad)
+		pad = SDL_OpenGamepad(id);
+}
 
-	/* joystick events are enabled by default in SDL3 */
+/* returns TRUE if the removed gamepad was the active one */
+U8
+sysjoy_removed(SDL_JoystickID id)
+{
+	if (!pad || SDL_GetGamepadID(pad) != id)
+		return FALSE;
+
+	SDL_CloseGamepad(pad);
+	pad = NULL;
+	openFirst();
+	return TRUE;
+}
+
+U8
+sysjoy_isActive(SDL_JoystickID id)
+{
+	return pad && SDL_GetGamepadID(pad) == id;
 }
 
 void
 sysjoy_shutdown(void)
 {
-	if (j)
-		SDL_CloseJoystick(j);
+	if (pad)
+		SDL_CloseGamepad(pad);
+	pad = NULL;
+	SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
 }
 
 #endif /* ENABLE_JOYSTICK */

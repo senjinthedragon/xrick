@@ -16,6 +16,7 @@
 #include "sysvid.h"
 #include "game.h"
 #include "fb.h"
+#include "sysjoy.h"
 
 #include <SDL3/SDL.h>
 #include <signal.h>

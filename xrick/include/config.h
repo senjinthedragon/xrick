@@ -24,8 +24,8 @@
 /* logging (write to console) */
 #define ENABLE_LOG
 
-/* joystick support */
-#undef ENABLE_JOYSTICK
+/* gamepad support */
+#define ENABLE_JOYSTICK
 
 /* sound support */
 #define ENABLE_SOUND

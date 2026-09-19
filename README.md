@@ -79,3 +79,7 @@ by others:
 * **Commodore 1084S bezel** image by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0).
 * **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain).
 * **unzip.c** (minizip) by Gilles Vollant (zlib-style license).
+
+Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **A**/**Y** (the
+bottom/top face buttons) act as fire, **Start** pauses and **Back** exits. With `-controls modern`,
+**X** shoots and **B** drops a bomb; with `classic`, all four face buttons are just fire.

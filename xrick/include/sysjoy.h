@@ -14,11 +14,16 @@
 #ifndef _SYSJOY_H
 #define _SYSJOY_H
 
+#include <SDL3/SDL.h>
+
 #include "system.h"
 
 #ifdef ENABLE_JOYSTICK
 extern void sysjoy_init(void);
 extern void sysjoy_shutdown(void);
+extern void sysjoy_added(SDL_JoystickID);
+extern U8 sysjoy_removed(SDL_JoystickID);
+extern U8 sysjoy_isActive(SDL_JoystickID);
 #endif
 
 #endif /* _SYSJOY_H */

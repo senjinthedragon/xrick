@@ -28,13 +28,157 @@
 #include "control.h"
 #include "draw.h"
 #include "e_rick.h"
-
-#define SYSJOY_RANGE 3280
+#include "sysjoy.h"
 
 #define SETBIT(x, b) x |= (b)
 #define CLRBIT(x, b) x &= ~(b)
 
 static SDL_Event event;
+
+/*
+ * Modern controls' dedicated shoot/bomb inputs (keyboard or gamepad): each
+ * just synthesizes the fire+up / fire+down combo e_rick.c already looks
+ * for. Releasing also resets the shoot debounce, which the classic combo
+ * only ever gets by keeping fire held (see e_rick_resetShootDebounce).
+ */
+static void
+setShoot(int down)
+{
+	if (down) {
+		SETBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+	} else {
+		CLRBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+		e_rick_resetShootDebounce();
+	}
+	control_last = CONTROL_FIRE;
+}
+
+static void
+setBomb(int down)
+{
+	if (down) {
+		SETBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
+	} else {
+		CLRBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
+		e_rick_resetShootDebounce();
+	}
+	control_last = CONTROL_FIRE;
+}
+
+#ifdef ENABLE_JOYSTICK
+#define PAD_DEADZONE 12000
+
+/*
+ * Gamepad directions come from two sources (d-pad and left stick) that
+ * can overlap, so track each, and only ever clear the bits the gamepad
+ * itself set -- not ones a held keyboard key is also contributing.
+ */
+static U8 padStick = 0, padDpad = 0, padApplied = 0;
+static U8 padFire = 0, padShoot = 0, padBomb = 0;
+
+static void
+padApplyDirs(void)
+{
+	U8 want = padStick | padDpad;
+
+	CLRBIT(control_status, padApplied & ~want);
+	SETBIT(control_status, want);
+	padApplied = want;
+}
+
+static void
+padSetBit(U8 *mask, U8 bit, int on)
+{
+	if (on)
+		*mask |= bit;
+	else
+		*mask &= ~bit;
+	padApplyDirs();
+}
+
+static void
+padSetFire(int down)
+{
+	if (down)
+		SETBIT(control_status, CONTROL_FIRE);
+	else
+		CLRBIT(control_status, CONTROL_FIRE);
+	control_last = CONTROL_FIRE;
+	padFire = down;
+}
+
+static void
+padButton(int button, int down)
+{
+	switch (button) {
+	case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		padSetBit(&padDpad, CONTROL_UP, down);
+		control_last = CONTROL_UP;
+		break;
+	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		padSetBit(&padDpad, CONTROL_DOWN, down);
+		control_last = CONTROL_DOWN;
+		break;
+	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		padSetBit(&padDpad, CONTROL_LEFT, down);
+		control_last = CONTROL_LEFT;
+		break;
+	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		padSetBit(&padDpad, CONTROL_RIGHT, down);
+		control_last = CONTROL_RIGHT;
+		break;
+	case SDL_GAMEPAD_BUTTON_SOUTH:
+	case SDL_GAMEPAD_BUTTON_NORTH:
+		padSetFire(down);
+		break;
+	case SDL_GAMEPAD_BUTTON_WEST:
+		if (sysarg_args_controls == CONTROLS_MODERN) {
+			setShoot(down);
+			padShoot = down;
+		} else {
+			padSetFire(down);
+		}
+		break;
+	case SDL_GAMEPAD_BUTTON_EAST:
+		if (sysarg_args_controls == CONTROLS_MODERN) {
+			setBomb(down);
+			padBomb = down;
+		} else {
+			padSetFire(down);
+		}
+		break;
+	case SDL_GAMEPAD_BUTTON_START:
+		if (down)
+			SETBIT(control_status, CONTROL_PAUSE);
+		else
+			CLRBIT(control_status, CONTROL_PAUSE);
+		control_last = CONTROL_PAUSE;
+		break;
+	case SDL_GAMEPAD_BUTTON_BACK:
+		if (down)
+			SETBIT(control_status, CONTROL_EXIT);
+		else
+			CLRBIT(control_status, CONTROL_EXIT);
+		control_last = CONTROL_EXIT;
+		break;
+	}
+}
+
+/* release everything the active gamepad was holding (it was unplugged) */
+static void
+padReleaseAll(void)
+{
+	padStick = padDpad = 0;
+	padApplyDirs();
+	if (padShoot)
+		setShoot(0);
+	if (padBomb)
+		setBomb(0);
+	if (padFire)
+		padSetFire(0);
+	padShoot = padBomb = 0;
+}
+#endif /* ENABLE_JOYSTICK */
 
 /*
  * Process an event
@@ -72,13 +216,9 @@ processEvent()
 			SETBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
-			/* dedicated shoot key: same fire+up combo e_rick.c already
-			 * looks for, just synthesized from one key instead of two */
-			SETBIT(control_status, CONTROL_FIRE | CONTROL_UP);
-			control_last = CONTROL_FIRE;
+			setShoot(1);
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
-			SETBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
-			control_last = CONTROL_FIRE;
+			setBomb(1);
 		} else if (key == SDL_SCANCODE_F1) {
 			sysvid_toggleFullscreen();
 		} else if (key == SDL_SCANCODE_F2) {
@@ -136,13 +276,9 @@ processEvent()
 			CLRBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
-			CLRBIT(control_status, CONTROL_FIRE | CONTROL_UP);
-			control_last = CONTROL_FIRE;
-			e_rick_resetShootDebounce();
+			setShoot(0);
 		} else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
-			CLRBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
-			control_last = CONTROL_FIRE;
-			e_rick_resetShootDebounce();
+			setBomb(0);
 		}
 		break;
 	case SDL_EVENT_QUIT:
@@ -159,38 +295,36 @@ processEvent()
 		break;
 #endif
 #ifdef ENABLE_JOYSTICK
-	case SDL_EVENT_JOYSTICK_AXIS_MOTION:
-		IFDEBUG_EVENTS(sys_printf("xrick/events: joystick\n"););
-		if (event.jaxis.axis == 0) {			 /* left-right */
-			if (event.jaxis.value < -SYSJOY_RANGE) { /* left */
-				SETBIT(control_status, CONTROL_LEFT);
-				CLRBIT(control_status, CONTROL_RIGHT);
-			} else if (event.jaxis.value > SYSJOY_RANGE) { /* right */
-				SETBIT(control_status, CONTROL_RIGHT);
-				CLRBIT(control_status, CONTROL_LEFT);
-			} else { /* center */
-				CLRBIT(control_status, CONTROL_RIGHT);
-				CLRBIT(control_status, CONTROL_LEFT);
-			}
-		}
-		if (event.jaxis.axis == 1) {			 /* up-down */
-			if (event.jaxis.value < -SYSJOY_RANGE) { /* up */
-				SETBIT(control_status, CONTROL_UP);
-				CLRBIT(control_status, CONTROL_DOWN);
-			} else if (event.jaxis.value > SYSJOY_RANGE) { /* down */
-				SETBIT(control_status, CONTROL_DOWN);
-				CLRBIT(control_status, CONTROL_UP);
-			} else { /* center */
-				CLRBIT(control_status, CONTROL_DOWN);
-				CLRBIT(control_status, CONTROL_UP);
-			}
+	case SDL_EVENT_GAMEPAD_ADDED:
+		sysjoy_added(event.gdevice.which);
+		break;
+	case SDL_EVENT_GAMEPAD_REMOVED:
+		if (sysjoy_removed(event.gdevice.which))
+			padReleaseAll();
+		break;
+	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+		if (!sysjoy_isActive(event.gaxis.which))
+			break;
+		if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
+			padStick &= ~(CONTROL_LEFT | CONTROL_RIGHT);
+			if (event.gaxis.value < -PAD_DEADZONE)
+				padStick |= CONTROL_LEFT;
+			else if (event.gaxis.value > PAD_DEADZONE)
+				padStick |= CONTROL_RIGHT;
+			padApplyDirs();
+		} else if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) {
+			padStick &= ~(CONTROL_UP | CONTROL_DOWN);
+			if (event.gaxis.value < -PAD_DEADZONE)
+				padStick |= CONTROL_UP;
+			else if (event.gaxis.value > PAD_DEADZONE)
+				padStick |= CONTROL_DOWN;
+			padApplyDirs();
 		}
 		break;
-	case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
-		SETBIT(control_status, CONTROL_FIRE);
-		break;
-	case SDL_EVENT_JOYSTICK_BUTTON_UP:
-		CLRBIT(control_status, CONTROL_FIRE);
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		if (sysjoy_isActive(event.gbutton.which))
+			padButton(event.gbutton.button, event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
 		break;
 #endif
 	default:
