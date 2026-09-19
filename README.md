@@ -131,7 +131,8 @@ game and re-coding it in C, by [bigorno](https://github.com/zpqrtbnk/xrick) (St√
 the original game from its creator, [Simon Phipps](https://www.simonphipps.com/games/rickdangerous/), and
 about xrick on the original [xrick page](http://www.bigorno.net/xrick).
 
-This fork starts from the "May 2005" (#050500) source and:
+This fork is developed by [Senjin the Dragon](https://github.com/senjinthedragon). It starts from the
+"May 2005" (#050500) source and:
 
 - ports it from SDL2 to **SDL3** with a custom `SDL_GPU` renderer for the shaders and bezels,
 - embeds all data in the executable and converts the audio from WAV to Ogg Vorbis,
@@ -141,7 +142,10 @@ This fork starts from the "May 2005" (#050500) source and:
 
 ## Credits
 
-Beyond bigorno's original xrick, this fork builds on the work of others:
+- **xrick** by [bigorno](https://github.com/zpqrtbnk/xrick) (St√©phane Gay) - the original reverse-engineered game
+- **SDL3 port, renderer, shaders integration, settings menu, gamepad support and modern controls** by [Senjin the Dragon](https://github.com/senjinthedragon)
+
+This fork also builds on the work of others:
 
 - **crt-royale** shader by [TroggleMonkey](https://github.com/libretro/slang-shaders/blob/master/crt/shaders/crt-royale/README.TXT) (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders)
 - **crt-easymode** shader by EasyMode (GPL), via libretro/slang-shaders
