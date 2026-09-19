@@ -48,17 +48,22 @@ const float GEOM_VIEW_DIST = 2.0;
  * (1112x866 px at the bezel PNG's own scale -- see bezels[] in sysvid.c),
  * not an assumed 4:3 -- normalize(vec2(1.284065, 1.0)) */
 const vec2 GEOM_ASPECT = vec2(0.7889701653735128, 0.6144315081036226);
-const float BORDER_SIZE = 0.015;
+/* crt-royale's default is 0.015, which fades the outermost ~5 of the 200
+ * rows to black and hides the status bar along the top; the bezel already
+ * frames the picture, so no edge dimming */
+const float BORDER_SIZE = 0.0;
 const float BORDER_DARKNESS = 2.0;
 const float BORDER_COMPRESS = 2.5;
 
-/* eye_pos.z such that the screen's flat-uv corners map exactly to the
- * sphere-uv corners (1,1 etc), i.e. crt-royale's real
- * get_ideal_global_eye_pos_for_points() result for our symmetric,
- * untilted case -- solved numerically offline rather
- * than porting that function's general iterative point-cloud solver,
- * since a fixed layout only ever needs this one answer. */
-const float EYE_Z = 3.917057;
+/* eye_pos.z, solved numerically offline (crt-royale's own point-cloud
+ * solver isn't needed for a fixed, symmetric, untilted layout). It's the
+ * value that maps the middle of the flat screen's top and bottom edges
+ * exactly onto the source image's top and bottom rows, so the status bar
+ * along the top is never cropped. (Fitting the four corners exactly, as
+ * crt-royale's own solver would, loses about 2.7 of the 200 rows at the
+ * top and bottom centre instead; this costs only a few pixels of rounded
+ * corner, like a real curved tube.) */
+const float EYE_Z = 3.968595;
 
 /* returns true and fills sphereUv on a valid intersection; false (sphereUv
  * undefined) if the view ray misses the sphere or grazes it edge-on. */

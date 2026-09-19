@@ -593,6 +593,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_ZOOM:
 		label = "WINDOW SCALE";
 		break;
+	case I_ASPECT:
+		label = "ASPECT RATIO";
+		break;
 	case I_UPSCALE:
 		label = "UPSCALER";
 		break;
@@ -674,6 +677,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 			snprintf(buf, sizeof buf, "%dX", sysvid_getWindowZoom());
 			choiceText(xr, y, buf);
 		}
+		break;
+	case I_ASPECT:
+		choiceText(xr, y, aspectNames[sysvid_getAspect()]);
 		break;
 	case I_UPSCALE:
 		choiceText(xr, y, upscaleNames[sysvid_getUpscale()]);
