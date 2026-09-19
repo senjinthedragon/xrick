@@ -44,10 +44,10 @@ const float LCD_GAMMA = 2.2;
 
 const float GEOM_RADIUS = 2.0;
 const float GEOM_VIEW_DIST = 2.0;
-/* the Commodore 1084S bezel's actual measured screen-cutout aspect ratio
- * (1112x866 px at the bezel PNG's own scale -- see bezels[] in sysvid.c),
- * not an assumed 4:3 -- normalize(vec2(1.284065, 1.0)) */
-const vec2 GEOM_ASPECT = vec2(0.7889701653735128, 0.6144315081036226);
+/* the curve is computed for a 4:3 screen whatever shape the bezel opening or
+ * the chosen aspect ratio gives the picture -- the warp is only ever a few
+ * percent, so it isn't worth tracking exactly */
+const vec2 GEOM_ASPECT = vec2(0.8, 0.6);
 /* crt-royale's default is 0.015, which fades the outermost ~5 of the 200
  * rows to black and hides the status bar along the top; the bezel already
  * frames the picture, so no edge dimming */
@@ -63,7 +63,7 @@ const float BORDER_COMPRESS = 2.5;
  * crt-royale's own solver would, loses about 2.7 of the 200 rows at the
  * top and bottom centre instead; this costs only a few pixels of rounded
  * corner, like a real curved tube.) */
-const float EYE_Z = 3.968595;
+const float EYE_Z = 3.970051;
 
 /* returns true and fills sphereUv on a valid intersection; false (sphereUv
  * undefined) if the view ray misses the sphere or grazes it edge-on. */

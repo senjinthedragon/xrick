@@ -87,7 +87,7 @@ Everything here is optional and can be mixed freely.
 | **Upscaler** | **None** - plain scaling. **Sharp** - crisp, clean pixels. **FSR1** - AMD's smoothing upscaler (softer). |
 | **CRT shader** | **None**. **Easymode** - light and fast, scanlines and phosphor mask. **Lottes** - a glowing arcade-monitor look. **Royale** - the heaviest and most detailed. |
 | **Bezel** | **None**. **Atari SC1224** - the Atari ST's own monitor. **Commodore 1084S** - the classic Amiga monitor. Bezels add a touch of screen curvature. |
-| **Aspect ratio** | **4:3** (default) - matches the tall pixels of the original monitors. **Square** - shows 320x200 as-is. |
+| **Aspect ratio** | **4:3** (default) - matches the tall pixels of the original monitors. **Square** - shows 320x200 as-is. With a bezel, the picture is fitted inside the monitor's screen at this aspect, with black bars where it doesn't fill the opening. |
 
 Lottes and Royale do their own scaling, so the upscaler setting doesn't apply while they're active.
 

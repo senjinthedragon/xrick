@@ -91,7 +91,13 @@ typedef struct {
 	Uint32 texW, texH;
 	float screenX0, screenY0, screenX1, screenY1;
 } bezelInfo_t;
-static bezelInfo_t bezels[BEZEL_COUNT]; /* [BEZEL_NONE] left zeroed/unused */
+static bezelInfo_t bezels[BEZEL_COUNT];
+
+/* a 1x1 opaque black PNG, drawn behind the picture inside a bezel's screen
+ * opening so the bars left by a narrower aspect ratio are black rather than
+ * the monitor's grey face */
+static const unsigned char blackPng[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x60, 0x60, 0x60, 0xf8, 0x0f, 0x00, 0x01, 0x04, 0x01, 0x00, 0x5f, 0xe5, 0xc3, 0x4b, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
+static SDL_GPUTexture *gpuBlackTexture; /* [BEZEL_NONE] left zeroed/unused */
 
 static SDL_GPUDevice *gpuDevice;
 static SDL_GPUTexture *gpuTexture;	      /* holds the composited frame */
@@ -1408,6 +1414,11 @@ sysvid_init(U16 width, U16 height)
 	    if (!bezels[BEZEL_COMMODORE_1084S].texture)
 		sys_printf("xrick/video: could not load bezel 'commodore_1084s' (%s)\n", SDL_GetError()););
 
+	{
+		Uint32 bw, bh;
+		gpuBlackTexture = loadPNGTexture(blackPng, sizeof(blackPng), &bw, &bh);
+	}
+
 	bezelMode = (bezelMode_t)sysarg_args_bezel;
 	if (bezelMode != BEZEL_NONE && bezels[bezelMode].texture == NULL)
 		bezelMode = BEZEL_NONE; /* requested bezel failed to load -- fall back quietly */
@@ -1485,6 +1496,7 @@ sysvid_shutdown(void)
 	SDL_ReleaseGPUTexture(gpuDevice, gpuIntermediate2);
 	SDL_ReleaseGPUTexture(gpuDevice, gpuFinalIntermediate);
 	SDL_ReleaseGPUTexture(gpuDevice, gpuPhosphorMaskTexture);
+	if (gpuBlackTexture) SDL_ReleaseGPUTexture(gpuDevice, gpuBlackTexture);
 	SDL_ReleaseGPUTexture(gpuDevice, gpuRoyaleLinearized);
 	SDL_ReleaseGPUTexture(gpuDevice, gpuRoyaleBloomApprox);
 	SDL_ReleaseGPUTexture(gpuDevice, gpuRoyaleVscan);
@@ -1649,6 +1661,45 @@ blitRectToPixels(rect_t *rect)
 
 
 /*
+ * fitAspectInside
+ *
+ * places the picture inside a bezel's screen opening at the chosen aspect
+ * ratio (4:3 or square pixels), centered, leaving bars where the opening is
+ * a different shape. crt-royale needs the picture height to be a whole
+ * multiple of the source's 200 lines (see computeBezelViewports), so it gets
+ * snapped down to one.
+ */
+static void
+fitAspectInside(const SDL_GPUViewport *opening, SDL_GPUViewport *out)
+{
+	float aspect = (aspectMode == 0) ? 4.0f / 3.0f : (float)fb_width / (float)fb_height;
+	float w = opening->w, h = opening->h;
+
+	if (w / h > aspect)
+		w = h * aspect;
+	else
+		h = w / aspect;
+
+	if (crtMode == CRT_ROYALE) {
+		int n = (int)(h / (float)fb_height + 0.01f);
+		if (n >= 1) {
+			h = n * (float)fb_height;
+			w = h * aspect;
+		}
+	}
+
+	w = (float)(int)(w + 0.5f);
+	h = (float)(int)(h + 0.5f);
+	out->x = (float)(int)(opening->x + (opening->w - w) / 2.0f + 0.5f);
+	out->y = (float)(int)(opening->y + (opening->h - h) / 2.0f + 0.5f);
+	out->w = w;
+	out->h = h;
+	out->min_depth = 0.0f;
+	out->max_depth = 1.0f;
+}
+
+
+/*
  * sysvid_update
  *
  * display the 8bit palettized frame buffer onto the screen. zoom, filter, whatever.
@@ -1762,12 +1813,19 @@ sysvid_update(rect_t *rects)
 			 * pass (and only that one) must LOAD rather than CLEAR/
 			 * DONT_CARE, since either of those would wipe the bezel
 			 * artwork just drawn outside the cutout. */
-			SDL_GPUViewport outerVp;
+			SDL_GPUViewport outerVp, opening;
 
-			computeBezelViewports(swW, swH, bz, &outerVp, &vp);
+			computeBezelViewports(swW, swH, bz, &outerVp, &opening);
 
 			runPass(cmd, gpuPassthroughPipeline, bz->texture, swapTex,
 				outerVp.x, outerVp.y, outerVp.w, outerVp.h, SDL_GPU_LOADOP_CLEAR, NULL, 0);
+
+			/* black behind the picture, then the picture itself at the
+			 * chosen aspect ratio inside the opening */
+			if (gpuBlackTexture)
+				runPass(cmd, gpuPassthroughPipeline, gpuBlackTexture, swapTex,
+					opening.x, opening.y, opening.w, opening.h, SDL_GPU_LOADOP_LOAD, NULL, 0);
+			fitAspectInside(&opening, &vp);
 
 			finalLoadOp = SDL_GPU_LOADOP_LOAD;
 		} else {
