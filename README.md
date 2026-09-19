@@ -154,3 +154,18 @@ This fork also builds on the work of others:
 - **Commodore 1084S** and **Atari SC1224** bezel images by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0), used unmodified
 - **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain)
 - **unzip.c** (minizip) by Gilles Vollant (zlib-style license)
+
+## License
+
+The code written for this fork is released under the **GNU General Public License, version 3 or (at your
+option) any later version** - see [LICENSE](LICENSE). This matches the licences of the CRT shaders it includes
+(crt-royale is GPL v2 or later, crt-easymode is GPL) and the "in the spirit of the GNU GPL" wording xrick's
+author used.
+
+A few things are covered by their own terms instead:
+
+- **bigorno's original xrick code** keeps its original notice in each file.
+- **Third-party code and shaders** keep the licences noted in the [Credits](#credits) and in their file headers.
+- **The bezel images** (Duimon) are CC BY-NC-ND 4.0 and are not covered by the GPL.
+- **The original game's graphics and sound** belong to their respective owners (Core Design / Firebird) and are
+  not covered by any licence here.
