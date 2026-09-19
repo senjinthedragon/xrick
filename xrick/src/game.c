@@ -32,6 +32,7 @@
 #include "rects.h"
 #include "scroller.h"
 #include "control.h"
+#include "menu.h"
 #include "data.h"
 #include "fb.h"
 #include "tiles.h"
@@ -133,6 +134,19 @@ static void game_save(void);
 
 
 /*
+ * game_isPaused
+ *
+ * true while the player has the game paused (the pause key), as opposed
+ * to merely being in the settings menu.
+ */
+U8
+game_isPaused(void)
+{
+	return game_state == PAUSED || game_state == PAUSE_PRESSED1 ||
+	       game_state == PAUSE_PRESSED1B || game_state == PAUSE_PRESSED2;
+}
+
+/*
  * game_toggleCheat
  *
  * toggles one of the three cheat options
@@ -229,6 +243,12 @@ game_loop(void)
 	// sysvid_update(fb_updatedRects);
 	sysvid_update(game_rects);
 	draw_STATUSRECT.next = NULL; /* FIXME freerects should handle this */
+
+	/* settings menu: the game stays frozen until it's closed */
+	if (menu_active()) {
+		sysevt_wait();
+		return;
+	}
 
 	/* sound: nothing to do here, everything is managed via callbacks */
 

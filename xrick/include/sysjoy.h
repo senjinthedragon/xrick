@@ -21,6 +21,10 @@
 #ifdef ENABLE_JOYSTICK
 extern void sysjoy_init(void);
 extern void sysjoy_shutdown(void);
+extern int sysjoy_btn_jump, sysjoy_btn_fire, sysjoy_btn_shoot,
+    sysjoy_btn_bomb, sysjoy_btn_pause, sysjoy_btn_menu;
+extern void sysjoy_resetDefaults(void);
+extern const char *sysjoy_buttonName(int);
 extern void sysjoy_added(SDL_JoystickID);
 extern U8 sysjoy_removed(SDL_JoystickID);
 extern U8 sysjoy_isActive(SDL_JoystickID);

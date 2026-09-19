@@ -33,4 +33,17 @@ U8 syskbd_fire = SDL_SCANCODE_SPACE;
 U8 syskbd_shoot = SDL_SCANCODE_A; /* modern controls only, see control.h */
 U8 syskbd_bomb = SDL_SCANCODE_S;  /* modern controls only, see control.h */
 
+void
+syskbd_resetDefaults(void)
+{
+	syskbd_up = SDL_SCANCODE_O;
+	syskbd_down = SDL_SCANCODE_K;
+	syskbd_left = SDL_SCANCODE_Z;
+	syskbd_right = SDL_SCANCODE_X;
+	syskbd_pause = SDL_SCANCODE_P;
+	syskbd_fire = SDL_SCANCODE_SPACE;
+	syskbd_shoot = SDL_SCANCODE_A;
+	syskbd_bomb = SDL_SCANCODE_S;
+}
+
 /* eof */

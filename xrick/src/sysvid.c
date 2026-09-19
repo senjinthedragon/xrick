@@ -34,6 +34,7 @@
 #include <SDL3/SDL.h>
 
 #include "sysvid.h"
+#include "menu.h"
 #include "sysarg.h"
 #include "debug.h"
 #include "fb.h"
@@ -192,8 +193,8 @@ static U8 mxzoom = SYSVID_ZOOM * 2; /* max zoom level */
 static char osdMessage[OSD_MSG_MAX];
 static U32 osdExpireAt;
 
-/* tiny 5x7 bitmap font -- just the glyphs the current OSD messages use
- * ("SHADER: EASYMODE/NONE", "UPSCALING: FSR1/NONE"); add more as needed */
+/* tiny 5x7 bitmap font (upper case, digits, common punctuation) -- used by
+ * the OSD and the settings menu; add more glyphs as needed */
 typedef struct {
 	char c;
 	U8 rows[7];
@@ -223,6 +224,40 @@ static const osdGlyph_t osdFont[] = {
     {'Y', {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
     {'1', {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x1F}},
     {':', {0x00, 0x04, 0x04, 0x00, 0x04, 0x04, 0x00}},
+    {'2', {0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F}},
+    {'3', {0x1F, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0E}},
+    {'5', {0x1F, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E}},
+    {'6', {0x06, 0x08, 0x10, 0x1E, 0x11, 0x11, 0x0E}},
+    {'7', {0x1F, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08}},
+    {'9', {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C}},
+    {'J', {0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0C}},
+    {'K', {0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11}},
+    {'Q', {0x0E, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0D}},
+    {'T', {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}},
+    {'V', {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04}},
+    {'W', {0x11, 0x11, 0x11, 0x15, 0x15, 0x1B, 0x11}},
+    {'X', {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}},
+    {'.', {0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C}},
+    {',', {0x00, 0x00, 0x00, 0x00, 0x0C, 0x04, 0x08}},
+    {'-', {0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00}},
+    {'+', {0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00}},
+    {'/', {0x01, 0x01, 0x02, 0x04, 0x08, 0x10, 0x10}},
+    {'%', {0x18, 0x19, 0x02, 0x04, 0x08, 0x13, 0x03}},
+    {'(', {0x02, 0x04, 0x08, 0x08, 0x08, 0x04, 0x02}},
+    {')', {0x08, 0x04, 0x02, 0x02, 0x02, 0x04, 0x08}},
+    {'[', {0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E}},
+    {']', {0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E}},
+    {'<', {0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02}},
+    {'>', {0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08}},
+    {'=', {0x00, 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00}},
+    {';', {0x00, 0x0C, 0x0C, 0x00, 0x0C, 0x04, 0x08}},
+    {'\'', {0x04, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00}},
+    {'`', {0x08, 0x04, 0x02, 0x00, 0x00, 0x00, 0x00}},
+    {'\\', {0x10, 0x10, 0x08, 0x04, 0x02, 0x01, 0x01}},
+    {'_', {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}},
+    {'?', {0x0E, 0x11, 0x01, 0x02, 0x04, 0x00, 0x04}},
+    {'!', {0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04}},
+    {'*', {0x00, 0x11, 0x0A, 0x1F, 0x0A, 0x11, 0x00}},
     {' ', {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 };
 #define OSD_FONT_COUNT (sizeof(osdFont) / sizeof(osdFont[0]))
@@ -912,6 +947,78 @@ loadMipmappedPNGTexture(const unsigned char *const *pngData, const unsigned long
 
 
 /*
+ * loadRoyaleMask
+ *
+ * (re)loads crt-royale's phosphor mask LUT for <type>, releasing the
+ * previous one if any. Used at startup and when the mask is changed live
+ * from the settings menu.
+ */
+static void
+loadRoyaleMask(royaleMaskType_t type)
+{
+	const unsigned char *maskPng[MASK_MIP_LEVELS];
+	unsigned long maskPngLen[MASK_MIP_LEVELS];
+	float maskAvgColor;
+	SDL_GPUTexture *newTex;
+
+	royaleMaskType = type;
+	switch (type) {
+	case ROYALE_MASK_GRILLE:
+		maskPng[0] = mask_phosphor_grille_mip0_png;
+		maskPngLen[0] = mask_phosphor_grille_mip0_png_len;
+		maskPng[1] = mask_phosphor_grille_mip1_png;
+		maskPngLen[1] = mask_phosphor_grille_mip1_png_len;
+		maskPng[2] = mask_phosphor_grille_mip2_png;
+		maskPngLen[2] = mask_phosphor_grille_mip2_png_len;
+		maskPng[3] = mask_phosphor_grille_mip3_png;
+		maskPngLen[3] = mask_phosphor_grille_mip3_png_len;
+		maskPng[4] = mask_phosphor_grille_mip4_png;
+		maskPngLen[4] = mask_phosphor_grille_mip4_png_len;
+		maskAvgColor = 53.0f / 255.0f;
+		break;
+	case ROYALE_MASK_SHADOW:
+		maskPng[0] = mask_phosphor_shadow_mip0_png;
+		maskPngLen[0] = mask_phosphor_shadow_mip0_png_len;
+		maskPng[1] = mask_phosphor_shadow_mip1_png;
+		maskPngLen[1] = mask_phosphor_shadow_mip1_png_len;
+		maskPng[2] = mask_phosphor_shadow_mip2_png;
+		maskPngLen[2] = mask_phosphor_shadow_mip2_png_len;
+		maskPng[3] = mask_phosphor_shadow_mip3_png;
+		maskPngLen[3] = mask_phosphor_shadow_mip3_png_len;
+		maskPng[4] = mask_phosphor_shadow_mip4_png;
+		maskPngLen[4] = mask_phosphor_shadow_mip4_png_len;
+		maskAvgColor = 41.0f / 255.0f;
+		break;
+	case ROYALE_MASK_SLOT:
+	default:
+		maskPng[0] = mask_phosphor_slot_mip0_png;
+		maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
+		maskPng[1] = mask_phosphor_slot_mip1_png;
+		maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
+		maskPng[2] = mask_phosphor_slot_mip2_png;
+		maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
+		maskPng[3] = mask_phosphor_slot_mip3_png;
+		maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
+		maskPng[4] = mask_phosphor_slot_mip4_png;
+		maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
+		maskAvgColor = 46.0f / 255.0f;
+		break;
+	}
+	royaleMaskAmplify = 1.0f / maskAvgColor;
+	phosphorMaskTexW = 24;
+	phosphorMaskTexH = 24;
+	newTex = loadMipmappedPNGTexture(maskPng, maskPngLen, MASK_MIP_LEVELS);
+	if (newTex) {
+		if (gpuPhosphorMaskTexture) {
+			SDL_WaitForGPUIdle(gpuDevice);
+			SDL_ReleaseGPUTexture(gpuDevice, gpuPhosphorMaskTexture);
+		}
+		gpuPhosphorMaskTexture = newTex;
+	}
+}
+
+
+/*
  * sysvid_init
  *
  * initialize the video layer.
@@ -952,6 +1059,7 @@ sysvid_init(U16 width, U16 height)
 	/* if a zoom was specified, use it -- but check it is ok */
 	if (sysarg_args_zoom) {
 		zoom = sysarg_args_zoom > 0 && sysarg_args_zoom <= mxzoom ? sysarg_args_zoom : mxzoom;
+		wmzoom = zoom;
 	}
 
 	/* prepare for fullscreen, initialize zoom w/default values */
@@ -1253,59 +1361,7 @@ sysvid_init(U16 width, U16 height)
 	 * never depend on the output viewport (see the static declarations
 	 * above). mask_*_avg_color values are crt-royale's own documented
 	 * constants (user-cgp-constants.h); maskAmplify = 1/avg_color. */
-	royaleMaskType = (royaleMaskType_t)sysarg_args_royale_mask;
-	{
-		const unsigned char *maskPng[MASK_MIP_LEVELS];
-		unsigned long maskPngLen[MASK_MIP_LEVELS];
-		float maskAvgColor;
-
-		switch (royaleMaskType) {
-		case ROYALE_MASK_GRILLE:
-			maskPng[0] = mask_phosphor_grille_mip0_png;
-			maskPngLen[0] = mask_phosphor_grille_mip0_png_len;
-			maskPng[1] = mask_phosphor_grille_mip1_png;
-			maskPngLen[1] = mask_phosphor_grille_mip1_png_len;
-			maskPng[2] = mask_phosphor_grille_mip2_png;
-			maskPngLen[2] = mask_phosphor_grille_mip2_png_len;
-			maskPng[3] = mask_phosphor_grille_mip3_png;
-			maskPngLen[3] = mask_phosphor_grille_mip3_png_len;
-			maskPng[4] = mask_phosphor_grille_mip4_png;
-			maskPngLen[4] = mask_phosphor_grille_mip4_png_len;
-			maskAvgColor = 53.0f / 255.0f;
-			break;
-		case ROYALE_MASK_SHADOW:
-			maskPng[0] = mask_phosphor_shadow_mip0_png;
-			maskPngLen[0] = mask_phosphor_shadow_mip0_png_len;
-			maskPng[1] = mask_phosphor_shadow_mip1_png;
-			maskPngLen[1] = mask_phosphor_shadow_mip1_png_len;
-			maskPng[2] = mask_phosphor_shadow_mip2_png;
-			maskPngLen[2] = mask_phosphor_shadow_mip2_png_len;
-			maskPng[3] = mask_phosphor_shadow_mip3_png;
-			maskPngLen[3] = mask_phosphor_shadow_mip3_png_len;
-			maskPng[4] = mask_phosphor_shadow_mip4_png;
-			maskPngLen[4] = mask_phosphor_shadow_mip4_png_len;
-			maskAvgColor = 41.0f / 255.0f;
-			break;
-		case ROYALE_MASK_SLOT:
-		default:
-			maskPng[0] = mask_phosphor_slot_mip0_png;
-			maskPngLen[0] = mask_phosphor_slot_mip0_png_len;
-			maskPng[1] = mask_phosphor_slot_mip1_png;
-			maskPngLen[1] = mask_phosphor_slot_mip1_png_len;
-			maskPng[2] = mask_phosphor_slot_mip2_png;
-			maskPngLen[2] = mask_phosphor_slot_mip2_png_len;
-			maskPng[3] = mask_phosphor_slot_mip3_png;
-			maskPngLen[3] = mask_phosphor_slot_mip3_png_len;
-			maskPng[4] = mask_phosphor_slot_mip4_png;
-			maskPngLen[4] = mask_phosphor_slot_mip4_png_len;
-			maskAvgColor = 46.0f / 255.0f;
-			break;
-		}
-		royaleMaskAmplify = 1.0f / maskAvgColor;
-		phosphorMaskTexW = 24;
-		phosphorMaskTexH = 24;
-		gpuPhosphorMaskTexture = loadMipmappedPNGTexture(maskPng, maskPngLen, MASK_MIP_LEVELS);
-	}
+	loadRoyaleMask((royaleMaskType_t)sysarg_args_royale_mask);
 	IFDEBUG_VIDEO(
 	    if (!gpuPhosphorMaskTexture)
 		sys_printf("xrick/video: could not load phosphor mask texture (%s)\n", SDL_GetError()););
@@ -1591,8 +1647,9 @@ void
 sysvid_update(rect_t *rects)
 {
 	static U8 osdWasActive = FALSE;
+	static U8 menuWasActive = FALSE;
 	rect_t *rect;
-	U8 osdActiveNow;
+	U8 osdActiveNow, menuNow;
 	void *mapped;
 	SDL_GPUCommandBuffer *cmd;
 	SDL_GPUCopyPass *copyPass;
@@ -1602,6 +1659,7 @@ sysvid_update(rect_t *rects)
 	Uint32 swW, swH;
 
 	osdActiveNow = sysvid_osdActive();
+	menuNow = menu_active();
 
 	/* Normally bail out if there's nothing to redraw -- but not while the
 	 * OSD needs attention: it's alpha-blended directly into `pixels`
@@ -1609,7 +1667,7 @@ sysvid_update(rect_t *rects)
 	 * through, even with no other dirty rects, whenever it's freshly
 	 * active (to draw it) or was active last call but just expired (to
 	 * clean up after it -- see the osdRect refresh below). */
-	if (rects == NULL && !osdActiveNow && !osdWasActive)
+	if (rects == NULL && !osdActiveNow && !osdWasActive && !menuNow && !menuWasActive)
 		return;
 
 	rect = rects;
@@ -1637,10 +1695,26 @@ sysvid_update(rect_t *rects)
 		blitRectToPixels(&osdRect);
 	}
 
+	if (menuNow || menuWasActive) {
+		/* the settings menu blends over the whole frame, so start each
+		 * pass (and the one right after it closes) from clean game content */
+		rect_t full;
+		full.x = 0;
+		full.y = 0;
+		full.width = fb_width;
+		full.height = fb_height;
+		full.next = NULL;
+		blitRectToPixels(&full);
+	}
+
 	if (osdActiveNow)
 		drawOSD();
 
+	if (menuNow)
+		menu_draw();
+
 	osdWasActive = osdActiveNow;
+	menuWasActive = menuNow;
 
 	mapped = SDL_MapGPUTransferBuffer(gpuDevice, gpuTransferBuf, false);
 	memcpy(mapped, pixels, (size_t)fb_width * fb_height * sizeof(U32));
@@ -1954,6 +2028,140 @@ sysvid_setGamma(U8 g)
 	// FIXME changing the GAMMA without changing the PALETTE just CANNOT WORK if GAMMA is not HARDWARE?
 	gamma = g;
 	sysvid_setDisplayPalette();
+}
+
+/*
+ * Overlay drawing, for the settings menu: alpha-blended rects and text
+ * stamped straight into the composited frame (menu_draw() is called from
+ * sysvid_update() after the game frame is in place).
+ */
+void
+sysvid_overlayRect(int x, int y, int w, int h, U8 r, U8 g, U8 b, U8 a)
+{
+	int px, py;
+
+	for (py = y; py < y + h; py++) {
+		if (py < 0 || py >= (int)fb_height) continue;
+		for (px = x; px < x + w; px++) {
+			U8 *p;
+			if (px < 0 || px >= (int)fb_width) continue;
+			p = (U8 *)pixels + (py * fb_width + px) * 4;
+			p[0] = (U8)(((int)p[0] * (255 - a) + (int)r * a) / 255);
+			p[1] = (U8)(((int)p[1] * (255 - a) + (int)g * a) / 255);
+			p[2] = (U8)(((int)p[2] * (255 - a) + (int)b * a) / 255);
+			p[3] = 255;
+		}
+	}
+}
+
+
+int
+sysvid_overlayTextWidth(const char *s)
+{
+	int len = (int)strlen(s);
+	return len ? len * 6 - 1 : 0;
+}
+
+
+void
+sysvid_overlayText(int x, int y, const char *s, U8 r, U8 g, U8 b)
+{
+	int i, gx, gy;
+
+	for (i = 0; s[i]; i++) {
+		char c = s[i];
+		const U8 *rows;
+		if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+		rows = osdFindGlyph(c);
+		if (!rows) continue;
+		for (gy = 0; gy < 7; gy++) {
+			for (gx = 0; gx < 5; gx++) {
+				int px = x + i * 6 + gx, py = y + gy;
+				U8 *p;
+				if (!(rows[gy] & (0x10 >> gx))) continue;
+				if (px < 0 || px >= (int)fb_width || py < 0 || py >= (int)fb_height) continue;
+				p = (U8 *)pixels + (py * fb_width + px) * 4;
+				p[0] = r;
+				p[1] = g;
+				p[2] = b;
+				p[3] = 255;
+			}
+		}
+	}
+}
+
+
+/*
+ * Getters/setters for the settings menu. Unlike the F-key cycle functions
+ * above, these don't pop up the OSD message.
+ */
+U8
+sysvid_isFullscreen(void)
+{
+	return isFullscreen;
+}
+
+U8
+sysvid_getWindowZoom(void)
+{
+	return wmzoom;
+}
+
+int
+sysvid_getUpscale(void)
+{
+	return upscaleMode;
+}
+
+void
+sysvid_setUpscale(int v)
+{
+	if (v >= 0 && v < UPSCALE_COUNT) upscaleMode = (upscaleMode_t)v;
+	sysvid_update(&SCREENRECT);
+}
+
+int
+sysvid_getCrt(void)
+{
+	return crtMode;
+}
+
+/* silently ignores crt-royale when its phosphor mask failed to load */
+void
+sysvid_setCrt(int v)
+{
+	if (v >= 0 && v < CRT_COUNT && !(v == CRT_ROYALE && gpuPhosphorMaskTexture == NULL))
+		crtMode = (crtMode_t)v;
+	sysvid_update(&SCREENRECT);
+}
+
+int
+sysvid_getBezel(void)
+{
+	return bezelMode;
+}
+
+/* silently ignores a bezel whose texture failed to load */
+void
+sysvid_setBezel(int v)
+{
+	if (v >= 0 && v < BEZEL_COUNT && (v == BEZEL_NONE || bezels[v].texture != NULL))
+		bezelMode = (bezelMode_t)v;
+	sysvid_update(&SCREENRECT);
+}
+
+int
+sysvid_getRoyaleMask(void)
+{
+	return royaleMaskType;
+}
+
+void
+sysvid_setRoyaleMask(int v)
+{
+	if (v >= 0 && v < ROYALE_MASK_COUNT && v != (int)royaleMaskType)
+		loadRoyaleMask((royaleMaskType_t)v);
+	sysvid_update(&SCREENRECT);
 }
 
 

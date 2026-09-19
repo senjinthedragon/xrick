@@ -17,6 +17,7 @@
 #include "game.h"
 #include "fb.h"
 #include "sysjoy.h"
+#include "settings.h"
 
 #include <SDL3/SDL.h>
 #include <signal.h>
@@ -57,6 +58,8 @@ sys_init(int argc, char **argv)
 	setConsole();
 	sys_printf("xrick\n");
 
+	/* saved settings first, so command-line options override them */
+	settings_load();
 	sysarg_init(argc, argv);
 
 	// FIXME not writing to stdxxx.txt files anymore?
@@ -79,6 +82,7 @@ sys_init(int argc, char **argv)
 	if (sysarg_args_nosound == 0)
 		syssnd_init();
 #endif
+	settings_apply();
 
 	atexit(sys_shutdown);
 	signal(SIGINT, exit);

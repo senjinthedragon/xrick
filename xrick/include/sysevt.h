@@ -18,6 +18,7 @@
 
 extern void sysevt_poll(void);
 extern void sysevt_wait(void);
+extern void sysevt_resetInput(void);
 
 #endif /* _SYSEVT_H */
 

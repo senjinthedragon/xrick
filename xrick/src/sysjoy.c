@@ -28,6 +28,59 @@
  */
 static SDL_Gamepad *pad = NULL;
 
+/* remappable action buttons (SDL_GamepadButton values); movement is
+ * always the d-pad / left stick */
+int sysjoy_btn_jump = SDL_GAMEPAD_BUTTON_SOUTH;
+int sysjoy_btn_fire = SDL_GAMEPAD_BUTTON_NORTH;
+int sysjoy_btn_shoot = SDL_GAMEPAD_BUTTON_EAST;
+int sysjoy_btn_bomb = SDL_GAMEPAD_BUTTON_WEST;
+int sysjoy_btn_pause = SDL_GAMEPAD_BUTTON_START;
+int sysjoy_btn_menu = SDL_GAMEPAD_BUTTON_BACK;
+
+void
+sysjoy_resetDefaults(void)
+{
+	sysjoy_btn_jump = SDL_GAMEPAD_BUTTON_SOUTH;
+	sysjoy_btn_fire = SDL_GAMEPAD_BUTTON_NORTH;
+	sysjoy_btn_shoot = SDL_GAMEPAD_BUTTON_EAST;
+	sysjoy_btn_bomb = SDL_GAMEPAD_BUTTON_WEST;
+	sysjoy_btn_pause = SDL_GAMEPAD_BUTTON_START;
+	sysjoy_btn_menu = SDL_GAMEPAD_BUTTON_BACK;
+}
+
+/*
+ * Human-readable name for a button: face buttons are labelled to match the
+ * connected controller (PlayStation or Xbox style), PlayStation names when
+ * none is connected.
+ */
+const char *
+sysjoy_buttonName(int button)
+{
+	static const char *const names[] = {
+	    "CROSS", "CIRCLE", "SQUARE", "TRIANGLE", "SELECT", "PS", "START",
+	    "L3", "R3", "L1", "R1", "DPAD UP", "DPAD DOWN", "DPAD LEFT", "DPAD RIGHT",
+	    "MISC", "PADDLE", "PADDLE", "PADDLE", "PADDLE", "TOUCHPAD"};
+
+	if (button < 0 || button >= (int)(sizeof(names) / sizeof(names[0])))
+		return "NONE";
+
+	if (pad && button <= SDL_GAMEPAD_BUTTON_NORTH) {
+		switch (SDL_GetGamepadButtonLabel(pad, (SDL_GamepadButton)button)) {
+		case SDL_GAMEPAD_BUTTON_LABEL_A:
+			return "A";
+		case SDL_GAMEPAD_BUTTON_LABEL_B:
+			return "B";
+		case SDL_GAMEPAD_BUTTON_LABEL_X:
+			return "X";
+		case SDL_GAMEPAD_BUTTON_LABEL_Y:
+			return "Y";
+		default:
+			break;
+		}
+	}
+	return names[button];
+}
+
 static void
 openFirst(void)
 {

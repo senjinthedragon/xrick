@@ -61,8 +61,14 @@ Produces `build/xrick`. Requires SDL3 and libvorbisfile.
 -speed <n>            game speed
 ```
 
-Upscale/CRT/bezel modes can also be cycled live with **F10**/**F11**/**F12**. F1 toggles
-fullscreen, F2/F3 zoom, F4-F6 sound mute/volume, F7-F9 cheats.
+Press **Escape** (or the gamepad's Select/Share button) at any time for the settings menu, which
+pauses the game and covers everything below: fullscreen, window scale, upscaler, CRT shader, bezel,
+volume, control scheme, game speed and cheats, plus separate keyboard and gamepad remapping panels
+(conflicting bindings show in red) and a Quit option that asks first. Changes are saved automatically
+to `~/.local/share/xrick/xrick/settings.ini` and loaded at startup; command-line options override the
+saved settings for that run. The old shortcuts still work: **F10**/**F11**/**F12** cycle
+upscale/CRT/bezel, **F1** toggles fullscreen, **F2**/**F3** zoom, **F4**-**F6** sound mute/volume,
+**F7**-**F9** cheats.
 
 `-controls classic` (the default) is the original game: hold **fire** and press **up**/**down**
 to shoot/drop a bomb. `-controls modern` adds dedicated shoot/bomb keys (**A**/**S** by default)
@@ -70,7 +76,7 @@ on top of that, without removing the classic combo. Either way, you need to be s
 to shoot or drop a bomb - moving or crouching first, same as the original game.
 
 Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **Cross** (bottom
-face button) jumps, **Triangle** (top) is fire and **Start** pauses. With `-controls modern`,
+face button) jumps, **Triangle** (top) is fire, **Start** pauses and **Select** opens the settings menu. With `-controls modern`,
 **Circle** (right) shoots and **Square** (left) drops a bomb; with `classic`, Circle and Square are
 just fire too. On an Xbox-style pad, Cross/Circle/Square/Triangle are A/B/X/Y.
 

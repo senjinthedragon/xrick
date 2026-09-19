@@ -29,6 +29,8 @@
 #include "draw.h"
 #include "e_rick.h"
 #include "sysjoy.h"
+#include "menu.h"
+#include "settings.h"
 
 #define SETBIT(x, b) x |= (b)
 #define CLRBIT(x, b) x &= ~(b)
@@ -110,53 +112,46 @@ padSetFire(int down)
 static void
 padButton(int button, int down)
 {
-	switch (button) {
-	case SDL_GAMEPAD_BUTTON_DPAD_UP:
+	int modern = (sysarg_args_controls == CONTROLS_MODERN);
+
+	/* movement is always the d-pad; everything else is remappable */
+	if (button == SDL_GAMEPAD_BUTTON_DPAD_UP) {
 		padSetBit(&padDpad, CONTROL_UP, down);
 		control_last = CONTROL_UP;
-		break;
-	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) {
 		padSetBit(&padDpad, CONTROL_DOWN, down);
 		control_last = CONTROL_DOWN;
-		break;
-	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_LEFT) {
 		padSetBit(&padDpad, CONTROL_LEFT, down);
 		control_last = CONTROL_LEFT;
-		break;
-	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT) {
 		padSetBit(&padDpad, CONTROL_RIGHT, down);
 		control_last = CONTROL_RIGHT;
-		break;
-	case SDL_GAMEPAD_BUTTON_SOUTH: /* cross: jump (same as up) */
+	} else if (button == sysjoy_btn_jump) {
 		padSetBit(&padJump, CONTROL_UP, down);
 		control_last = CONTROL_UP;
-		break;
-	case SDL_GAMEPAD_BUTTON_NORTH: /* triangle */
+	} else if (button == sysjoy_btn_fire) {
 		padSetFire(down);
-		break;
-	case SDL_GAMEPAD_BUTTON_EAST: /* circle */
-		if (sysarg_args_controls == CONTROLS_MODERN) {
+	} else if (button == sysjoy_btn_shoot) {
+		if (modern) {
 			setShoot(down);
 			padShoot = down;
 		} else {
 			padSetFire(down);
 		}
-		break;
-	case SDL_GAMEPAD_BUTTON_WEST: /* square */
-		if (sysarg_args_controls == CONTROLS_MODERN) {
+	} else if (button == sysjoy_btn_bomb) {
+		if (modern) {
 			setBomb(down);
 			padBomb = down;
 		} else {
 			padSetFire(down);
 		}
-		break;
-	case SDL_GAMEPAD_BUTTON_START:
+	} else if (button == sysjoy_btn_pause) {
 		if (down)
 			SETBIT(control_status, CONTROL_PAUSE);
 		else
 			CLRBIT(control_status, CONTROL_PAUSE);
 		control_last = CONTROL_PAUSE;
-		break;
 	}
 }
 
@@ -177,12 +172,32 @@ padReleaseAll(void)
 #endif /* ENABLE_JOYSTICK */
 
 /*
+ * Forget every held input: used when the settings menu opens or closes,
+ * so a key or button released while the menu had the focus can't leave
+ * the game thinking it's still held.
+ */
+void
+sysevt_resetInput(void)
+{
+	control_status = 0;
+	control_last = 0;
+#ifdef ENABLE_JOYSTICK
+	padStick = padDpad = padJump = padApplied = 0;
+	padFire = padShoot = padBomb = 0;
+#endif
+}
+
+/*
  * Process an event
  */
 static void
 processEvent()
 {
 	U16 key;
+
+	/* the settings menu (Escape / gamepad menu button) gets first pick */
+	if (menu_handleEvent(&event))
+		return;
 
 	switch (event.type) {
 	case SDL_EVENT_KEY_DOWN:
@@ -205,9 +220,6 @@ processEvent()
 		} else if (key == syskbd_end) {
 			SETBIT(control_status, CONTROL_END);
 			control_last = CONTROL_END;
-		} else if (key == syskbd_xtra) {
-			SETBIT(control_status, CONTROL_EXIT);
-			control_last = CONTROL_EXIT;
 		} else if (key == syskbd_fire) {
 			SETBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
@@ -244,6 +256,8 @@ processEvent()
 		} else if (key == SDL_SCANCODE_F12) {
 			sysvid_cycleBezel();
 		}
+		if ((key >= SDL_SCANCODE_F1 && key <= SDL_SCANCODE_F6) || (key >= SDL_SCANCODE_F10 && key <= SDL_SCANCODE_F12))
+			settings_save();
 		break;
 	case SDL_EVENT_KEY_UP:
 		key = event.key.scancode;
@@ -265,9 +279,6 @@ processEvent()
 		} else if (key == syskbd_end) {
 			CLRBIT(control_status, CONTROL_END);
 			control_last = CONTROL_END;
-		} else if (key == syskbd_xtra) {
-			CLRBIT(control_status, CONTROL_EXIT);
-			control_last = CONTROL_EXIT;
 		} else if (key == syskbd_fire) {
 			CLRBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;

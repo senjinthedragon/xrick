@@ -196,6 +196,37 @@ syssnd_toggleMute(void)
 	SDL_UnlockMutex(sndlock);
 }
 
+U8
+syssnd_getVol(void)
+{
+	return sndUVol;
+}
+
+U8
+syssnd_getMute(void)
+{
+	return sndMute;
+}
+
+/* set the user volume (0 to SYSSND_MAXVOL) directly */
+void
+syssnd_setVol(U8 v)
+{
+	if (v > SYSSND_MAXVOL) v = SYSSND_MAXVOL;
+	sndUVol = v;
+	SDL_LockMutex(sndlock);
+	sndVol = MIX_MAXVOLUME * sndUVol / SYSSND_MAXVOL;
+	SDL_UnlockMutex(sndlock);
+}
+
+void
+syssnd_setMute(U8 m)
+{
+	SDL_LockMutex(sndlock);
+	sndMute = m ? TRUE : FALSE;
+	SDL_UnlockMutex(sndlock);
+}
+
 void
 syssnd_vol(S8 d)
 {
