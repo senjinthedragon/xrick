@@ -76,7 +76,7 @@ on top of that, without removing the classic combo. Either way, you need to be s
 to shoot or drop a bomb - moving or crouching first, same as the original game.
 
 Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **Cross** (bottom
-face button) jumps, **Triangle** (top) is fire, **Start** pauses and **Select** opens the settings menu. With `-controls modern`,
+face button) jumps, **Triangle** (top) is the action button, **Start** pauses and **Select** opens the settings menu. With `-controls modern`,
 **Circle** (right) shoots and **Square** (left) drops a bomb; with `classic`, Circle and Square are
 just fire too. On an Xbox-style pad, Cross/Circle/Square/Triangle are A/B/X/Y.
 

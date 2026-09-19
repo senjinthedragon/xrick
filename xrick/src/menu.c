@@ -91,9 +91,9 @@ static const pagedef_t pages[PG_COUNT] = {
 };
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
-static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "FIRE", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE"};
+static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE"};
 static int *const padVar[PAD_COUNT] = {&sysjoy_btn_jump, &sysjoy_btn_fire, &sysjoy_btn_shoot, &sysjoy_btn_bomb, &sysjoy_btn_pause, &sysjoy_btn_menu};
-static const char *const padLabel[PAD_COUNT] = {"JUMP", "FIRE", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE", "MENU"};
+static const char *const padLabel[PAD_COUNT] = {"JUMP", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE", "MENU"};
 
 static const char *const onOff[] = {"OFF", "ON"};
 static const char *const upscaleNames[] = {"NONE", "FSR1"};
