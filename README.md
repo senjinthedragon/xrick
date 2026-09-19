@@ -69,6 +69,10 @@ to shoot/drop a bomb. `-controls modern` adds dedicated shoot/bomb keys (**A**/*
 on top of that, without removing the classic combo. Either way, you need to be standing still
 to shoot or drop a bomb - moving or crouching first, same as the original game.
 
+Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **A**/**Y** (the
+bottom/top face buttons) act as fire, **Start** pauses and **Back** exits. With `-controls modern`,
+**X** shoots and **B** drops a bomb; with `classic`, all four face buttons are just fire.
+
 ### Credits
 
 Beyond bigorno's original xrick decompilation, this fork's shader/bezel pipeline builds on work
@@ -79,7 +83,3 @@ by others:
 * **Commodore 1084S bezel** image by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0).
 * **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain).
 * **unzip.c** (minizip) by Gilles Vollant (zlib-style license).
-
-Gamepads are supported (plug one in at any time). The d-pad or left stick moves, **A**/**Y** (the
-bottom/top face buttons) act as fire, **Start** pauses and **Back** exits. With `-controls modern`,
-**X** shoots and **B** drops a bomb; with `classic`, all four face buttons are just fire.
