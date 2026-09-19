@@ -1,6 +1,8 @@
 /*
  * xrick/include/shaders_embedded.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Compiled SPIR-V shaders, built by glslc from the GLSL sources under
  * xrick/src/shaders/, embedded directly into the executable via #embed.
  */

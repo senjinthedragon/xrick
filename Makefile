@@ -1,4 +1,5 @@
 # xrick - native Linux build (SDL3)
+# Part of the SDL3 port of xrick, by Senjin the Dragon.
 
 CC       ?= cc
 SRC_DIR  := xrick/src

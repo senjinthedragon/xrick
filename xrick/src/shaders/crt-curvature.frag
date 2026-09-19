@@ -4,8 +4,8 @@
  * Screen curvature, applied only when a bezel is active (F12) -- a
  * physical CRT sits curved inside its bezel regardless of which upscale/
  * CRT filter is running, so this is deliberately decoupled from
- * crt-royale's own geometry pass rather than being part of it (see
- * project memory for the scope discussion: the real pass is ~2300 lines,
+ * crt-royale's own geometry pass rather than being part of it (the
+ * real pass is ~2300 lines,
  * almost all of it a general-purpose antialiasing filter library and a
  * point-cloud eye-position optimizer we don't need for a fixed layout).
  *
@@ -26,6 +26,8 @@
  * curved lookup, not the real pass's full configurable filter library --
  * enough to soften the curve's edges without porting ~1400 lines of
  * general-purpose AA code for a single hardcoded configuration.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D srcTex;
@@ -53,7 +55,7 @@ const float BORDER_COMPRESS = 2.5;
 /* eye_pos.z such that the screen's flat-uv corners map exactly to the
  * sphere-uv corners (1,1 etc), i.e. crt-royale's real
  * get_ideal_global_eye_pos_for_points() result for our symmetric,
- * untilted case -- solved numerically offline (see project memory) rather
+ * untilted case -- solved numerically offline rather
  * than porting that function's general iterative point-cloud solver,
  * since a fixed layout only ever needs this one answer. */
 const float EYE_Z = 3.917057;

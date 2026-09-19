@@ -1,6 +1,8 @@
 /*
  * xrick/include/data_embedded.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * The data.zip archive (built from data/ by the Makefile), embedded
  * directly into the executable via #embed, so a normal run needs no
  * external data file at all.

@@ -23,6 +23,8 @@
  * memory). The clamp + gamma-encode now happen once, at the very end of
  * whichever pass actually reads this (crt-curvature.frag, or
  * crt-final-encode.frag when there's no bezel to warp against).
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D blurredBrightpassTex; /* fully blurred (v then h) BRIGHTPASS */

@@ -9,6 +9,8 @@
  * pass to do it instead). Every other mode already writes clamped,
  * display-ready color into gpuFinalIntermediate, so this is a no-op copy
  * for them.
+ *
+ * Written by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D srcTex;

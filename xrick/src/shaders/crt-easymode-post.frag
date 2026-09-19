@@ -13,6 +13,8 @@
  * scanline/mask/gamma stages are otherwise identical and still correct,
  * since scanline period is driven by the *original* source row count
  * (which doesn't change), not the upscaled resolution.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

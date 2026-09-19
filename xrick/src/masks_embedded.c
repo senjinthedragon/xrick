@@ -1,6 +1,8 @@
 /*
  * xrick/src/masks_embedded.c
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Embeds phosphor mask PNG assets (see xrick/src/masks/) into the
  * executable. Requires a C23 compiler for #embed; only this file needs
  * that dialect.

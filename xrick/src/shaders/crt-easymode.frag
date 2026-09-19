@@ -10,6 +10,8 @@
  * changes; OutputSize (the actual render target size, used for scanline
  * period and mask alignment) does change with window size/zoom, so it's
  * pushed in per-frame via a uniform buffer.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

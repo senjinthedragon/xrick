@@ -9,6 +9,8 @@
  * from variable renames; only the small subset of AMD's cross-platform "A"
  * helper macros this pass actually uses are reproduced here, rather than
  * pulling in the full multi-backend ffx_a.h.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

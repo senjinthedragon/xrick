@@ -7,8 +7,10 @@
  * bloom-approx estimate. Ported from crt-royale-brightpass.slang. All the
  * per-frame "runtime bloom sigma" math is replaced by constants computed
  * once offline for our fixed 3.0px triad size (get_min_sigma_to_blur_triad
- * / get_center_weight in bloom-functions.h -- see the project memory for
- * the derivation), since xrick's mask tile size never changes at runtime.
+ * / get_center_weight in bloom-functions.h -- derived
+ * offline), since xrick's mask tile size never changes at runtime.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D scanlinesTex; /* MASKED_SCANLINES */

@@ -9,6 +9,8 @@
  * aside from variable renames and dropping the unused half-precision
  * path; #pragma parameter defaults from fsr.slangp are hardcoded, per
  * this project's "no in-game shader parameter UI" approach.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

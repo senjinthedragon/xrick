@@ -10,6 +10,8 @@
  * Ported as a plain discrete convolution rather than the original's
  * bilinear-pair sample-halving trick (blur-functions.h) -- same result,
  * more texture fetches; fine for our resolutions.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 3, binding = 0) uniform UBO

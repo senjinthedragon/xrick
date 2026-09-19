@@ -1,6 +1,8 @@
 /*
  * xrick/include/menu.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * The in-game settings menu: opened with Escape (or the gamepad's menu
  * button), pauses the game, and draws itself over the frame.
  */

@@ -15,6 +15,8 @@
  *     (the nonzero (0.1,0.2)-style values only exist in the static
  *     HARDCODE_SETTINGS codepath, which crt-royale.slangp doesn't use) --
  *     so all three color channels sample identically here.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 3, binding = 0) uniform UBO

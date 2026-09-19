@@ -9,6 +9,8 @@
  * terms of this license.
  *
  * You must not remove this notice, or any other, from this software.
+ *
+ * SDL3 port and later modifications by Senjin the Dragon.
  */
 
 /*
@@ -433,8 +435,8 @@ computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
  * the screen and beats against the pixel grid as a faint but real
  * moving band (confirmed real via pass isolation and offline
  * simulation; this is also exactly why the artifact disappears entirely
- * with no bezel active, which already integer-scales via zoom -- see
- * project memory). Fitting the CONTENT to an integer size first, then
+ * with no bezel active, which already integer-scales via zoom).
+ * Fitting the CONTENT to an integer size first, then
  * fitting the bezel artwork around that (rather than the reverse), is
  * Senjin's fix and removes the non-integer scale at the source instead
  * of trying to hide its symptom downstream. Only the vertical axis is
@@ -606,7 +608,7 @@ ensureRoyaleIntermediates(Uint32 w, Uint32 h)
 	 * colorful static -- confirmed by direct A/B: reproduced even with
 	 * curvature bypassed entirely (so not a curvature/sampling bug), and
 	 * disappeared when these buffers were widened to float32 (real bug,
-	 * not a fundamental filtering limitation -- see project memory). */
+	 * not a fundamental filtering limitation). */
 	texInfo.format = SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT;
 	texInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
 	texInfo.layer_count_or_depth = 1;
@@ -1278,7 +1280,7 @@ sysvid_init(U16 width, U16 height)
 	 * fraction (confirmed real: reproduces with curvature's own warp
 	 * math fully bypassed, absent entirely with no bezel active at all
 	 * -- i.e. tied to viewport pixel width, not the curvature warp
-	 * itself; see project memory). */
+	 * itself). */
 	memset(&sampInfo, 0, sizeof(sampInfo));
 	sampInfo.min_filter = SDL_GPU_FILTER_LINEAR;
 	sampInfo.mag_filter = SDL_GPU_FILTER_LINEAR;

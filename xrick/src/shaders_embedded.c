@@ -1,6 +1,8 @@
 /*
  * xrick/src/shaders_embedded.c
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Embeds compiled SPIR-V shaders (built by the Makefile via glslc) into
  * the executable. Requires a C23 compiler for #embed; only this file
  * needs that dialect.

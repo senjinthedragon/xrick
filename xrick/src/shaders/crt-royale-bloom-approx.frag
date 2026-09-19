@@ -11,6 +11,8 @@
  * Gaussian resize "MUCH better...for the very small sigmas we're likely
  * to use at small output resolutions" like this one. Hardware bilinear
  * filtering (the sampler bound here) does the resize directly.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D srcTex; /* LINEARIZED, 320x200 */

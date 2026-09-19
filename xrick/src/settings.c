@@ -1,6 +1,8 @@
 /*
  * xrick/src/settings.c
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Settings are a plain "name=number" text file. Loading fills the same
  * sysarg_args_* variables the command line does (so command-line options,
  * parsed afterwards, override the file for that run); saving reads the

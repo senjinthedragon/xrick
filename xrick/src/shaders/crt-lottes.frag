@@ -13,6 +13,8 @@
  * SourceSize is xrick's fixed framebuffer; OutputSize (the actual render
  * target, used for the shadow mask's pixel grid) changes with window size,
  * so it's pushed in per frame via a uniform buffer.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

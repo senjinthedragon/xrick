@@ -1,6 +1,8 @@
 /*
  * xrick/include/masks_embedded.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Phosphor mask textures for crt-royale, embedded via #embed. See
  * xrick/src/masks/ for how these were generated: each mask's full mip
  * chain (24/12/6/3/1px) is pre-rendered offline from crt-royale's own

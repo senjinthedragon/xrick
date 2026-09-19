@@ -1,3 +1,4 @@
+/* xrick: modified for the SDL3 port (in-memory archive support) by Senjin the Dragon. */
 /* unzip.h -- IO for uncompress .zip files using zlib
    Version 0.15 beta, Mar 19th, 1998,
 

@@ -20,6 +20,8 @@
  *     mask resizer (crt-royale-mask-resize-{vertical,horizontal}.slang),
  *     which exists to support arbitrary/unknown viewport sizes across any
  *     RetroArch core -- xrick only ever has the one fixed source size.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 3, binding = 0) uniform UBO

@@ -9,6 +9,8 @@
  * always a progressive 320x200 frame, and the original shader's own
  * interlace-bob math degenerates to a no-op for non-interlaced sources
  * (its is_interlaced() check requires >288 lines).
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D srcTex;

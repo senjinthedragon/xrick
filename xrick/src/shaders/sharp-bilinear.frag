@@ -10,6 +10,8 @@
  * scale from the vertical ratio; here each axis gets its own, since with
  * 4:3 aspect correction the horizontal and vertical ratios differ. Needs a
  * linear-filtering sampler bound to Source.
+ *
+ * Converted from slang by Senjin the Dragon.
  */
 
 layout(set = 2, binding = 0) uniform sampler2D Source;

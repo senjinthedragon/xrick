@@ -1,6 +1,8 @@
 /*
  * xrick/include/settings.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Persistent user settings (video, audio, controls), stored in a small
  * text file in the user's data directory.
  */

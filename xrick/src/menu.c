@@ -1,6 +1,8 @@
 /*
  * xrick/src/menu.c
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * The in-game settings menu. Pages are lists of items; each item is
  * either a link to another page, an action, a value that left/right
  * cycles, or a key/gamepad binding that can be remapped. Every change is

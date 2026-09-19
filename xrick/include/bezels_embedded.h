@@ -1,6 +1,8 @@
 /*
  * xrick/include/bezels_embedded.h
  *
+ * Part of the SDL3 port of xrick, by Senjin the Dragon.
+ *
  * Bezel PNG assets, embedded directly into the executable via #embed.
  * Decoded at runtime with stb_image (see thirdparty/stb_image.h).
  */

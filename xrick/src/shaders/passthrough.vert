@@ -1,5 +1,7 @@
 #version 450
 
+/* Written by Senjin the Dragon for the SDL3 port of xrick. */
+
 layout(location = 0) out vec2 uv;
 
 void main()
