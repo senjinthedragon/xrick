@@ -63,13 +63,16 @@ static U16 fb_width, fb_height;
 /* three independent, freely-combinable axes -- see sysvid_cycleUpscale/Crt/Bezel */
 typedef enum { UPSCALE_NONE = 0,
 	       UPSCALE_FSR1,
+	       UPSCALE_SHARP,
 	       UPSCALE_COUNT } upscaleMode_t;
 typedef enum { CRT_NONE = 0,
 	       CRT_EASYMODE,
 	       CRT_ROYALE,
+	       CRT_LOTTES,
 	       CRT_COUNT } crtMode_t;
 typedef enum { BEZEL_NONE = 0,
 	       BEZEL_COMMODORE_1084S,
+	       BEZEL_ATARI_SC1224,
 	       BEZEL_COUNT } bezelMode_t;
 /* crt-royale's phosphor mask type -- startup-flag-only (no live toggle key
  * left free; see sysarg.c's -royale-mask), unlike the three axes above */
@@ -80,6 +83,9 @@ typedef enum { ROYALE_MASK_SLOT = 0,
 static upscaleMode_t upscaleMode = UPSCALE_NONE;
 static crtMode_t crtMode = CRT_NONE;
 static bezelMode_t bezelMode = BEZEL_NONE;
+/* 0: 4:3 pixel-aspect corrected (the original's 320x200 was shown on 4:3
+ * monitors, so pixels were slightly tall); 1: square pixels (1.6:1) */
+static U8 aspectMode = 0;
 static royaleMaskType_t royaleMaskType = ROYALE_MASK_SLOT;
 
 /* a static bezel: a monitor photo with a "screen" area the game's own
@@ -99,6 +105,8 @@ static SDL_GPUSampler *gpuSampler;
 
 static SDL_GPUShader *gpuVertShader;
 static SDL_GPUShader *gpuPassthroughFragShader;
+static SDL_GPUShader *gpuSharpFragShader;
+static SDL_GPUShader *gpuCrtLottesFragShader;
 static SDL_GPUShader *gpuCrtEasymodeFragShader;	    /* pre-upscale: does its own resample */
 static SDL_GPUShader *gpuCrtEasymodePostFragShader; /* post-upscale: samples 1:1 */
 static SDL_GPUShader *gpuEasuFragShader;
@@ -106,6 +114,9 @@ static SDL_GPUShader *gpuRcasFragShader;
 
 static SDL_GPUGraphicsPipeline *gpuPassthroughPipeline;		      /* bezel background draw, and the final "no curvature" blit -- both -> swapchain */
 static SDL_GPUGraphicsPipeline *gpuPassthroughToIntermediatePipeline; /* no upscale, no crt -> gpuFinalIntermediate */
+static SDL_GPUGraphicsPipeline *gpuSharpToIntermediatePipeline;	      /* sharp upscale -> gpuIntermediate1 (then crt post) */
+static SDL_GPUGraphicsPipeline *gpuSharpToFinalPipeline;	      /* sharp upscale, no crt -> gpuFinalIntermediate */
+static SDL_GPUGraphicsPipeline *gpuCrtLottesPipeline;		      /* crt-lottes: does its own resample -> gpuFinalIntermediate */
 static SDL_GPUGraphicsPipeline *gpuCrtEasymodePipeline;		      /* no upscale, crt -> gpuFinalIntermediate */
 static SDL_GPUGraphicsPipeline *gpuEasuPipeline;		      /* upscale pass 1 -> intermediate */
 static SDL_GPUGraphicsPipeline *gpuRcasToSwapchainPipeline;	      /* upscale, no crt, pass 2 -> gpuFinalIntermediate */
@@ -404,7 +415,10 @@ computeLetterboxViewportFor(Uint32 srcW, Uint32 srcH, Uint32 winW, Uint32 winH, 
 static void
 computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
 {
-	computeLetterboxViewportFor(fb_width, fb_height, winW, winH, vp);
+	if (aspectMode == 0)
+		computeLetterboxViewportFor(4, 3, winW, winH, vp);
+	else
+		computeLetterboxViewportFor(fb_width, fb_height, winW, winH, vp);
 }
 
 
@@ -446,7 +460,7 @@ computeBezelViewports(Uint32 winW, Uint32 winH, const bezelInfo_t *bz,
 	computeLetterboxViewportFor(bz->texW, bz->texH, winW, winH, &rawOuter);
 	rawInnerH = (bz->screenY1 - bz->screenY0) * rawOuter.h;
 
-	n = (int)(rawInnerH / (float)fb_height + 0.5f);
+	n = (int)(rawInnerH / (float)fb_height); /* round down: never spill past the window */
 	if (n < 1) n = 1;
 	scale = (n * (float)fb_height) / rawInnerH;
 
@@ -1039,6 +1053,7 @@ sysvid_init(U16 width, U16 height)
 
 	upscaleMode = (upscaleMode_t)sysarg_args_upscale;
 	crtMode = (crtMode_t)sysarg_args_crt;
+	aspectMode = sysarg_args_aspect ? 1 : 0;
 
 	IFDEBUG_VIDEO(sys_printf("xrick/video: start\n"););
 
@@ -1129,6 +1144,26 @@ sysvid_init(U16 width, U16 height)
 	shInfo.num_samplers = 1;
 	shInfo.num_uniform_buffers = 1;
 	gpuCrtEasymodePostFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+
+	memset(&shInfo, 0, sizeof(shInfo));
+	shInfo.code = shader_sharp_bilinear_frag_spv;
+	shInfo.code_size = shader_sharp_bilinear_frag_spv_len;
+	shInfo.entrypoint = "main";
+	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+	shInfo.num_samplers = 1;
+	shInfo.num_uniform_buffers = 1;
+	gpuSharpFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+
+	memset(&shInfo, 0, sizeof(shInfo));
+	shInfo.code = shader_crt_lottes_frag_spv;
+	shInfo.code_size = shader_crt_lottes_frag_spv_len;
+	shInfo.entrypoint = "main";
+	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+	shInfo.num_samplers = 1;
+	shInfo.num_uniform_buffers = 1;
+	gpuCrtLottesFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
 
 	memset(&shInfo, 0, sizeof(shInfo));
 	shInfo.code = shader_fsr_easu_frag_spv;
@@ -1238,7 +1273,7 @@ sysvid_init(U16 width, U16 height)
 	shInfo.num_uniform_buffers = 1;
 	gpuFinalEncodeFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
 
-	if (!gpuVertShader || !gpuPassthroughFragShader || !gpuCrtEasymodeFragShader || !gpuCrtEasymodePostFragShader || !gpuEasuFragShader || !gpuRcasFragShader || !gpuRoyaleLinearizeFragShader || !gpuRoyaleVscanFragShader || !gpuRoyaleBloomApproxFragShader || !gpuRoyaleHscanMaskFragShader || !gpuRoyaleBrightpassFragShader || !gpuRoyaleBloomBlurFragShader || !gpuRoyaleReconstituteFragShader || !gpuCurvatureFragShader || !gpuFinalEncodeFragShader)
+	if (!gpuVertShader || !gpuPassthroughFragShader || !gpuCrtEasymodeFragShader || !gpuSharpFragShader || !gpuCrtLottesFragShader || !gpuCrtEasymodePostFragShader || !gpuEasuFragShader || !gpuRcasFragShader || !gpuRoyaleLinearizeFragShader || !gpuRoyaleVscanFragShader || !gpuRoyaleBloomApproxFragShader || !gpuRoyaleHscanMaskFragShader || !gpuRoyaleBrightpassFragShader || !gpuRoyaleBloomBlurFragShader || !gpuRoyaleReconstituteFragShader || !gpuCurvatureFragShader || !gpuFinalEncodeFragShader)
 		sys_panic("xrick/video: could not compile GPU shaders (%s)", SDL_GetError());
 
 	/* sampled texture holding the composited frame */
@@ -1336,6 +1371,9 @@ sysvid_init(U16 width, U16 height)
 	 * instead -- see sysvid_update()'s unified final-pass comment. */
 	gpuPassthroughPipeline = createPipeline(gpuPassthroughFragShader, swapchainFormat, true);
 	gpuPassthroughToIntermediatePipeline = createPipeline(gpuPassthroughFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuSharpToIntermediatePipeline = createPipeline(gpuSharpFragShader, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, false);
+	gpuSharpToFinalPipeline = createPipeline(gpuSharpFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
+	gpuCrtLottesPipeline = createPipeline(gpuCrtLottesFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
 	gpuCrtEasymodePipeline = createPipeline(gpuCrtEasymodeFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
 	gpuRcasToSwapchainPipeline = createPipeline(gpuRcasFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
 	gpuCrtEasymodePostPipeline = createPipeline(gpuCrtEasymodePostFragShader, SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT, false);
@@ -1353,7 +1391,7 @@ sysvid_init(U16 width, U16 height)
 	gpuCurvaturePipeline = createPipeline(gpuCurvatureFragShader, swapchainFormat, false);
 	gpuFinalEncodePipeline = createPipeline(gpuFinalEncodeFragShader, swapchainFormat, false);
 
-	if (!gpuPassthroughPipeline || !gpuPassthroughToIntermediatePipeline || !gpuCrtEasymodePipeline || !gpuRcasToSwapchainPipeline || !gpuCrtEasymodePostPipeline || !gpuEasuPipeline || !gpuRcasToIntermediatePipeline || !gpuRoyaleLinearizePipeline || !gpuRoyaleVscanPipeline || !gpuRoyaleBloomApproxPipeline || !gpuRoyaleHscanMaskPipeline || !gpuRoyaleBrightpassPipeline || !gpuRoyaleBloomBlurPipeline || !gpuRoyaleReconstitutePipeline || !gpuCurvaturePipeline || !gpuFinalEncodePipeline)
+	if (!gpuPassthroughPipeline || !gpuPassthroughToIntermediatePipeline || !gpuCrtEasymodePipeline || !gpuSharpToIntermediatePipeline || !gpuSharpToFinalPipeline || !gpuCrtLottesPipeline || !gpuRcasToSwapchainPipeline || !gpuCrtEasymodePostPipeline || !gpuEasuPipeline || !gpuRcasToIntermediatePipeline || !gpuRoyaleLinearizePipeline || !gpuRoyaleVscanPipeline || !gpuRoyaleBloomApproxPipeline || !gpuRoyaleHscanMaskPipeline || !gpuRoyaleBrightpassPipeline || !gpuRoyaleBloomBlurPipeline || !gpuRoyaleReconstitutePipeline || !gpuCurvaturePipeline || !gpuFinalEncodePipeline)
 		sys_panic("xrick/video: could not create GPU pipelines (%s)", SDL_GetError());
 
 	/* crt-royale: phosphor mask LUT (mask type picked via -royale-mask,
@@ -1399,6 +1437,20 @@ sysvid_init(U16 width, U16 height)
 	bezels[BEZEL_COMMODORE_1084S].screenY0 = 0.075000f;
 	bezels[BEZEL_COMMODORE_1084S].screenX1 = 0.783673f;
 	bezels[BEZEL_COMMODORE_1084S].screenY1 = 0.848214f;
+	/* Atari SC1224: the pack's graphic for it is just the monitor body -- the
+	 * screen and frame are drawn by the Mega Bezel shader, not baked in, so
+	 * there's no placeholder to measure. These come from the pack's own
+	 * preset for the ST + this monitor (res/scale/Atari_ST/monitor.params):
+	 * 4:3 screen, 65.17% of the image height, shifted up by 67 units,
+	 * centered horizontally, on the 3840x2160 image. */
+	bezels[BEZEL_ATARI_SC1224].texture = loadPNGTexture(
+	    bezel_atari_sc1224_png, bezel_atari_sc1224_png_len,
+	    &bezels[BEZEL_ATARI_SC1224].texW, &bezels[BEZEL_ATARI_SC1224].texH);
+	bezels[BEZEL_ATARI_SC1224].screenX0 = 0.255469f;
+	bezels[BEZEL_ATARI_SC1224].screenY0 = 0.106944f;
+	bezels[BEZEL_ATARI_SC1224].screenX1 = 0.744531f;
+	bezels[BEZEL_ATARI_SC1224].screenY1 = 0.758796f;
+
 	IFDEBUG_VIDEO(
 	    if (!bezels[BEZEL_COMMODORE_1084S].texture)
 		sys_printf("xrick/video: could not load bezel 'commodore_1084s' (%s)\n", SDL_GetError()););
@@ -1437,6 +1489,9 @@ sysvid_shutdown(void)
 	/* pipelines first (they reference shaders/formats) */
 	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuPassthroughPipeline);
 	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuPassthroughToIntermediatePipeline);
+	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuSharpToIntermediatePipeline);
+	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuSharpToFinalPipeline);
+	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuCrtLottesPipeline);
 	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuCrtEasymodePipeline);
 	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuCrtEasymodePostPipeline);
 	SDL_ReleaseGPUGraphicsPipeline(gpuDevice, gpuEasuPipeline);
@@ -1455,6 +1510,8 @@ sysvid_shutdown(void)
 	/* shaders */
 	SDL_ReleaseGPUShader(gpuDevice, gpuVertShader);
 	SDL_ReleaseGPUShader(gpuDevice, gpuPassthroughFragShader);
+	SDL_ReleaseGPUShader(gpuDevice, gpuSharpFragShader);
+	SDL_ReleaseGPUShader(gpuDevice, gpuCrtLottesFragShader);
 	SDL_ReleaseGPUShader(gpuDevice, gpuCrtEasymodeFragShader);
 	SDL_ReleaseGPUShader(gpuDevice, gpuCrtEasymodePostFragShader);
 	SDL_ReleaseGPUShader(gpuDevice, gpuEasuFragShader);
@@ -1847,6 +1904,25 @@ sysvid_update(rect_t *rects)
 			runPassMulti(cmd, gpuRoyaleReconstitutePipeline, multiTex, multiSamp, 3, gpuFinalIntermediate,
 				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
 				     &royaleMaskAmplify, sizeof(royaleMaskAmplify));
+		} else if (crtMode == CRT_LOTTES) {
+			/* like royale, crt-lottes does its own resample to the
+			 * viewport, so the upscale axis doesn't apply either */
+			runPass(cmd, gpuCrtLottesPipeline, gpuTexture, gpuFinalIntermediate,
+				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+		} else if (upscaleMode == UPSCALE_SHARP) {
+			SDL_GPUTexture *sharpTex[1] = {gpuTexture};
+			SDL_GPUSampler *sharpSamp[1] = {gpuSamplerLinearClamp};
+
+			if (crtMode == CRT_EASYMODE) {
+				ensureIntermediates((Uint32)vp.w, (Uint32)vp.h);
+				runPassMulti(cmd, gpuSharpToIntermediatePipeline, sharpTex, sharpSamp, 1, gpuIntermediate1,
+					     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+				runPass(cmd, gpuCrtEasymodePostPipeline, gpuIntermediate1, gpuFinalIntermediate,
+					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+			} else {
+				runPassMulti(cmd, gpuSharpToFinalPipeline, sharpTex, sharpSamp, 1, gpuFinalIntermediate,
+					     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+			}
 		} else if (upscaleMode == UPSCALE_FSR1) {
 			float rcasUniform[3];
 
@@ -1966,7 +2042,8 @@ sysvid_cycleUpscale(void)
 	IFDEBUG_VIDEO(
 	    sys_printf("xrick/video: upscale=%d\n", upscaleMode););
 
-	sysvid_showOSD(upscaleMode == UPSCALE_NONE ? "UPSCALING: NONE" : "UPSCALING: FSR1");
+	sysvid_showOSD(upscaleMode == UPSCALE_NONE ? "UPSCALING: NONE" : upscaleMode == UPSCALE_FSR1 ? "UPSCALING: FSR1"
+												     : "UPSCALING: SHARP");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
 
@@ -1987,7 +2064,8 @@ sysvid_cycleCrt(void)
 	    sys_printf("xrick/video: crt=%d\n", crtMode););
 
 	sysvid_showOSD(crtMode == CRT_NONE ? "SHADER: NONE" : crtMode == CRT_EASYMODE ? "SHADER: EASYMODE"
-										      : "SHADER: ROYALE");
+							  : crtMode == CRT_ROYALE     ? "SHADER: ROYALE"
+										      : "SHADER: LOTTES");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
 
@@ -2012,7 +2090,8 @@ sysvid_cycleBezel(void)
 	IFDEBUG_VIDEO(
 	    sys_printf("xrick/video: bezel=%d\n", bezelMode););
 
-	sysvid_showOSD(bezelMode == BEZEL_NONE ? "BEZEL: NONE" : "BEZEL: 1084S");
+	sysvid_showOSD(bezelMode == BEZEL_NONE ? "BEZEL: NONE" : bezelMode == BEZEL_COMMODORE_1084S ? "BEZEL: 1084S"
+												    : "BEZEL: SC1224");
 	sysvid_update(&SCREENRECT); /* repaint with the new setting */
 }
 
@@ -2164,5 +2243,17 @@ sysvid_setRoyaleMask(int v)
 	sysvid_update(&SCREENRECT);
 }
 
+int
+sysvid_getAspect(void)
+{
+	return aspectMode;
+}
+
+void
+sysvid_setAspect(int v)
+{
+	aspectMode = v ? 1 : 0;
+	sysvid_update(&SCREENRECT);
+}
 
 /* eof */

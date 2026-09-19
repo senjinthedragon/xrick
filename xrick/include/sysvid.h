@@ -32,6 +32,8 @@ extern void sysvid_cycleBezel(void);
 extern U8 sysvid_osdActive(void);
 extern U8 sysvid_isFullscreen(void);
 extern U8 sysvid_getWindowZoom(void);
+extern int sysvid_getAspect(void);
+extern void sysvid_setAspect(int);
 extern int sysvid_getUpscale(void);
 extern void sysvid_setUpscale(int);
 extern int sysvid_getCrt(void);

@@ -53,9 +53,10 @@ static const keySetting_t keySettings[] = {
 static const intSetting_t intSettings[] = {
     {"fullscreen", &sysarg_args_fullscreen, 0, 1},
     {"zoom", &sysarg_args_zoom, 0, 4},
-    {"upscale", &sysarg_args_upscale, 0, 1},
-    {"crt", &sysarg_args_crt, 0, 2},
-    {"bezel", &sysarg_args_bezel, 0, 1},
+    {"upscale", &sysarg_args_upscale, 0, 2},
+    {"crt", &sysarg_args_crt, 0, 3},
+    {"aspect", &sysarg_args_aspect, 0, 1},
+    {"bezel", &sysarg_args_bezel, 0, 2},
     {"royale_mask", &sysarg_args_royale_mask, 0, 2},
     {"controls", &sysarg_args_controls, 0, 1},
     {"speed_period", &sysarg_args_period, 0, 100},
@@ -141,6 +142,7 @@ settings_save(void)
 	fprintf(f, "upscale=%d\n", sysvid_getUpscale());
 	fprintf(f, "crt=%d\n", sysvid_getCrt());
 	fprintf(f, "bezel=%d\n", sysvid_getBezel());
+	fprintf(f, "aspect=%d\n", sysvid_getAspect());
 	fprintf(f, "royale_mask=%d\n", sysvid_getRoyaleMask());
 	fprintf(f, "volume=%d\n", syssnd_getVol());
 	fprintf(f, "mute=%d\n", syssnd_getMute() ? 1 : 0);
@@ -149,7 +151,7 @@ settings_save(void)
 	for (i = 0; i < COUNT(intSettings); i++) {
 		const char *n = intSettings[i].name;
 		if (!strcmp(n, "fullscreen") || !strcmp(n, "zoom") || !strcmp(n, "upscale") ||
-		    !strcmp(n, "crt") || !strcmp(n, "bezel") || !strcmp(n, "royale_mask"))
+		    !strcmp(n, "crt") || !strcmp(n, "aspect") || !strcmp(n, "bezel") || !strcmp(n, "royale_mask"))
 			continue;
 		fprintf(f, "%s=%d\n", n, *intSettings[i].value);
 	}

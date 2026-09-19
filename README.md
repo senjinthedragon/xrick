@@ -29,10 +29,12 @@ this fork targets a native, self-contained desktop build only.
 
 What's new here:
 * **SDL3 + SDL_GPU renderer**, laying the groundwork for real-time upscale/CRT shaders.
-* **Upscaling**: AMD FSR1 (EASU + RCAS).
-* **CRT emulation**: crt-easymode, and a condensed multi-pass port of crt-royale (scanlines,
-  phosphor mask, bloom, spherical curvature), both ported from the real RetroArch `slang-shaders`.
-* **Monitor bezel** compositing (Commodore 1084S), with screen curvature tied to it.
+* **Upscaling**: a sharp-bilinear mode for crisp pixels, and AMD FSR1 (EASU + RCAS).
+* **CRT emulation**: crt-easymode, crt-lottes, and a condensed multi-pass port of crt-royale
+  (scanlines, phosphor mask, bloom, spherical curvature), all ported from the real RetroArch
+  `slang-shaders`.
+* **Monitor bezels** (Commodore 1084S, Atari SC1224), with screen curvature tied to them, and
+  optional 4:3 aspect correction for the original's non-square pixels.
 * **Self-contained binary**: game data, shaders, and bezel/mask art are embedded directly into
   the executable (via C23 `#embed`) - no loose data files needed at runtime.
 * **Audio** converted from 8-bit PCM WAV to Ogg Vorbis, decoded via `libvorbisfile`.
@@ -52,9 +54,10 @@ Produces `build/xrick`. Requires SDL3 and libvorbisfile.
 ```
 -fullscreen           start in fullscreen
 -zoom <n>             window scale factor
--upscale <none|fsr1>
--crt <none|easymode|royale>
--bezel <none|1084s>
+-upscale <none|fsr1|sharp>
+-crt <none|easymode|royale|lottes>
+-bezel <none|1084s|sc1224>
+-aspect <4:3|square>
 -royale-mask <slot|grille|shadow>
 -controls <classic|modern>
 -vol <n> / -nosound
@@ -86,7 +89,8 @@ Beyond bigorno's original xrick decompilation, this fork's shader/bezel pipeline
 by others:
 * **crt-royale** CRT shader by [TroggleMonkey](https://github.com/libretro/slang-shaders/blob/master/crt/shaders/crt-royale/README.TXT) (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders).
 * **crt-easymode** CRT shader by EasyMode (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders).
+* **crt-lottes** CRT shader by Timothy Lottes (public domain), and the **sharp-bilinear** upscaler by Themaister (public domain), both via [libretro/slang-shaders](https://github.com/libretro/slang-shaders).
 * **FSR1** (FidelityFX Super Resolution 1.0) by AMD (MIT), via the RetroArch/libretro slang port (Unlicense).
-* **Commodore 1084S bezel** image by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0).
+* **Commodore 1084S** and **Atari SC1224** bezel images by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0), used unmodified.
 * **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain).
 * **unzip.c** (minizip) by Gilles Vollant (zlib-style license).

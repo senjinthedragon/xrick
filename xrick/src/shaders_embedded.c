@@ -18,6 +18,16 @@ const unsigned char shader_passthrough_frag_spv[] = {
 };
 const unsigned long shader_passthrough_frag_spv_len = sizeof(shader_passthrough_frag_spv);
 
+const unsigned char shader_sharp_bilinear_frag_spv[] = {
+#embed "../../build/shaders/sharp-bilinear.frag.spv"
+};
+const unsigned long shader_sharp_bilinear_frag_spv_len = sizeof(shader_sharp_bilinear_frag_spv);
+
+const unsigned char shader_crt_lottes_frag_spv[] = {
+#embed "../../build/shaders/crt-lottes.frag.spv"
+};
+const unsigned long shader_crt_lottes_frag_spv_len = sizeof(shader_crt_lottes_frag_spv);
+
 const unsigned char shader_crt_easymode_frag_spv[] = {
 #embed "../../build/shaders/crt-easymode.frag.spv"
 };

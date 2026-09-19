@@ -14,6 +14,10 @@ extern const unsigned long shader_passthrough_vert_spv_len;
 extern const unsigned char shader_passthrough_frag_spv[];
 extern const unsigned long shader_passthrough_frag_spv_len;
 
+extern const unsigned char shader_sharp_bilinear_frag_spv[];
+extern const unsigned long shader_sharp_bilinear_frag_spv_len;
+extern const unsigned char shader_crt_lottes_frag_spv[];
+extern const unsigned long shader_crt_lottes_frag_spv_len;
 extern const unsigned char shader_crt_easymode_frag_spv[];
 extern const unsigned long shader_crt_easymode_frag_spv_len;
 

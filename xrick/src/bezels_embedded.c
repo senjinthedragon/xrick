@@ -12,4 +12,9 @@ const unsigned char bezel_commodore_1084s_png[] = {
 };
 const unsigned long bezel_commodore_1084s_png_len = sizeof(bezel_commodore_1084s_png);
 
+const unsigned char bezel_atari_sc1224_png[] = {
+#embed "bezels/atari_sc1224.png"
+};
+const unsigned long bezel_atari_sc1224_png_len = sizeof(bezel_atari_sc1224_png);
+
 /* eof */

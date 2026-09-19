@@ -10,6 +10,8 @@
 
 extern const unsigned char bezel_commodore_1084s_png[];
 extern const unsigned long bezel_commodore_1084s_png_len;
+extern const unsigned char bezel_atari_sc1224_png[];
+extern const unsigned long bezel_atari_sc1224_png_len;
 
 #endif
 
