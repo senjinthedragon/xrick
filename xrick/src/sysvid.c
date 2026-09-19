@@ -426,51 +426,18 @@ computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
 /*
  * computeBezelViewports
  *
- * fits the bezel image into winW x winH (the largest size that fits,
- * same as before), then -- rather than deriving the "screen" cutout's
- * viewport as an arbitrary fraction of that -- shrinks the whole bezel
- * uniformly (preserving its own aspect ratio) by whatever factor makes
- * the cutout's rendered HEIGHT an exact integer multiple of fb_height,
- * and re-centers the result. The cutout is where the game's own output
- * (after any upscale/CRT passes) gets drawn.
- *
- * Why: crt-royale-vscan.frag's scanline-beam resampling assumes a
- * roughly constant sample phase from one output row to the next, which
- * only holds when the output height is an exact multiple of the
- * source's 200 rows -- at any other scale, the phase drifts slowly down
- * the screen and beats against the pixel grid as a faint but real
- * moving band (confirmed real via pass isolation and offline
- * simulation; this is also exactly why the artifact disappears entirely
- * with no bezel active, which already integer-scales via zoom).
- * Fitting the CONTENT to an integer size first, then
- * fitting the bezel artwork around that (rather than the reverse), is
- * Senjin's fix and removes the non-integer scale at the source instead
- * of trying to hide its symptom downstream. Only the vertical axis is
- * forced to an integer multiple here -- crt-royale-hscan-mask.frag's
- * horizontal resampling doesn't show this symptom, so leaving the
- * cutout's width to float (whatever the uniform bezel scale produces)
- * is fine. */
+ * fits the bezel image into winW x winH as large as it goes without
+ * stretching it (so full height on a wide window, full width on a narrow
+ * one) and derives the "screen" opening's viewport from the fractions
+ * measured for that bezel. The opening is where the game's picture goes;
+ * it's drawn at an integer-scaled size first and then resampled to fit
+ * (see chainSize), so the bezel doesn't need to be a particular size.
+ */
 static void
 computeBezelViewports(Uint32 winW, Uint32 winH, const bezelInfo_t *bz,
 		      SDL_GPUViewport *outerVp, SDL_GPUViewport *innerVp)
 {
-	SDL_GPUViewport rawOuter;
-	float rawInnerH, scale;
-	int n;
-
-	computeLetterboxViewportFor(bz->texW, bz->texH, winW, winH, &rawOuter);
-	rawInnerH = (bz->screenY1 - bz->screenY0) * rawOuter.h;
-
-	n = (int)(rawInnerH / (float)fb_height); /* round down: never spill past the window */
-	if (n < 1) n = 1;
-	scale = (n * (float)fb_height) / rawInnerH;
-
-	outerVp->w = rawOuter.w * scale;
-	outerVp->h = rawOuter.h * scale;
-	outerVp->x = ((float)winW - outerVp->w) / 2.0f;
-	outerVp->y = ((float)winH - outerVp->h) / 2.0f;
-	outerVp->min_depth = 0.0f;
-	outerVp->max_depth = 1.0f;
+	computeLetterboxViewportFor(bz->texW, bz->texH, winW, winH, outerVp);
 
 	innerVp->x = outerVp->x + bz->screenX0 * outerVp->w;
 	innerVp->y = outerVp->y + bz->screenY0 * outerVp->h;
@@ -1661,13 +1628,38 @@ blitRectToPixels(rect_t *rect)
 
 
 /*
+ * chainSize
+ *
+ * the size the picture is actually rendered at before being resampled into
+ * its on-screen viewport: the next whole multiple of the source's 200 lines
+ * up from the viewport height (never below it), at the same aspect ratio.
+ * Drawing the scanline/mask shaders at a whole-number scale keeps their
+ * line pattern locked to the pixel grid (a fractional scale makes it beat
+ * against the grid as drifting bands); the final pass then scales that down
+ * a little with a mip-mapped filter, which keeps it smooth. Works out to
+ * exactly the viewport size whenever that's already a whole multiple.
+ */
+static void
+chainSize(const SDL_GPUViewport *vp, float *cw, float *ch)
+{
+	float aspect = (aspectMode == 0) ? 4.0f / 3.0f : (float)fb_width / (float)fb_height;
+	float lines = vp->h / (float)fb_height - 0.02f;
+	int n = (int)lines;
+
+	if ((float)n < lines) n++; /* round up */
+
+	if (n < 1) n = 1;
+	*ch = (float)(n * (int)fb_height);
+	*cw = (float)(int)(*ch * aspect + 0.5f);
+}
+
+
+/*
  * fitAspectInside
  *
  * places the picture inside a bezel's screen opening at the chosen aspect
  * ratio (4:3 or square pixels), centered, leaving bars where the opening is
- * a different shape. crt-royale needs the picture height to be a whole
- * multiple of the source's 200 lines (see computeBezelViewports), so it gets
- * snapped down to one.
+ * a different shape.
  */
 static void
 fitAspectInside(const SDL_GPUViewport *opening, SDL_GPUViewport *out)
@@ -1679,14 +1671,6 @@ fitAspectInside(const SDL_GPUViewport *opening, SDL_GPUViewport *out)
 		w = h * aspect;
 	else
 		h = w / aspect;
-
-	if (crtMode == CRT_ROYALE) {
-		int n = (int)(h / (float)fb_height + 0.01f);
-		if (n >= 1) {
-			h = n * (float)fb_height;
-			w = h * aspect;
-		}
-	}
 
 	w = (float)(int)(w + 0.5f);
 	h = (float)(int)(h + 0.5f);
@@ -1802,6 +1786,7 @@ sysvid_update(rect_t *rects)
 		SDL_GPUViewport vp;
 		float outputSize[2];
 		SDL_GPULoadOp finalLoadOp;
+		float cw, ch; /* size the picture is rendered at, see chainSize */
 		const bezelInfo_t *bz = (bezelMode != BEZEL_NONE) ? &bezels[bezelMode] : NULL;
 
 		if (bz) {
@@ -1833,8 +1818,9 @@ sysvid_update(rect_t *rects)
 			finalLoadOp = SDL_GPU_LOADOP_CLEAR;
 		}
 
-		outputSize[0] = vp.w;
-		outputSize[1] = vp.h;
+		chainSize(&vp, &cw, &ch);
+		outputSize[0] = cw;
+		outputSize[1] = ch;
 
 		/* Every mode below now renders its "flat" output into
 		 * gpuFinalIntermediate (R8G8B8A8_UNORM, sized to the viewport)
@@ -1844,7 +1830,7 @@ sysvid_update(rect_t *rects)
 		 * makes sense with a bezel around it) or just copy it through
 		 * unchanged (no bezel), without needing two format-matched
 		 * pipeline variants of every filter combination. */
-		ensureFinalIntermediate((Uint32)vp.w, (Uint32)vp.h);
+		ensureFinalIntermediate((Uint32)cw, (Uint32)ch);
 
 		if (crtMode == CRT_ROYALE) {
 			/* crt-royale is mutually exclusive with the upscale axis --
@@ -1860,15 +1846,15 @@ sysvid_update(rect_t *rects)
 			float blurUniformV[2];
 			float blurUniformH[2];
 
-			ensureRoyaleIntermediates((Uint32)vp.w, (Uint32)vp.h);
+			ensureRoyaleIntermediates((Uint32)cw, (Uint32)ch);
 
 			runPass(cmd, gpuRoyaleLinearizePipeline, gpuTexture, gpuRoyaleLinearized,
 				0.0f, 0.0f, (float)fb_width, (float)fb_height, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
 
 			vscanUniform[0] = (float)fb_width;
-			vscanUniform[1] = vp.h;
+			vscanUniform[1] = ch;
 			runPass(cmd, gpuRoyaleVscanPipeline, gpuRoyaleLinearized, gpuRoyaleVscan,
-				0.0f, 0.0f, (float)fb_width, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				0.0f, 0.0f, (float)fb_width, ch, SDL_GPU_LOADOP_DONT_CARE,
 				vscanUniform, sizeof(vscanUniform));
 
 			multiTex[0] = gpuRoyaleLinearized;
@@ -1876,14 +1862,14 @@ sysvid_update(rect_t *rects)
 			runPassMulti(cmd, gpuRoyaleBloomApproxPipeline, multiTex, multiSamp, 1, gpuRoyaleBloomApprox,
 				     0.0f, 0.0f, 320.0f, 240.0f, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
 
-			hscanUniform[0] = vp.w;
-			hscanUniform[1] = vp.h;
+			hscanUniform[0] = cw;
+			hscanUniform[1] = ch;
 			multiTex[0] = gpuRoyaleVscan;
 			multiSamp[0] = gpuSampler;
 			multiTex[1] = gpuPhosphorMaskTexture;
 			multiSamp[1] = gpuSamplerLinearRepeat;
 			runPassMulti(cmd, gpuRoyaleHscanMaskPipeline, multiTex, multiSamp, 2, gpuRoyaleMaskedScanlines,
-				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE,
 				     hscanUniform, sizeof(hscanUniform));
 
 			multiTex[0] = gpuRoyaleMaskedScanlines;
@@ -1891,19 +1877,19 @@ sysvid_update(rect_t *rects)
 			multiTex[1] = gpuRoyaleBloomApprox;
 			multiSamp[1] = gpuSamplerLinearClamp;
 			runPassMulti(cmd, gpuRoyaleBrightpassPipeline, multiTex, multiSamp, 2, gpuRoyaleBrightpass,
-				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE,
 				     &royaleMaskAmplify, sizeof(royaleMaskAmplify));
 
 			blurUniformV[0] = 0.0f;
-			blurUniformV[1] = 1.0f / vp.h;
+			blurUniformV[1] = 1.0f / ch;
 			runPass(cmd, gpuRoyaleBloomBlurPipeline, gpuRoyaleBrightpass, gpuRoyaleBloomV,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE,
 				blurUniformV, sizeof(blurUniformV));
 
-			blurUniformH[0] = 1.0f / vp.w;
+			blurUniformH[0] = 1.0f / cw;
 			blurUniformH[1] = 0.0f;
 			runPass(cmd, gpuRoyaleBloomBlurPipeline, gpuRoyaleBloomV, gpuRoyaleBloomH,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE,
 				blurUniformH, sizeof(blurUniformH));
 
 			multiTex[0] = gpuRoyaleBloomH;
@@ -1913,57 +1899,57 @@ sysvid_update(rect_t *rects)
 			multiTex[2] = gpuRoyaleBrightpass;
 			multiSamp[2] = gpuSampler;
 			runPassMulti(cmd, gpuRoyaleReconstitutePipeline, multiTex, multiSamp, 3, gpuFinalIntermediate,
-				     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE,
+				     0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE,
 				     &royaleMaskAmplify, sizeof(royaleMaskAmplify));
 		} else if (crtMode == CRT_LOTTES) {
 			/* like royale, crt-lottes does its own resample to the
 			 * viewport, so the upscale axis doesn't apply either */
 			runPass(cmd, gpuCrtLottesPipeline, gpuTexture, gpuFinalIntermediate,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 		} else if (upscaleMode == UPSCALE_SHARP) {
 			SDL_GPUTexture *sharpTex[1] = {gpuTexture};
 			SDL_GPUSampler *sharpSamp[1] = {gpuSamplerLinearClamp};
 
 			if (crtMode == CRT_EASYMODE) {
-				ensureIntermediates((Uint32)vp.w, (Uint32)vp.h);
+				ensureIntermediates((Uint32)cw, (Uint32)ch);
 				runPassMulti(cmd, gpuSharpToIntermediatePipeline, sharpTex, sharpSamp, 1, gpuIntermediate1,
-					     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+					     0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 				runPass(cmd, gpuCrtEasymodePostPipeline, gpuIntermediate1, gpuFinalIntermediate,
-					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+					0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 			} else {
 				runPassMulti(cmd, gpuSharpToFinalPipeline, sharpTex, sharpSamp, 1, gpuFinalIntermediate,
-					     0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+					     0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 			}
 		} else if (upscaleMode == UPSCALE_FSR1) {
 			float rcasUniform[3];
 
-			ensureIntermediates((Uint32)vp.w, (Uint32)vp.h);
+			ensureIntermediates((Uint32)cw, (Uint32)ch);
 
-			rcasUniform[0] = vp.w;
-			rcasUniform[1] = vp.h;
+			rcasUniform[0] = cw;
+			rcasUniform[1] = ch;
 			rcasUniform[2] = (float)(fsrFrameCount++);
 
 			/* pass 1: EASU, composited frame -> intermediate1 (full-size, no letterbox) */
 			runPass(cmd, gpuEasuPipeline, gpuTexture, gpuIntermediate1,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 
 			if (crtMode == CRT_EASYMODE) {
 				/* pass 2: RCAS -> intermediate2; pass 3: CRT post -> gpuFinalIntermediate */
 				runPass(cmd, gpuRcasToIntermediatePipeline, gpuIntermediate1, gpuIntermediate2,
-					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
+					0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
 				runPass(cmd, gpuCrtEasymodePostPipeline, gpuIntermediate2, gpuFinalIntermediate,
-					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+					0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 			} else {
 				/* pass 2: RCAS -> gpuFinalIntermediate */
 				runPass(cmd, gpuRcasToSwapchainPipeline, gpuIntermediate1, gpuFinalIntermediate,
-					0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
+					0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, rcasUniform, sizeof(rcasUniform));
 			}
 		} else if (crtMode == CRT_EASYMODE) {
 			runPass(cmd, gpuCrtEasymodePipeline, gpuTexture, gpuFinalIntermediate,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, outputSize, sizeof(outputSize));
 		} else {
 			runPass(cmd, gpuPassthroughToIntermediatePipeline, gpuTexture, gpuFinalIntermediate,
-				0.0f, 0.0f, vp.w, vp.h, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
+				0.0f, 0.0f, cw, ch, SDL_GPU_LOADOP_DONT_CARE, NULL, 0);
 		}
 
 		/* final pass: warp with curvature into the bezel's screen cutout,
@@ -1987,9 +1973,14 @@ sysvid_update(rect_t *rects)
 
 				runPassMulti(cmd, gpuCurvaturePipeline, curvTex, curvSamp, 1, swapTex,
 					     vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
-			} else
-				runPass(cmd, gpuFinalEncodePipeline, gpuFinalIntermediate, swapTex,
-					vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
+			} else {
+				SDL_GPUTexture *encTex[1] = {gpuFinalIntermediate};
+				SDL_GPUSampler *encSamp[1] = {gpuSamplerMipmap};
+
+				SDL_GenerateMipmapsForGPUTexture(cmd, gpuFinalIntermediate);
+				runPassMulti(cmd, gpuFinalEncodePipeline, encTex, encSamp, 1, swapTex,
+					     vp.x, vp.y, vp.w, vp.h, finalLoadOp, &applyGamma, sizeof(applyGamma));
+			}
 		}
 	}
 
