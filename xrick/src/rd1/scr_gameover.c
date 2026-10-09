@@ -52,6 +52,9 @@ screen_gameover(void)
 
 	switch (seq) {
 	case 1:  /* display banner */
+		/* fb_fadeOut() (death) left gamma at 0; nothing else on this
+		 * screen restores it, so the banner was invisible */
+		sysvid_setGamma(255);
 #ifdef GFXST
 		fb_clear();
 		tm = sys_gettime();
