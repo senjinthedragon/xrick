@@ -732,13 +732,19 @@ static void game_cycle(void)
 
 		case NEXT_SUBMAP:
 
-			if (map_chain())
+			switch (map_chain())
 			{
+			case MAP_CHAIN_BLOCKED:
+				/* no connector matched -- stay put, repaint */
+				game_state = PAINT;
+				break;
+
+			case TRUE:
 				/* next submap, now initialize */
 				game_state = INIT_SUBMAP;
-			}
-			else
-			{
+				break;
+
+			default:
 				/* end of submap, chain to next map */
 
 				env_bullets = 0x06;

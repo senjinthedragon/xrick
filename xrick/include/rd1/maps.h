@@ -177,6 +177,10 @@ extern U8 map_frow;
  */
 extern U8 map_tilesBank;
 
+/* map_chain() return value for "no connector matches, blocked in place" --
+ * distinct from TRUE (chained to a new submap) and FALSE (map finished) */
+#define MAP_CHAIN_BLOCKED 2
+
 extern void map_expand(void);
 extern void map_init(void);
 extern U8 map_chain(void);

@@ -182,18 +182,19 @@ map_chain(void)
    */
   for (c = map_submaps[env_submap].connect; ; c++) {
     if (map_connect[c].dir == 0xff) {
-#ifdef PLATFORM_ST
       /*
-       * ST process_level_transition_point: the sentinel (0x49A56 `cmp.w #0xff` /
-       * beq 0x49B28) skips the room change -- X is repositioned (the port already
-       * did that at the exit) and the SAME room is set up again (bsr 0x499C2).
+       * No connector matches this submap's edge at the row/side rick left
+       * by -- normally unreachable (solid tiles are supposed to block you
+       * until you're at a row that does have an exit), but if it happens
+       * anyway, treat the edge as a wall instead of crashing (PC) or
+       * silently reporting "map finished" (ST's old return TRUE, which lost
+       * the run instead of just blocking it). Push back in-bounds on the
+       * side rick was leaving from and clear climb/crawl, same as a denied
+       * transition into a fresh submap would.
        */
-      return TRUE;
-#else
-      /* PC 0x0E31 `add si,6 / jmp 0x0D9D`: no sentinel test at all, so no defined
-         behaviour to copy */
-      sys_panic("(map_chain) can not find connector\n");
-#endif
+      ent_ents[1].x = (e_rick_exitDir == LEFT) ? 0x10 : 0xd8;
+      E_RICK_STRST(E_RICK_STCLIMB | E_RICK_STCRAWL);
+      return MAP_CHAIN_BLOCKED;
     }
     if (map_connect[c].dir != e_rick_exitDir) continue;
     t = (ent_ents[1].y >> 3) + map_frow - map_connect[c].rowout;
