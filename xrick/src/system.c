@@ -25,7 +25,11 @@ void
 sys_panic(char *err, ...)
 {
 	va_list argptr;
-	char s[1024];
+	/* vsnprintf + 4096, not vsprintf + 1024 -- same overrun sys_printf's
+	 * comment above describes (long usage/help text is a real caller here
+	 * too, e.g. sysarg_fail), and vsnprintf can't write past the buffer
+	 * regardless of how long the formatted message turns out to be. */
+	char s[4096];
 
 	/* FIXME what is this? */
 	/* change stdin to non blocking */
@@ -35,7 +39,7 @@ sys_panic(char *err, ...)
 
 	/* prepare message */
 	va_start(argptr, err);
-	vsprintf(s, err, argptr);
+	vsnprintf(s, sizeof s, err, argptr);
 	va_end(argptr);
 
 	/* print message and die */
