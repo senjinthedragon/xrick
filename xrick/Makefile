@@ -12,6 +12,12 @@
 
 CC      ?= gcc
 CXX     ?= g++
+# Senjin's SDL3 port: src/sysvid_gpu.c, an SDL_GPU renderer (Vulkan/D3D12/
+# Metal) replacing src/sysvid_gl.c's OpenGL chain for this native Linux
+# build -- see sysvid_gpu.c's own header comment for why both files exist
+# (the web build, via build.sh, keeps using sysvid_gl.c/WebGL). Needs
+# glslc (shaderc or the Vulkan SDK) to compile its shaders to SPIR-V.
+GLSLC   ?= glslc
 # T20: upgraded from SDL2 to SDL3 -- see build.md. SDL3 dropped sdl2-config-style
 # shell scripts in favor of pkg-config exclusively.
 SDL_CFLAGS := $(shell pkg-config --cflags sdl3)
@@ -47,9 +53,21 @@ LIBS    := $(SDL_LIBS) -lm
 CSRC := $(wildcard src/*.c) $(wildcard src/rd1/*.c) $(wildcard src/rd2/*.c)
 
 # GFXST is selected in config.h, so the GFXPC data tables must not be compiled.
-CSRC := $(filter-out src/rd1/dat_picsPC.c src/rd1/dat_spritesPC.c src/rd1/dat_tilesPC.c,$(CSRC))
+# sysvid_gl.c is excluded here: this native build uses sysvid_gpu.c instead (see
+# the GLSLC comment above) -- both define the same sysvid_gl_* symbols sysvid.c
+# calls, so including both would be a duplicate-symbol link error.
+CSRC := $(filter-out src/rd1/dat_picsPC.c src/rd1/dat_spritesPC.c src/rd1/dat_tilesPC.c src/sysvid_gl.c,$(CSRC))
 
 CXXSRC := $(wildcard src/audio_engine/*.cpp) $(wildcard src/audio_engine/external/Musashi/*.cpp)
+
+# sysvid_gpu.c's shaders: compiled from GLSL to SPIR-V and #embed'd into
+# shaders_embedded.c (needs a C23 compiler; see its target-specific CFLAGS
+# override below). Output under the repo's build/ (shaders_embedded.c's
+# #embed paths are relative to it), separate from this build's own OUTDIR.
+SHADER_DIR   := src/shaders/gpu
+SHADER_BUILD := ../build/shaders
+SHADER_SRCS  := $(wildcard $(SHADER_DIR)/*.vert $(SHADER_DIR)/*.frag)
+SHADER_SPVS  := $(patsubst $(SHADER_DIR)/%,$(SHADER_BUILD)/%.spv,$(SHADER_SRCS))
 
 # All build output goes under the repo's build/ (git-ignored, never sources; build.sh
 # uses build/win and build/web): the binary is build/wsl/xrick, objects in
@@ -71,6 +89,12 @@ all: $(BIN)
 $(BIN): $(OBJ)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
+# shaders_embedded.c's #embed directives need the .spv files to exist first, and a
+# C23 compiler -- only this one file needs that dialect, so it's a target-specific
+# override rather than a blanket -std= for every C file.
+$(OUTDIR)/obj/src/shaders_embedded.o: $(SHADER_SPVS)
+$(OUTDIR)/obj/src/shaders_embedded.o $(OUTDIR)/obj/src/bezels_embedded.o $(OUTDIR)/obj/src/masks_embedded.o: CFLAGS += -std=gnu23
+
 $(OUTDIR)/obj/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -78,6 +102,14 @@ $(OUTDIR)/obj/%.o: %.c
 $(OUTDIR)/obj/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(SHADER_BUILD)/%.vert.spv: $(SHADER_DIR)/%.vert
+	@mkdir -p $(dir $@)
+	$(GLSLC) -fshader-stage=vert $< -o $@
+
+$(SHADER_BUILD)/%.frag.spv: $(SHADER_DIR)/%.frag
+	@mkdir -p $(dir $@)
+	$(GLSLC) -fshader-stage=frag $< -o $@
 
 # R0.1 evidence: warnings over the logic surface, without linking.
 warn:
@@ -89,6 +121,6 @@ warn:
 	@echo "total: $$(grep -c 'warning:' $(WARNLOG)) warnings, $$(grep -c 'error:' $(WARNLOG)) errors"
 
 clean:
-	rm -rf $(OUTDIR)
+	rm -rf $(OUTDIR) $(SHADER_BUILD)
 
 .PHONY: all warn clean
