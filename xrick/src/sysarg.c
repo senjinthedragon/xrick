@@ -50,6 +50,13 @@ int sysarg_args_mapset = 0;  /* -map was given (RD2 then skips its title and pic
 static int submapset = 0;
 int sysarg_args_fullscreen = 0;
 int sysarg_args_zoom = 0;
+/* Senjin's SDL3 port: sysvid_gpu.c renderer options -- values match that
+ * file's upscaleMode_t/crtMode_t/bezelMode_t enum order (0 = each mode's
+ * "none" entry), parsed from name below rather than numbers on the CLI. */
+int sysarg_args_upscale = 0;
+int sysarg_args_crt = 0;
+int sysarg_args_bezel = 0;
+int sysarg_args_aspect = 0;  /* 0 = 4:3 corrected, 1 = square pixels */
 int sysarg_args_nosound = 0;
 int sysarg_args_vol = -1;  /* -vol: 0 (silence) .. SYSSND_MAXVOL; -1 = not given */
 int sysarg_args_game = 1;   /* -game: 1 = Rick Dangerous, 2 = Rick Dangerous 2 */
@@ -237,6 +244,38 @@ sysarg_init(int argc, char **argv)
       sysarg_args_zoom = atoi(argv[i]);
       if (sysarg_args_zoom < 1)
 	sysarg_fail("invalid zoom value");
+    }
+
+    else if (!strcmp(argv[i], "-upscale")) {
+      if (++i == argc) sysarg_fail("missing upscale mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_upscale = 0;
+      else if (!strcasecmp(argv[i], "sharp")) sysarg_args_upscale = 1;
+      else if (!strcasecmp(argv[i], "fsr1")) sysarg_args_upscale = 2;
+      else sysarg_fail("invalid upscale mode");
+    }
+
+    else if (!strcmp(argv[i], "-crt")) {
+      if (++i == argc) sysarg_fail("missing crt mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_crt = 0;
+      else if (!strcasecmp(argv[i], "easymode")) sysarg_args_crt = 1;
+      else if (!strcasecmp(argv[i], "lottes")) sysarg_args_crt = 2;
+      else if (!strcasecmp(argv[i], "royale")) sysarg_args_crt = 3;
+      else sysarg_fail("invalid crt mode");
+    }
+
+    else if (!strcmp(argv[i], "-bezel")) {
+      if (++i == argc) sysarg_fail("missing bezel mode");
+      if (!strcasecmp(argv[i], "none")) sysarg_args_bezel = 0;
+      else if (!strcasecmp(argv[i], "sc1224")) sysarg_args_bezel = 1;
+      else if (!strcasecmp(argv[i], "1084s")) sysarg_args_bezel = 2;
+      else sysarg_fail("invalid bezel mode");
+    }
+
+    else if (!strcmp(argv[i], "-aspect")) {
+      if (++i == argc) sysarg_fail("missing aspect mode");
+      if (!strcmp(argv[i], "4:3")) sysarg_args_aspect = 0;
+      else if (!strcasecmp(argv[i], "square")) sysarg_args_aspect = 1;
+      else sysarg_fail("invalid aspect mode");
     }
 
     else if (!strcmp(argv[i], "-map")) {

@@ -20,6 +20,13 @@ extern int sysarg_args_submap;
 extern int sysarg_args_mapset;
 extern int sysarg_args_fullscreen;
 extern int sysarg_args_zoom;
+/* Senjin's SDL3 port: sysvid_gpu.c's renderer options -- defaults (0) are each
+ * mode's "none"/off entry; see sysvid_gpu.c's upscaleMode_t/crtMode_t/bezelMode_t
+ * enums for the values -upscale/-crt/-bezel select. */
+extern int sysarg_args_upscale;
+extern int sysarg_args_crt;
+extern int sysarg_args_bezel;
+extern int sysarg_args_aspect;
 #ifdef ENABLE_SOUND
 extern int sysarg_args_nosound;
 extern int sysarg_args_vol;
