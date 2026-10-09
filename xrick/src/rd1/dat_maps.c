@@ -100,7 +100,13 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
   /* map 0 */
 
   /* map 0 submap 0 */
-  {0x01, 0x18, 0xff, 0x00},
+  /* dir was 0x01 (LEFT) -- a real direction, not a "no connector" sentinel,
+   * so walking backward out of a level's first submap bogusly matched this
+   * entry and skipped to map_submap=0xff ("map finished") instead of being
+   * blocked. 0xfe is a neutral sentinel distinct from 0/1/0xff that never
+   * matches a real dir. Same fix at the other 3 submaps below marked "was
+   * 0x01". */
+  {0xfe, 0x18, 0xff, 0x00},
   {0000, 0x38, 0x01, 0x18},
   {0xff, 0x00, 0x00, 0x00},
   /* map 0 submap 1 */
@@ -140,7 +146,8 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
 
   /* map 1 submap 9 */
   {0000, 0x18, 0x0a, 0x60},
-  {0x01, 0x78, 0xff, 0x00},
+  /* dir was 0x01 -- see map 0 submap 0 above */
+  {0xfe, 0x78, 0xff, 0x00},
   {0xff, 0x00, 0x00, 0x00},
   /* map 1 submap a */
   {0000, 0x18, 0x0b, 0x30},
@@ -198,7 +205,8 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
   /* map 2 */
 
   /* map 2 submap 14 */     /* sequence 14-15-16-17 is clean */
-  {0x01, 0x20, 0xff, 0x00},
+  /* dir was 0x01 -- see map 0 submap 0 above */
+  {0xfe, 0x20, 0xff, 0x00},
   {0000, 0x40, 0x15, 0x18},
   {0xff, 0x00, 0x00, 0x00},
   /* map 2 submap 15 */
@@ -285,7 +293,8 @@ connect_t map_connect[MAP_NBR_CONNECT] = {
   /* map 3 */
 
   /* map 3 submap 26 */
-  {0x01, 0x20, 0xff, 0x00},
+  /* dir was 0x01 -- see map 0 submap 0 above */
+  {0xfe, 0x20, 0xff, 0x00},
   {0000, 0x28, 0x27, 0x68},
   {0xff, 0x00, 0x00, 0x00},
   /* map 3 submap 27 */
