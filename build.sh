@@ -139,7 +139,11 @@ CXXFLAGS="$INC -O2 -std=c++17 -sUSE_SDL=3"
 LDFLAGS="-O2 -sUSE_SDL=3 -sMAX_WEBGL_VERSION=2 -sINVOKE_RUN=0 -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS -sEXPORTED_FUNCTIONS=_main,_fflush -sALLOW_MEMORY_GROWTH=1"
 
 cd "$SRCDIR"
-CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c')
+# src/sysvid_gpu.c (SDL_GPU, Linux/Windows native renderer) is excluded here: the web
+# build keeps using sysvid_gl.c/WebGL (SDL_GPU has no WebGPU backend yet) -- both
+# define the same sysvid_gl_* symbols sysvid.c calls, so including both would be a
+# straight duplicate-symbol link error, not just dead code.
+CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c')
 CXXSRC=$(ls src/audio_engine/*.cpp src/audio_engine/external/Musashi/*.cpp)
 
 mkdir -p "$WEB/obj"
