@@ -143,7 +143,12 @@ cd "$SRCDIR"
 # build keeps using sysvid_gl.c/WebGL (SDL_GPU has no WebGPU backend yet) -- both
 # define the same sysvid_gl_* symbols sysvid.c calls, so including both would be a
 # straight duplicate-symbol link error, not just dead code.
-CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c')
+# src/menu.c and src/settings.c (the settings menu, Phase 3) are excluded for the same
+# reason: the menu draws itself through sysvid_overlayRect/overlayText, which only
+# sysvid_gpu.c implements -- every call site that can reach menu_active()/menu_draw()/
+# menu_handleEvent() is itself guarded with #ifndef __EMSCRIPTEN__ (game.c, rd2_sys.c,
+# sysevt.c), so leaving these two files out is dead-code removal, not a missing symbol.
+CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c|src/menu\.c|src/settings\.c')
 CXXSRC=$(ls src/audio_engine/*.cpp src/audio_engine/external/Musashi/*.cpp)
 
 mkdir -p "$WEB/obj"
