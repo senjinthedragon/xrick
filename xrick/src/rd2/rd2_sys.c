@@ -215,7 +215,21 @@ joystick(void)
 static U8 ovl_paused, ovl_info;
 
 void rd2_sys_paused(U8 on) { ovl_paused = on; }
-void rd2_sys_info(U8 on)   { ovl_info = on; }
+/* As rd1's env_paintXtra() (game.c): the M/S map/submap row is a devtools-only
+   overlay in our fork, not shown by default -- gated here, in the one place
+   that controls it, rather than at each rd2_sys_info() call site, so a path
+   that reaches gameplay without passing back through rd2_game_run's TITLE
+   label (e.g. RD2_STEP_PICK's `goto PICK`, which skips TITLE's rd2_sys_info(0)
+   and would otherwise leave the previous state's "on" leaking onto the picker
+   screen) still can't turn it on outside a devtools build. */
+void rd2_sys_info(U8 on)
+{
+#ifdef ENABLE_DEVTOOLS
+	ovl_info = on;
+#else
+	(void)on;
+#endif
+}
 U8 rd2_sys_endreq(void)    { return (U8)((control_status & CONTROL_END) != 0); }
 U8 rd2_sys_pausekey(void)  { return (U8)((control_status & CONTROL_PAUSE) != 0); }
 
