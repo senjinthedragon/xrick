@@ -43,7 +43,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #else
-#include <unistd.h> /* execvp, for I_SWITCH_YES */
+#include <unistd.h> /* execvp, for I_SWITCH_GAME */
 #include <errno.h>
 #endif
 
@@ -58,7 +58,6 @@ typedef enum {
 	PG_KEYS,
 	PG_PAD,
 	PG_CONFIRM,
-	PG_SWITCHCONFIRM,
 	PG_COUNT
 } page_t;
 
@@ -94,8 +93,7 @@ typedef enum {
 	I_KEYS_RESET,
 	I_PAD_RESET,
 	I_YES,
-	I_NO,
-	I_SWITCH_YES
+	I_NO
 } item_t;
 
 #define KEY_COUNT 8
@@ -117,7 +115,6 @@ static const pagedef_t pages[PG_COUNT] = {
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
-    {"SWITCH GAME?", PG_MAIN, 2, {I_NO, I_SWITCH_YES}},
 };
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
@@ -278,7 +275,7 @@ static void
 gotoPage(int p)
 {
 	page = (U8)p;
-	if (p == PG_CONFIRM || p == PG_SWITCHCONFIRM) cursor[p] = 0; /* default: NO */
+	if (p == PG_CONFIRM) cursor[p] = 0; /* default: NO */
 }
 
 static void
@@ -383,24 +380,9 @@ activate(int it)
 		gotoPage(PG_PAD);
 		return;
 	case I_SWITCH_GAME:
-		gotoPage(PG_SWITCHCONFIRM);
-		return;
-	case I_QUIT:
-		gotoPage(PG_CONFIRM);
-		return;
-	case I_BACK:
-	case I_NO:
-		goBack();
-		return;
-	case I_YES:
-		closeMenu();
-		control_status |= CONTROL_EXIT; /* same path as closing the window */
-		control_last = CONTROL_EXIT;
-		return;
-	case I_SWITCH_YES:
-		/* straight to the other game's own splash+attract sequence (as if launched
-		   with -game N on the command line) -- the player already said which game
-		   they want, so there's no reason to detour back through the carousel */
+		/* no confirmation -- unlike quitting, switching games loses nothing, so
+		   straight to the other game's own splash+attract sequence (as if
+		   launched with -game N on the command line) */
 #ifdef __EMSCRIPTEN__
 		/* can't re-exec on the web -- reload with ?game=N instead. buildArgs()
 		   (player.js) picks that up and skips building its own map/game dropdown
@@ -424,6 +406,18 @@ activate(int it)
 			goBack();
 		}
 #endif
+		return;
+	case I_QUIT:
+		gotoPage(PG_CONFIRM);
+		return;
+	case I_BACK:
+	case I_NO:
+		goBack();
+		return;
+	case I_YES:
+		closeMenu();
+		control_status |= CONTROL_EXIT; /* same path as closing the window */
+		control_last = CONTROL_EXIT;
 		return;
 	case I_KEYS_RESET:
 		syskbd_resetDefaults();
@@ -821,9 +815,6 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		break;
 	case I_NO:
 		label = "NO, KEEP PLAYING";
-		break;
-	case I_SWITCH_YES:
-		label = "YES, SWITCH";
 		break;
 	default:
 		break;
