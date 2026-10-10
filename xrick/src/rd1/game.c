@@ -550,7 +550,12 @@ static void game_cycle(void)
 				maps_paint();                     /* draw the map onto the buffer */
 				//ents_paintAll();
 				env_paintGame();              /* draw the status bar onto the buffer */
+#ifdef ENABLE_DEVTOOLS
+				/* the M<map>/S<submap> row -- deliberately hidden outside devtools
+				   builds (our fork's own choice, not upstream's default; see
+				   env_paintXtra's two other call sites below) */
 				env_paintXtra();                   /* draw the info bar onto the buffer */
+#endif
 				game_rects = &draw_SCREENRECT;  /* request full buffer refresh */
 				game_state = FADEIN__CTRL_ACTION;
 			}
@@ -817,7 +822,9 @@ static void game_cycle(void)
 			maps_paint();                     /* draw the map onto the buffer */
 			ents_paintAll();
 			env_paintGame();              /* draw the status bar onto the buffer */
+#ifdef ENABLE_DEVTOOLS
 			env_paintXtra();
+#endif
 			game_rects = &draw_SCREENRECT;  /* request full screen refresh */
 			game_state = CTRL_ACTION;
 			return;
