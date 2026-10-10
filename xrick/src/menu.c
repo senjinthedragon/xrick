@@ -40,6 +40,7 @@
 #include "game.h"
 #include "env.h"
 #include "demo.h"
+#include "maps.h" /* map_maps[]/MAP_NBR_SUBMAPS: the worldFirst/LastSubmap() source of truth */
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -60,6 +61,9 @@ typedef enum {
 	PG_PAD,
 	PG_CONFIRM,
 	PG_CREDITS,
+	PG_SELECTMAP,
+	PG_WARPROOM,
+	PG_WARPROOMNUM,
 	PG_COUNT
 } page_t;
 
@@ -85,10 +89,17 @@ typedef enum {
 	I_MUTE,
 	I_CONTROLS,
 	I_SPEED,
+	I_SELECT_MAP,
 	I_TRAINER,
 	I_INVINCIBLE,
 	I_HIGHLIGHT,
 	I_AUTOPLAY,
+	I_WARP_ROOM,
+	I_MAP_0, /* I_MAP_0 .. I_MAP_0 + 3: one of RD1's 4 worlds, shared by PG_SELECTMAP
+	            (plain start, not a cheat) and PG_WARPROOM (picks the world before
+	            PG_WARPROOMNUM dials a room within it) */
+	I_WARP_ROOMVAL = I_MAP_0 + 4,
+	I_WARP_GO,
 	I_KEY_0, /* I_KEY_0 .. I_KEY_0 + KEY_COUNT - 1 */
 	I_KEY_LAST = I_KEY_0 + 7,
 	I_PAD_0, /* I_PAD_0 .. I_PAD_0 + PAD_COUNT - 1 */
@@ -119,7 +130,16 @@ static const pagedef_t pages[PG_COUNT] = {
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
     {"CREDITS", PG_MAIN, 1, {I_BACK}}, /* menu_draw special-cases this page's own full-screen draw */
+    {"SELECT MAP", PG_GAME, 5, {I_MAP_0 + 0, I_MAP_0 + 1, I_MAP_0 + 2, I_MAP_0 + 3, I_BACK}},
+    {"WARP TO ROOM", PG_CHEATS, 5, {I_MAP_0 + 0, I_MAP_0 + 1, I_MAP_0 + 2, I_MAP_0 + 3, I_BACK}},
+    {"WARP TO ROOM", PG_WARPROOM, 3, {I_WARP_ROOMVAL, I_WARP_GO, I_BACK}},
 };
+
+/* GAME and CHEATS gain an extra, RD1-only row (world select / room warp -- RD2 has
+   its own native world picker at startup already, and no submap concept to warp
+   into at all), so their pagedef depends on which game is running */
+static const pagedef_t gameRD1 = {"GAME", PG_MAIN, 4, {I_CONTROLS, I_SPEED, I_SELECT_MAP, I_BACK}};
+static const pagedef_t cheatsRD1 = {"CHEATS", PG_MAIN, 6, {I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_AUTOPLAY, I_WARP_ROOM, I_BACK}};
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
 static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE"};
@@ -141,7 +161,27 @@ static enum { NAV,
 	      CAP_KEY,
 	      CAP_PAD } mode = NAV;
 static U8 capIndex; /* which binding is being captured */
+
+static const pagedef_t *
+curPageDef(void)
+{
+	if (page == PG_GAME && !GAME2) return &gameRD1;
+	if (page == PG_CHEATS && !GAME2) return &cheatsRD1;
+	return &pages[page];
+}
+
 static Uint64 creditsStartTick; /* SDL_GetTicks() when PG_CREDITS was opened, for the scroll */
+
+/* RD1's 4 worlds (real names, dat_maps.c) and the room-warp picker's own state.
+   Ranges are derived from map_maps[].submap (maps.h) rather than duplicated by
+   hand -- the same canonical table RD1's own map-loading code reads. */
+static const char *const worldNames[4] = {"SOUTH AMERICA", "EGYPT", "SCHWARZENDUMPF CASTLE", "MISSILE BASE"};
+static int warpWorld;   /* 0-3, picked on PG_WARPROOM before dialing a room */
+static int warpRoomVal; /* 1-based room number within warpWorld, PG_WARPROOMNUM's spinner */
+
+static int worldFirstSubmap(int w) { return map_maps[w].submap; }
+static int worldLastSubmap(int w) { return w == 3 ? MAP_NBR_SUBMAPS - 1 : map_maps[w + 1].submap - 1; }
+static int worldRoomCount(int w) { return worldLastSubmap(w) - worldFirstSubmap(w) + 1; }
 
 #define PANEL_W 250
 #define ROW_H 11
@@ -289,7 +329,7 @@ goBack(void)
 	if (page == PG_MAIN)
 		closeMenu();
 	else
-		page = pages[page].parent;
+		page = curPageDef()->parent;
 }
 
 /* --- item values ---------------------------------------------------- */
@@ -353,10 +393,58 @@ adjust(int it, int dir)
 	case I_HIGHLIGHT:
 		cheatToggle(3);
 		break;
+	case I_WARP_ROOMVAL:
+		warpRoomVal = cycle(warpRoomVal - 1, dir, worldRoomCount(warpWorld)) + 1;
+		return; /* not a persistent setting -- nothing to save until I_WARP_GO */
 	default:
 		return;
 	}
 	settings_save();
+}
+
+/*
+ * relaunchRD1
+ *
+ * restarts into RD1 at <mapIdx> (0-3), optionally warped straight to
+ * <submapIdx> (0-based, absolute; -1 = the world's own normal start).
+ * sysarg_args_submap != 0 on the resulting run is what disqualifies the
+ * high score (game.c) -- no separate "cheated" flag needs to cross the
+ * restart, since a nonzero -submap already means "skipped ahead".
+ */
+static void
+relaunchRD1(int mapIdx, int submapIdx)
+{
+#ifdef __EMSCRIPTEN__
+	if (submapIdx >= 0)
+		EM_ASM({ location.href = location.pathname + '?game=1&map=' + $0 + '&submap=' + $1; },
+			mapIdx + 1, submapIdx + 1);
+	else
+		EM_ASM({ location.href = location.pathname + '?game=1&map=' + $0; }, mapIdx + 1);
+#else
+	{
+		char mapArg[12], submapArg[12];
+		char *args[7];
+		int n = 0;
+
+		snprintf(mapArg, sizeof mapArg, "%d", mapIdx + 1);
+		args[n++] = sysarg_argv0;
+		args[n++] = "-game";
+		args[n++] = "1";
+		args[n++] = "-map";
+		args[n++] = mapArg;
+		if (submapIdx >= 0) {
+			snprintf(submapArg, sizeof submapArg, "%d", submapIdx + 1);
+			args[n++] = "-submap";
+			args[n++] = submapArg;
+		}
+		args[n] = NULL;
+		sys_shutdown();
+		execvp(sysarg_argv0, args);
+		sys_printf("xrick/menu: could not restart (%s) -- warp cancelled\n", strerror(errno));
+		sysvid_init(FB_WIDTH, FB_HEIGHT);
+		goBack();
+	}
+#endif
 }
 
 static void
@@ -416,6 +504,27 @@ activate(int it)
 		creditsStartTick = SDL_GetTicks();
 		gotoPage(PG_CREDITS);
 		return;
+	case I_SELECT_MAP:
+		gotoPage(PG_SELECTMAP);
+		return;
+	case I_WARP_ROOM:
+		gotoPage(PG_WARPROOM);
+		return;
+	case I_MAP_0 + 0:
+	case I_MAP_0 + 1:
+	case I_MAP_0 + 2:
+	case I_MAP_0 + 3:
+		if (page == PG_SELECTMAP)
+			relaunchRD1(it - I_MAP_0, -1); /* plain start -- not a cheat */
+		else { /* PG_WARPROOM */
+			warpWorld = it - I_MAP_0;
+			warpRoomVal = 1;
+			gotoPage(PG_WARPROOMNUM);
+		}
+		return;
+	case I_WARP_GO:
+		relaunchRD1(warpWorld, worldFirstSubmap(warpWorld) + warpRoomVal - 1);
+		return;
 	case I_QUIT:
 		gotoPage(PG_CONFIRM);
 		return;
@@ -474,14 +583,14 @@ activate(int it)
 static void
 moveCursor(int d)
 {
-	int n = pages[page].count;
+	int n = curPageDef()->count;
 	cursor[page] = (U8)((cursor[page] + d + n) % n);
 }
 
 static void
 navigate(int dir_x, int dir_y, int select, int back)
 {
-	int it = pages[page].items[cursor[page]];
+	int it = curPageDef()->items[cursor[page]];
 
 	if (dir_y) moveCursor(dir_y);
 	if (dir_x) adjust(it, dir_x);
@@ -802,6 +911,24 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_SPEED:
 		label = "GAME SPEED";
 		break;
+	case I_SELECT_MAP:
+		label = "SELECT MAP";
+		break;
+	case I_WARP_ROOM:
+		label = "WARP TO ROOM";
+		break;
+	case I_MAP_0 + 0:
+	case I_MAP_0 + 1:
+	case I_MAP_0 + 2:
+	case I_MAP_0 + 3:
+		label = worldNames[it - I_MAP_0];
+		break;
+	case I_WARP_ROOMVAL:
+		label = worldNames[warpWorld];
+		break;
+	case I_WARP_GO:
+		label = "WARP HERE";
+		break;
 	case I_TRAINER:
 		label = "TRAINER (INF. AMMO)";
 		break;
@@ -906,6 +1033,10 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_HIGHLIGHT:
 		choiceText(xr, y, onOff[cheatValue(3) ? 1 : 0]);
 		break;
+	case I_WARP_ROOMVAL:
+		snprintf(buf, sizeof buf, "ROOM %d / %d", warpRoomVal, worldRoomCount(warpWorld));
+		choiceText(xr, y, buf);
+		break;
 	}
 }
 
@@ -996,13 +1127,14 @@ drawCredits(void)
 void
 menu_draw(void)
 {
-	const pagedef_t *pg = &pages[page];
+	const pagedef_t *pg;
 
 	if (page == PG_CREDITS) {
 		drawCredits();
 		return;
 	}
 
+	pg = curPageDef();
 	int w = PANEL_W;
 	int h = HDR_H + pg->count * ROW_H + 6 + FTR_H;
 	int x = (FB_WIDTH - w) / 2;

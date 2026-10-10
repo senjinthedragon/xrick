@@ -948,8 +948,13 @@ static void game_cycle(void)
 #ifdef ENABLE_DEMO
 					/* host: an AUTOPLAY/-demo run's score doesn't go in the
 					   hall of fame -- same reasoning as the game's own
-					   attract demo never doing so. */
-					game_state = demo_wasActive ? XRICK_CLR : GETNAME;
+					   attract demo never doing so. Neither does a run that
+					   used any cheat, or one warped straight into a room via
+					   -submap (menu.c's WARP TO ROOM; a nonzero submap here
+					   always means "skipped ahead", never a plain start --
+					   sysarg.c snaps a map's own first submap back to 0). */
+					game_state = (demo_wasActive || env_trainer || env_invicible ||
+						env_highlight || sysarg_args_submap) ? XRICK_CLR : GETNAME;
 #else
 					game_state = GETNAME;
 #endif

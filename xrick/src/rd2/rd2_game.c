@@ -215,6 +215,7 @@ END_OF_RUN:                                     /* $10c00 */
 #ifdef ENABLE_DEMO
 	    || demo_wasActive                       /* host: skip name entry for AUTOPLAY/-demo too */
 #endif
+	    || rd2_cheat_trainer || rd2_cheat_invincible || rd2_cheat_highlight /* host: or any cheat */
 	    ) {
 		rd2_ww(RD2_DEMO, 0);
 		goto TITLE;
