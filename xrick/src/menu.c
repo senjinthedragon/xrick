@@ -51,6 +51,17 @@
 
 #define GAME2 (sysarg_args_game == 2)
 
+/* RD1's recorded AUTOPLAY script is one take per submap VISIT, in the order a
+   canonical South-America-first playthrough enters them (see rd1/game.c's
+   demoset comment) -- not indexed by which submap it actually is. Starting
+   anywhere else (SELECT MAP / WARP TO ROOM, same condition that disqualifies
+   the high score in rd1/game.c) still replays take #0, i.e. the real map 1
+   opening moves, which has nothing to do with wherever Rick actually spawned
+   -- he'd just walk into whatever's there and die repeatedly. Found
+   2026-10-10. RD2 has no such restriction: its own level-select is legitimate
+   and rd2_demo_scripts is indexed by map number directly. */
+#define RD1_AUTOPLAY_UNAVAILABLE (!GAME2 && (sysarg_args_map || sysarg_args_submap))
+
 typedef enum {
 	PG_MAIN,
 	PG_VIDEO,
@@ -548,6 +559,8 @@ activate(int it)
 		settings_save();
 		return;
 	case I_AUTOPLAY:
+		if (RD1_AUTOPLAY_UNAVAILABLE)
+			return; /* see the #define: no recorded script matches this start */
 		if (GAME2) {
 			/* not demo_active = TRUE directly here: rd2_game.c's END_OF_RUN
 			   unconditionally calls demo_end() right after this forced end,
@@ -944,9 +957,11 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		label = "HIGHLIGHT";
 		break;
 	case I_AUTOPLAY:
-		label = (GAME2 ? rd2_sys_inGame() : game_isRunning())
-		            ? "AUTOPLAY (ENDS THIS RUN)"
-		            : "AUTOPLAY (FULL DEMO)";
+		label = RD1_AUTOPLAY_UNAVAILABLE
+		            ? "AUTOPLAY (N/A ON THIS MAP)"
+		            : (GAME2 ? rd2_sys_inGame() : game_isRunning())
+		                ? "AUTOPLAY (ENDS THIS RUN)"
+		                : "AUTOPLAY (FULL DEMO)";
 		break;
 	case I_KEYS_RESET:
 		label = "RESET TO DEFAULTS";
