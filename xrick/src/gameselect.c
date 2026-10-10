@@ -412,12 +412,19 @@ gameselect_done(void)
 		transition += (1000.0f / TRANSITION_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
 		if (transition >= 1.0f)
 		{
+			U8 cameFromRight = transitionDir > 0;
+
 			transition = 0.0f;
 			transitionDir = 0;
 			current = otherIdx;
 			otherIdx = current ^ 1;
-			backFadeIn = 0.0f; /* the disk that just exited reappears dim in the
-			                      background, faded in rather than snapped on */
+			/* idle always shows the dim background disk fixed on the right
+			   (see below), so: a right-press's outgoing disk exits toward
+			   the left -- a spot idle never shows -- and needs to fade back
+			   in now that it rests there; a left-press's outgoing disk exits
+			   toward the right, exactly where idle already shows it, so it
+			   was visible there the whole time and needs no fade-in now. */
+			backFadeIn = cameFromRight ? 0.0f : 1.0f;
 		}
 	}
 
@@ -440,22 +447,64 @@ gameselect_done(void)
 		/* ease in/out, classic 3-2t smoothstep */
 		float t = transition;
 		float e = t * t * (3.0f - 2.0f * t);
-		float sideSign = (float)transitionDir;
 
-		frontCx = (float)(GS_W / 2) - sideSign * e * SIDE_OFFSET;
-		frontCy = DISK_CY;
-		frontScale = DISK_SCALE + (SIDE_SCALE - DISK_SCALE) * e;
-		frontAngle = 0.0f;
-		frontBright = 1.0f - 0.65f * e;
-		frontAlpha = 1.0f - e; /* fades to pitch black as it exits, instead of
-		                          just shrinking/dimming and then snapping away */
+		frontCy = backCy = DISK_CY;
+		frontAngle = backAngle = 0.0f;
 
-		backCx = (float)(GS_W / 2) + sideSign * (1.0f - e) * SIDE_OFFSET;
-		backCy = DISK_CY;
-		backScale = SIDE_SCALE + (DISK_SCALE - SIDE_SCALE) * e;
-		backAngle = 0.0f;
-		backBright = 0.35f + 0.65f * e;
-		backAlpha = 1.0f;
+		/* idle always shows the dim background disk fixed on the right. A
+		   right press's outgoing disk heads for the left -- a spot idle never
+		   shows -- so it fades out over the whole slide instead of just
+		   shrinking/dimming and then snapping away; its incoming disk started
+		   exactly where idle already had it, dim, on the right, so it's fully
+		   visible throughout and simply slides in. */
+		if (transitionDir > 0)
+		{
+			frontCx = (float)(GS_W / 2) - e * SIDE_OFFSET;
+			frontScale = DISK_SCALE + (SIDE_SCALE - DISK_SCALE) * e;
+			frontBright = 1.0f - 0.65f * e;
+			frontAlpha = 1.0f - e;
+
+			backCx = (float)(GS_W / 2) + (1.0f - e) * SIDE_OFFSET;
+			backScale = SIDE_SCALE + (DISK_SCALE - SIDE_SCALE) * e;
+			backBright = 0.35f + 0.65f * e;
+			backAlpha = 1.0f;
+		}
+		else
+		{
+			/* a left press's outgoing disk heads for the right -- idle's own
+			   fixed spot -- so it stays fully visible, no fade needed, same
+			   as the mirrored case above. Its "incoming" disk is the one that
+			   needs care: this is the disk idle already had sitting dim on
+			   the right a moment ago, and it must relocate to the left before
+			   sliding in from there -- so it fades out quickly right where it
+			   already was (SWITCH_FRAC of the swap, snappy, no slide) and only
+			   then jumps to the left and slides/fades in the usual way,
+			   instead of popping straight to the left mid-fade. */
+			const float SWITCH_FRAC = 0.15f;
+
+			frontCx = (float)(GS_W / 2) + e * SIDE_OFFSET;
+			frontScale = DISK_SCALE + (SIDE_SCALE - DISK_SCALE) * e;
+			frontBright = 1.0f - 0.65f * e;
+			frontAlpha = 1.0f;
+
+			if (t < SWITCH_FRAC)
+			{
+				backCx = (float)(GS_W / 2) + SIDE_OFFSET;
+				backScale = SIDE_SCALE;
+				backBright = 0.35f;
+				backAlpha = 1.0f - t / SWITCH_FRAC;
+			}
+			else
+			{
+				float t2 = (t - SWITCH_FRAC) / (1.0f - SWITCH_FRAC);
+				float e2 = t2 * t2 * (3.0f - 2.0f * t2);
+
+				backCx = (float)(GS_W / 2) - (1.0f - e2) * SIDE_OFFSET;
+				backScale = SIDE_SCALE + (DISK_SCALE - SIDE_SCALE) * e2;
+				backBright = 0.35f + 0.65f * e2;
+				backAlpha = e2;
+			}
+		}
 	}
 	else
 	{
