@@ -269,7 +269,9 @@ processEvent()
 			sysvid_zoom(+1);
 		}
 #ifdef ENABLE_SOUND
-		/* F4-F9: each game has its own sound engine and cheats */
+		/* F4-F6: each game has its own sound engine. Cheats moved off F7-F9
+		   and into the settings menu's CHEATS page (menu.c), which also has
+		   AUTOPLAY -- no key binds them directly any more. */
 		else if (key == SDL_SCANCODE_F4) {
 			if (sysarg_args_game == 2) rd2_snd_toggleMute(); else syssnd_toggleMute();
 		}
@@ -280,15 +282,6 @@ processEvent()
 			if (sysarg_args_game == 2) rd2_snd_vol(+1); else syssnd_vol(+1);
 		}
 #endif
-		else if (key == SDL_SCANCODE_F7) {
-			if (sysarg_args_game == 2) rd2_sys_toggleCheat(1); else game_toggleCheat(1);
-		}
-		else if (key == SDL_SCANCODE_F8) {
-			if (sysarg_args_game == 2) rd2_sys_toggleCheat(2); else game_toggleCheat(2);
-		}
-		else if (key == SDL_SCANCODE_F9) {
-			if (sysarg_args_game == 2) rd2_sys_toggleCheat(3); else game_toggleCheat(3);
-		}
 #ifndef __EMSCRIPTEN__
 		/* upscale/CRT/bezel cycling: sysvid_gpu.c (native builds) only */
 		else if (key == SDL_SCANCODE_F10) {
