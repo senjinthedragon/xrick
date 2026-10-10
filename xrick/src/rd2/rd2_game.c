@@ -21,6 +21,7 @@
 #include "rd2_mem.h"
 #include "rd2_sys.h"
 #include "rd2_game.h"
+#include "rd2_snd.h" /* rd2_snd_rw: rd2_boot()'s hadLoop check */
 #include "demo.h"
 
 #ifdef ENABLE_DEMO
@@ -35,6 +36,19 @@ static U8 demo_wasActive;
 static void
 rd2_boot(void)
 {
+	/* host: rd2_123ca() below -- authentic, the real game's own "silent load"
+	   reset -- unconditionally stops all sound (rd2_1a5d0()) every time this
+	   runs, including the carousel's handoff where music (and the confirm
+	   scream) may already be live. A genuinely fresh, non-carousel launch has
+	   nothing playing yet (this reads 0 for that path, same as always), so
+	   only the handoff case is affected: remember whether the loop was
+	   already going, so it can be resumed right after, instead of silently
+	   staying stopped until TITLE's rd2_178dc() notices and replays the
+	   ~6-chord sting from scratch (reported 2026-10-11 despite gameselect.c
+	   polling right up to the handoff -- this reset runs after that, so no
+	   amount of polling beforehand could have caught it). */
+	U8 hadLoop = rd2_snd_rw(0x1aa08) != 0;
+
 	rd2_mem_init();                 /* program at $f8b8; $53400-$7ffff zero ($18fbe) */
 	rd2_sys_init();
 	rd2_sys_setbase(0x07, 0x80);    /* $18ffc: Setscreen($78000, $78000, 0) */
@@ -42,6 +56,8 @@ rd2_boot(void)
 	rd2_19106();                    /* palette $18ee6 */
 	rd2_ww(RD2_MAP_PLAYING, 1);
 	rd2_123ca();                    /* silent map-1 load */
+	if (hadLoop)
+		rd2_1a6aa(0, 1);         /* host: resume -- see above */
 }
 
 /* one game_main frame, $10a54 to the `bra` back at $10bec: deaths and submap slides

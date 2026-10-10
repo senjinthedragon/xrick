@@ -76,6 +76,7 @@ static float titleAlpha;   /* 0..1, the bottom-center title label: in while idle
 static float backFadeIn;   /* 0..1, the dim background disk fading in after it finishes exiting */
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
 static float confirmZoom;  /* 0..1, the post-confirm "flying at the viewer" wind-up */
+static float confirmHold;  /* 0..1, see CONFIRM_HOLD_MS */
 static U8 oldFire, oldLeft, oldRight, oldEnter; /* edge-detect: act once per press, not per frame held */
 
 /* the carousel's own music/scream, played through whichever game's real engine
@@ -279,6 +280,7 @@ gameselect_start(void)
 	backFadeIn = 1.0f; /* already settled at startup -- only a post-swap reappearance fades in */
 	confirmed = FALSE;
 	confirmZoom = 0.0f;
+	confirmHold = 0.0f;
 	oldFire = oldLeft = oldRight = oldEnter = FALSE;
 
 	/* this screen has no pause/settings of its own: Escape should quit the
@@ -560,6 +562,13 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define TITLE_FADE_MS 300.0f
 #define BACK_FADE_MS 280.0f
 #define CONFIRM_ZOOM_MS 260.0f  /* quick -- "briefly/rapidly", not a slow reveal */
+#define CONFIRM_HOLD_MS 700.0f  /* once the zoom above finishes (screen already solid
+                                    black), keeps holding before actually handing off --
+                                    long enough for the confirm scream (audioPlayScream)
+                                    to finish playing before the real game's own startup
+                                    (rd2_boot()'s silent-load reset) cuts it short. Purely
+                                    an audio hold: invisible, since there's nothing left
+                                    to see once the zoom's already faded to black. */
 #define CONFIRM_ZOOM_SCALE 6.0f /* overflows the screen at the end on purpose: a
                                     full-bleed zoom, not a framed, centered disk */
 #define CONFIRM_ZOOM_DROP 70.0f /* drifts downward by this many px while it zooms,
@@ -642,6 +651,13 @@ gameselect_done(void)
 
 		if (confirmZoom < 1.0f)
 			return FALSE;
+
+		/* the zoom itself is done (screen is already solid black) -- hold here a
+		   bit longer so the confirm scream has time to finish, see CONFIRM_HOLD_MS */
+		confirmHold += (1000.0f / CONFIRM_HOLD_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+		if (confirmHold < 1.0f)
+			return FALSE;
+
 		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
 		return TRUE;
 	}
