@@ -314,9 +314,11 @@ openMenu(void)
 	cursor[PG_MAIN] = 0;
 	mode = NAV;
 	sysevt_resetInput();
-#ifdef ENABLE_SOUND
-	if (!GAME2) syssnd_pause(TRUE, FALSE);
-#endif
+	/* music keeps playing while the menu (including CREDITS) is open, same as
+	   RD2 already did here -- RD1 used to mute via syssnd_pause(TRUE, ...),
+	   its own separate P-key pause (game.c's CTRL_PAUSE) is unaffected, since
+	   that calls syssnd_pause itself and isn't gated on the menu at all.
+	   Changed per Senjin's request, 2026-10-11. */
 }
 
 static void
@@ -325,9 +327,6 @@ closeMenu(void)
 	active = FALSE;
 	mode = NAV;
 	sysevt_resetInput();
-#ifdef ENABLE_SOUND
-	if (!GAME2 && !game_isPaused()) syssnd_pause(FALSE, FALSE);
-#endif
 }
 
 static void
