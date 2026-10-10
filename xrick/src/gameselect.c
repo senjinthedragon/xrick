@@ -310,7 +310,7 @@ static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
 {
 	int x, y;
 	U8 cr = (U8)color, cg = (U8)(color >> 8), cb = (U8)(color >> 16);
-	const float core = 0.55f; /* fraction of the radius that stays full brightness */
+	const float core = 0.8f; /* fraction of the radius that stays full brightness */
 
 	for (y = -ry; y <= ry; y++)
 	{
@@ -425,6 +425,12 @@ gameselect_done(void)
 			   toward the right, exactly where idle already shows it, so it
 			   was visible there the whole time and needs no fade-in now. */
 			backFadeIn = cameFromRight ? 0.0f : 1.0f;
+			/* the disk arrives dead level (frontAngle is always 0.0f during a
+			   swap) -- resume the idle hop from the one phase where its own
+			   tilt is also exactly 0 (PI/2) instead of wherever bouncePhase
+			   happened to drift to while the swap played out, which could be
+			   any angle at all and made the disk visibly snap to it */
+			bouncePhase = 1.5707963f;
 		}
 	}
 
