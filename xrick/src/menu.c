@@ -391,11 +391,19 @@ activate(int it)
 		settings_save();
 		return;
 	case I_AUTOPLAY:
-		demo_active = TRUE;
 		if (GAME2) {
+			/* rd2's end-of-run demo_active check is unaffected by ending the
+			   run (its own demo-stop call is gated and a no-op here), so
+			   setting it directly is fine. */
+			demo_active = TRUE;
 			rd2_demo_rearm();
 			rd2_sys_forceEnd();
 		} else {
+			/* not demo_active = TRUE directly: game_endRun() leads to
+			   FADEOUT__GAMEOVER, which unconditionally calls demo_end() as
+			   its first action and would immediately clear it again.
+			   game_queueDemo() arms it for the title screen instead. */
+			game_queueDemo();
 			game_endRun();
 		}
 		closeMenu();
@@ -550,10 +558,16 @@ onAxis(int axis, int value)
 
 /*
  * While AUTOPLAY (or -demo) is driving the game, Escape/the gamepad menu
- * button stops it and hands control back, in place, instead of opening the
- * menu -- opening the menu on top of a running demo would just pause the
- * autoplay rather than exit it. A second press, with the demo now stopped,
- * opens the menu as usual.
+ * button stops it and ends the run, back to the attract screen, instead of
+ * opening the menu -- opening the menu on top of a running demo would just
+ * pause the autoplay rather than exit it. A second press, with the demo now
+ * stopped, opens the menu as usual.
+ *
+ * This can't resume the player's own run if AUTOPLAY was started mid-game
+ * (full state snapshot/restore -- map/submap, entities, scroll position,
+ * items, RNG -- isn't something either game's state is set up for); ending
+ * the run and returning to the attract screen is the fallback for that case
+ * too, same as -demo running out at the title.
  */
 static void
 openMenuOrStopDemo(void)
@@ -565,7 +579,7 @@ openMenuOrStopDemo(void)
 		   -- and would then leave demo_active on, letting rd2_demo_autostart()
 		   fire all over again once the run it's mid-ending reaches TITLE. */
 		demo_end();
-		if (GAME2) rd2_sys_joyresync();
+		if (GAME2) rd2_sys_forceEnd(); else game_endRun();
 	} else {
 		openMenu();
 	}
