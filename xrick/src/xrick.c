@@ -18,7 +18,6 @@
 #include "fb.h"
 #include "rd2_game.h"
 #include "rd2_snd.h"
-#include "splash.h"
 #include "settings.h"
 #include "sysjoy.h"
 #include "gameselect.h"
@@ -145,27 +144,15 @@ main(int argc, char *argv[])
 {
 	sys_init(argc, argv);
 
-	/* no -game given: the diskette carousel picks one instead of the usual splash --
-	   it's interactive, so it always needs its own loop (gameselect.c), both natively
-	   and on the web (emscripten_sleep there, same yield-to-the-browser trick RD2's
-	   own main loop already relies on) */
+	/* no -game given: the diskette carousel picks one instead -- it's interactive,
+	   so it always needs its own loop (gameselect.c), both natively and on the web
+	   (emscripten_sleep there, same yield-to-the-browser trick RD2's own main loop
+	   already relies on). Either way, nothing sits in front of the chosen game's own
+	   title/attract sequence any more -- see menu.c's CREDITS page for the old
+	   splash's text, now reachable from the settings menu instead of forced on
+	   every launch. */
 	if (!sysarg_args_game_explicit)
 		gameselect_run();
-	else
-	{
-		/* the splash, before either game. on the web it cannot wait here: the game's
-		   web frame waits for splash_done instead (src/rd1/game.c web_frame) */
-#ifdef __EMSCRIPTEN__
-		splash_start();
-		/* RD2 has no per-frame callback: it runs on from here and yields by sleeping
-		   (ASYNCIFY, rd2_sys_pump), so the splash is waited for here the same way */
-		if (sysarg_args_game == 2)
-			while (!splash_done())
-				emscripten_sleep(10);
-#else
-		splash_run();
-#endif
-	}
 
 	if (sysarg_args_game == 2)
 		rd2_game_run();

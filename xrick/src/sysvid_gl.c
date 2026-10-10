@@ -858,42 +858,6 @@ void sysvid_gl_present(const Uint8 *rgba)
 
 
 /*
- * sysvid_gl_showImage
- *
- * see sysvid_gl.h
- */
-void sysvid_gl_showImage(const Uint8 *rgba, int w, int h, int pitch)
-{
-	int dw, dh, vw, vh, vx, vy;
-	GLuint tex, unit = 0;
-
-	if (!letterbox(&dw, &dh, &vx, &vy, &vw, &vh))
-		return;
-
-	GL(glBindVertexArray)(vao);
-	GL(glBindBuffer)(GL_ARRAY_BUFFER, vbo);
-
-	GL(glActiveTexture)(GL_TEXTURE0);
-	tex = new_texture(w, h);
-	GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, pitch / 4);
-	GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-	GL(glPixelStorei)(GL_UNPACK_ROW_LENGTH, 0);
-	set_filter(tex, image_pass.filter_linear);
-
-	begin_window(dw, dh, vx, vy, vw, vh);
-	use_program(image_prog, mvp_window, vw, vh, vw, vh);
-	bind_frame(image_prog, "", tex, w, h, &unit);
-	bind_frame(image_prog, "Orig", tex, w, h, &unit);
-	GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
-	GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	SDL_GL_SwapWindow(window);
-	GL(glDeleteTextures)(1, &tex);
-}
-
-
-
-/*
  * sysvid_gl_shutdown
  *
  * releases the GL objects, the context and the window. safe on a partial init.

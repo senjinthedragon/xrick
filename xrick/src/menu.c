@@ -17,6 +17,7 @@
  */
 
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -58,6 +59,7 @@ typedef enum {
 	PG_KEYS,
 	PG_PAD,
 	PG_CONFIRM,
+	PG_CREDITS,
 	PG_COUNT
 } page_t;
 
@@ -70,6 +72,7 @@ typedef enum {
 	I_GOTO_KEYS,
 	I_GOTO_PAD,
 	I_SWITCH_GAME,
+	I_CREDITS,
 	I_QUIT,
 	I_BACK,
 	I_FULLSCREEN,
@@ -107,7 +110,7 @@ typedef struct {
 } pagedef_t;
 
 static const pagedef_t pages[PG_COUNT] = {
-    {"SETTINGS", PG_MAIN, 9, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_CHEATS, I_GOTO_KEYS, I_GOTO_PAD, I_SWITCH_GAME, I_QUIT}},
+    {"SETTINGS", PG_MAIN, 10, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_CHEATS, I_GOTO_KEYS, I_GOTO_PAD, I_SWITCH_GAME, I_CREDITS, I_QUIT}},
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
     {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
@@ -115,6 +118,7 @@ static const pagedef_t pages[PG_COUNT] = {
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
+    {"CREDITS", PG_MAIN, 1, {I_BACK}}, /* menu_draw special-cases this page's own full-screen draw */
 };
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
@@ -137,6 +141,7 @@ static enum { NAV,
 	      CAP_KEY,
 	      CAP_PAD } mode = NAV;
 static U8 capIndex; /* which binding is being captured */
+static Uint64 creditsStartTick; /* SDL_GetTicks() when PG_CREDITS was opened, for the scroll */
 
 #define PANEL_W 250
 #define ROW_H 11
@@ -381,7 +386,7 @@ activate(int it)
 		return;
 	case I_SWITCH_GAME:
 		/* no confirmation -- unlike quitting, switching games loses nothing, so
-		   straight to the other game's own splash+attract sequence (as if
+		   straight to the other game's own title/attract sequence (as if
 		   launched with -game N on the command line) */
 #ifdef __EMSCRIPTEN__
 		/* can't re-exec on the web -- reload with ?game=N instead. buildArgs()
@@ -406,6 +411,10 @@ activate(int it)
 			goBack();
 		}
 #endif
+		return;
+	case I_CREDITS:
+		creditsStartTick = SDL_GetTicks();
+		gotoPage(PG_CREDITS);
 		return;
 	case I_QUIT:
 		gotoPage(PG_CONFIRM);
@@ -754,6 +763,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_SWITCH_GAME:
 		label = GAME2 ? "SWITCH TO RICK DANGEROUS" : "SWITCH TO RICK DANGEROUS 2";
 		break;
+	case I_CREDITS:
+		label = "CREDITS";
+		break;
 	case I_QUIT:
 		label = "QUIT GAME";
 		break;
@@ -897,10 +909,100 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	}
 }
 
+/*
+ * drawCredits
+ *
+ * PG_CREDITS's own full-screen draw (menu_draw special-cases this page
+ * instead of the usual panel+item list): a continuously looping, upward-
+ * scrolling credits reel, old-school demo-effect style -- every line's
+ * position is computed fresh each frame from elapsed time, nothing
+ * pre-rendered or baked.
+ */
+#define CREDITS_SPEED 18.0f /* px/sec */
+#define CREDITS_LINE_H 10
+#define CREDITS_GAP 20
+
+typedef struct { const char *s; const U8 *color; } creditLine_t;
+
+static const creditLine_t creditLines[] = {
+	{"XRICK", yellow},
+	{"", NULL},
+	{"RICK DANGEROUS I AND II", white},
+	{"originally created by Core Design", grey},
+	{"published by Firebird", grey},
+	{"", NULL},
+	{"reverse-engineered and ported by", grey},
+	{"Stephane Gay (bigorno / ZpqrtBnk)", white},
+	{"", NULL},
+	{"THIS BUILD", yellow},
+	{"Spit and Polish", white},
+	{"by Senjin the Dragon", grey},
+	{"", NULL},
+	{"ATARI AUDIO EMULATION", yellow},
+	{"Arnaud Carre (Leonard / Oxygene)", white},
+	{"", NULL},
+	{"68000 CPU EMULATION", yellow},
+	{"Musashi by Karl Stenerud", white},
+	{"", NULL},
+	{"CRT SHADERS", yellow},
+	{"Timothy Lottes, EasyMode,", white},
+	{"TroggleMonkey, Themaister", white},
+	{"", NULL},
+	{"UPSCALING", yellow},
+	{"AMD FidelityFX (FSR1)", white},
+	{"", NULL},
+	{"BEZELS", yellow},
+	{"Duimon - Mega Bezel project", white},
+	{"", NULL},
+	{"SDL3", yellow},
+	{"", NULL},
+	{"EMSCRIPTEN", yellow},
+	{"", NULL},
+	{"", NULL},
+	{"rick-dangerous.org", grey},
+};
+#define CREDITS_COUNT (sizeof(creditLines) / sizeof(creditLines[0]))
+
+static float
+creditsLineHeight(int i)
+{
+	return creditLines[i].s[0] ? (float)CREDITS_LINE_H : (float)CREDITS_GAP;
+}
+
+static void
+drawCredits(void)
+{
+	float elapsed = (float)(SDL_GetTicks() - creditsStartTick) / 1000.0f;
+	float totalH = 0.0f, cum = 0.0f, scroll;
+	int i;
+
+	for (i = 0; i < (int)CREDITS_COUNT; i++)
+		totalH += creditsLineHeight(i);
+	scroll = fmodf(elapsed * CREDITS_SPEED, totalH + (float)FB_HEIGHT);
+
+	sysvid_overlayRect(0, 0, FB_WIDTH, FB_HEIGHT, 0, 0, 0, 255);
+
+	for (i = 0; i < (int)CREDITS_COUNT; i++) {
+		int ly = FB_HEIGHT + (int)cum - (int)scroll;
+		if (creditLines[i].s[0] && ly > -CREDITS_LINE_H && ly < FB_HEIGHT)
+			text((FB_WIDTH - sysvid_overlayTextWidth(creditLines[i].s)) / 2, ly,
+				creditLines[i].s, creditLines[i].color);
+		cum += creditsLineHeight(i);
+	}
+
+	textRight(FB_WIDTH - 4, FB_HEIGHT - 10, "ESC CLOSE", grey);
+}
+
 void
 menu_draw(void)
 {
 	const pagedef_t *pg = &pages[page];
+
+	if (page == PG_CREDITS) {
+		drawCredits();
+		return;
+	}
+
 	int w = PANEL_W;
 	int h = HDR_H + pg->count * ROW_H + 6 + FTR_H;
 	int x = (FB_WIDTH - w) / 2;

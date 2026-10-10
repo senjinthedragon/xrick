@@ -38,7 +38,6 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#include "splash.h"
 #endif
 
 #ifdef ENABLE_DEVTOOLS
@@ -266,7 +265,7 @@ game_run(void)
 
 	game_period = sysarg_args_period ? sysarg_args_period : GAME_PERIOD;
 	tm = sys_gettime();
-	game_state = XRICK_CLR; /* the xrick splash now runs before the game, src/splash.c */
+	game_state = XRICK_CLR;
 
 #ifdef ENABLE_DEMO
 	demo_init(&demoset);
@@ -318,9 +317,6 @@ static void web_frame(void)
 	U32 now = sys_gettime();
 	U8 steps = 0;
 	U8 period;
-
-	if (!splash_done())  /* xrick.c started the splash; the game begins after it */
-		return;
 
 	if (!started)
 	{
