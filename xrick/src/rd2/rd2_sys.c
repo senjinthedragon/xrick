@@ -220,6 +220,7 @@ static U8 ovl_paused, ovl_info;
 static U8 in_game;
 
 void rd2_sys_paused(U8 on) { ovl_paused = on; }
+U8 rd2_sys_inGame(void) { return in_game; }  /* menu.c: relabel AUTOPLAY while a run is in progress */
 /* As rd1's env_paintXtra() (game.c): the M/S map/submap row is a devtools-only
    overlay in our fork, not shown by default -- gated here, in the one place
    that controls it, rather than at each rd2_sys_info() call site, so a path

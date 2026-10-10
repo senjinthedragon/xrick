@@ -21,6 +21,14 @@
 #include "rd2_mem.h"
 #include "rd2_sys.h"
 #include "rd2_game.h"
+#include "demo.h"
+
+#ifdef ENABLE_DEMO
+/* host: true if the run now ending was driven by AUTOPLAY/-demo, so
+   END_OF_RUN can skip the high-score name entry the same way it already
+   does for the game's own built-in attract demo (RD2_DEMO). */
+static U8 demo_wasActive;
+#endif
 
 /* boot $10000 (algo-flow.md §13). TOS save ($18f26), MFP/vector setup and the IKBD
    commands are hardware; their RAM writes are only read by the exit path. */
@@ -190,9 +198,24 @@ ENDING:                                         /* $10bf2 */
 	rd2_17bda();
 
 END_OF_RUN:                                     /* $10c00 */
+#ifdef ENABLE_DEMO
+	/* host: capture before clearing it, and clear unconditionally here rather
+	   than through rd2_demo_stop() (gated on a script being loaded, which is
+	   false if this run ended before one was -- e.g. the menu's AUTOPLAY
+	   force-ending it right away -- and would leave demo_active on for
+	   rd2_demo_autostart() to fire all over again once this reaches TITLE). */
+	demo_wasActive = demo_active;
+	demo_end();
+	rd2_sys_joyresync();                        /* host: keyboard for game over / name entry */
+#else
 	rd2_demo_stop();                            /* host: keyboard for game over / name entry */
+#endif
 	rd2_sys_info(0);
-	if (rd2_rw(RD2_DEMO) != 0) {
+	if (rd2_rw(RD2_DEMO) != 0
+#ifdef ENABLE_DEMO
+	    || demo_wasActive                       /* host: skip name entry for AUTOPLAY/-demo too */
+#endif
+	    ) {
 		rd2_ww(RD2_DEMO, 0);
 		goto TITLE;
 	}

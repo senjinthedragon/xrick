@@ -41,6 +41,7 @@ void rd2_sys_joyresync(void);                     /* resend the host joystick at
 /* host additions borrowed from rd1, not in the original (port-rd2.md §7, 2026-09-24):
    overlays drawn into fb after the ST screen conversion, never into emulated RAM */
 void rd2_sys_paused(U8 on);                       /* the rd1 "PAUSED" box over the game */
+U8 rd2_sys_inGame(void);                          /* true across a real level (menu.c) */
 void rd2_sys_info(U8 on);                         /* map / submap numbers in the left border */
 U8 rd2_sys_endreq(void);                          /* the rd1 "end game" key (E) is down */
 U8 rd2_sys_pausekey(void);                        /* the rd1 pause key (P) is down */
