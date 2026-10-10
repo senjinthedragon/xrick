@@ -413,13 +413,18 @@ sysevt_wait(void)
   if (SDL_PollEvent(&event))
     processEvent();
 #else
-  /* Block indefinitely as usual, except while the OSD's few-second message
-   * is still counting down: bound the wait so the game loop keeps ticking
-   * (and the OSD timer keeps getting checked) even on an otherwise-static
-   * screen like a menu, where nothing else would wake this loop up before
-   * the next real input event -- which could be much later than a few
-   * seconds away. */
-  if (sysvid_osdActive()) {
+  /* Block indefinitely as usual, except when something needs to keep
+   * ticking on its own with no input: the menu needs a tight bound so its
+   * real-time credits scroll (menu.c) animates smoothly instead of only
+   * advancing whenever some SDL event happens to arrive, and so keyboard
+   * repeat doesn't beat against an arbitrary wakeup and stutter (found
+   * 2026-10-10 -- holding Down in the menu would irregularly pause for a
+   * fraction of a second); the OSD's few-second countdown only needs
+   * occasional wakeups to notice it has expired, so it keeps a looser one. */
+  if (menu_active()) {
+    if (SDL_WaitEventTimeout(&event, 16))
+      processEvent();
+  } else if (sysvid_osdActive()) {
     if (SDL_WaitEventTimeout(&event, 100))
       processEvent();
   } else {

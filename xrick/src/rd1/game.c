@@ -327,6 +327,17 @@ static void web_frame(void)
 	tmx += now - tm;  /* tmx: real time not yet played, in ms */
 	tm = now;
 
+	/* the menu (and its real-time credits scroll) must get a game_loop call
+	   every browser frame regardless of how much game_period-time has
+	   accumulated -- it doesn't advance gameplay, so gating it on gameplay's
+	   own speed setting only throttles menu redraws/input for no reason
+	   (see game_loop's own menu_active() check, and kb notes 2026-10-10) */
+	if (menu_active())
+	{
+		game_loop();
+		return;
+	}
+
 	for (;;)
 	{
 		period = game_period ? game_period : 1;
@@ -348,6 +359,22 @@ static void web_frame(void)
 
 static void game_loop(void)
 {
+	/* settings menu: the game stays frozen until it's closed. Checked before
+	   the game_period timer block below -- game_period is a gameplay-speed
+	   knob (GAME SPEED in the menu itself), and gating the menu's own
+	   redraw/input on it meant a slow game speed made the menu sluggish too,
+	   and even at normal speed beat against sysevt_wait()'s wakeups to cause
+	   an irregular stutter in cursor movement and the credits scroll (found
+	   2026-10-10). Both backends implement the overlay/getter-setter API
+	   menu.c needs now (see sysvid_gpu.c/sysvid_gl.c), so this runs on the
+	   web build too (web_frame() also bypasses its own period gate above). */
+	if (menu_active()) {
+		sysvid_update(game_rects);
+		draw_STATUSRECT.next = NULL;
+		sysevt_wait();
+		return;
+	}
+
 	/* timer */
 #ifdef __EMSCRIPTEN__
 	/* nothing: web_frame decides when a game step is due, and a browser must not sleep */
@@ -380,14 +407,6 @@ static void game_loop(void)
 	//sysvid_update(fb_updatedRects);
 	sysvid_update(game_rects);
 	draw_STATUSRECT.next = NULL;  /* FIXME freerects should handle this */
-
-	/* settings menu: the game stays frozen until it's closed. Both backends
-	   implement the overlay/getter-setter API menu.c needs now (see
-	   sysvid_gpu.c/sysvid_gl.c), so this runs on the web build too */
-	if (menu_active()) {
-		sysevt_wait();
-		return;
-	}
 
 	/* sound: nothing to do here, everything is managed via callbacks */
 
