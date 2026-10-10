@@ -26,6 +26,11 @@ extern void sysvid_overlayRect(int x, int y, int w, int h, U8 r, U8 g, U8 b, U8 
 extern int sysvid_overlayTextWidth(const char *);
 extern void sysvid_overlayText(int x, int y, const char *, U8 r, U8 g, U8 b);
 
+/* same glyphs, alpha-blended into any caller-owned RGBA8 buffer (not just the
+   registered overlay target) -- gameselect.c's carousel frame, for one */
+extern void sysvid_drawTextAlpha(U32 *pixels, U16 w, U16 h, int x, int y,
+	const char *s, U8 r, U8 g, U8 b, U8 alpha);
+
 #endif /* _SYSVID_OVERLAY_H */
 
 /* eof */

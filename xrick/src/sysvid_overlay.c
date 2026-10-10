@@ -241,10 +241,20 @@ sysvid_overlayTextWidth(const char *s)
 }
 
 
+/*
+ * sysvid_drawTextAlpha
+ *
+ * see sysvid_overlay.h. Same glyphs as sysvid_overlayText, but into any
+ * caller-owned RGBA8 buffer (not just the registered overlay target) and
+ * alpha-blended rather than a flat overwrite -- gameselect.c's own carousel
+ * frame is never registered via sysvid_overlay_init (it has no overlay of
+ * its own, it IS the frame), so it draws into its buffer directly this way.
+ */
 void
-sysvid_overlayText(int x, int y, const char *s, U8 r, U8 g, U8 b)
+sysvid_drawTextAlpha(U32 *pixels, U16 w, U16 h, int x, int y, const char *s, U8 r, U8 g, U8 b, U8 alpha)
 {
 	int i, gx, gy;
+	float a = (float)alpha / 255.0f;
 
 	for (i = 0; s[i]; i++) {
 		char c = s[i];
@@ -257,15 +267,21 @@ sysvid_overlayText(int x, int y, const char *s, U8 r, U8 g, U8 b)
 				int px = x + i * 6 + gx, py = y + gy;
 				U8 *p;
 				if (!(rows[gy] & (0x10 >> gx))) continue;
-				if (px < 0 || px >= (int)ovl_w || py < 0 || py >= (int)ovl_h) continue;
-				p = (U8 *)ovl_pixels + (py * ovl_w + px) * 4;
-				p[0] = r;
-				p[1] = g;
-				p[2] = b;
+				if (px < 0 || px >= (int)w || py < 0 || py >= (int)h) continue;
+				p = (U8 *)pixels + ((size_t)py * w + (size_t)px) * 4;
+				p[0] = (U8)((float)p[0] * (1.0f - a) + (float)r * a);
+				p[1] = (U8)((float)p[1] * (1.0f - a) + (float)g * a);
+				p[2] = (U8)((float)p[2] * (1.0f - a) + (float)b * a);
 				p[3] = 255;
 			}
 		}
 	}
+}
+
+void
+sysvid_overlayText(int x, int y, const char *s, U8 r, U8 g, U8 b)
+{
+	sysvid_drawTextAlpha(ovl_pixels, ovl_w, ovl_h, x, y, s, r, g, b, 255);
 }
 
 /* eof */

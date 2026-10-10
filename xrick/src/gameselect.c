@@ -35,6 +35,7 @@
 
 #include "system.h"
 #include "sysvid.h"
+#include "sysvid_overlay.h" /* sysvid_drawTextAlpha: the fading game-title label */
 #include "sysevt.h"
 #include "control.h"
 #include "sysarg.h"
@@ -65,6 +66,7 @@ static int current;        /* 0 = RD1 front, 1 = RD2 front */
 static float transition;   /* 0 = settled on `current`; ramps to 1 during a carousel swap */
 static int transitionDir;  /* +1 swapping to the right-hand disk, -1 to the left */
 static float bouncePhase;  /* radians, free-running while idle */
+static float titleAlpha;   /* 0..1, the bottom-center title label: in while idle, out mid-swap */
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
 static U8 oldFire, oldLeft, oldRight; /* edge-detect: act once per press, not per frame held */
 
@@ -203,6 +205,7 @@ gameselect_start(void)
 	transition = 0.0f;
 	transitionDir = 0;
 	bouncePhase = 0.0f;
+	titleAlpha = 0.0f;
 	confirmed = FALSE;
 	oldFire = oldLeft = oldRight = FALSE;
 
@@ -353,6 +356,8 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define SIDE_SCALE 0.85f
 #define SIDE_OFFSET 108
 #define TRANSITION_MS 320.0f
+#define TITLE_FADE_MS 300.0f
+#define TITLE_Y (GS_H - 14)
 
 /*
  * gameselect_done
@@ -413,6 +418,17 @@ gameselect_done(void)
 
 	bouncePhase += 0.09f;
 	if (bouncePhase > 6.2832f) bouncePhase -= 6.2832f;
+
+	/* the title label: fades in while settled on `current` (idle bounce),
+	   fades out the moment a swap starts -- current only flips to otherIdx
+	   once the swap completes, so this naturally tracks the disk that's
+	   actually front-and-center the whole time, not the one arriving */
+	{
+		float titleTarget = (transition == 0.0f) ? 1.0f : 0.0f;
+		float titleStep = (1000.0f / TITLE_FADE_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+		if (titleAlpha < titleTarget) titleAlpha = (titleAlpha + titleStep < titleTarget) ? titleAlpha + titleStep : titleTarget;
+		else if (titleAlpha > titleTarget) titleAlpha = (titleAlpha - titleStep > titleTarget) ? titleAlpha - titleStep : titleTarget;
+	}
 
 	if (transition > 0.0f)
 	{
@@ -481,6 +497,16 @@ gameselect_done(void)
 
 	drawArrow(frame, SPOT_CX - 150, DISK_CY, 7, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
 	drawArrow(frame, SPOT_CX + 150, DISK_CY, 7, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
+
+	if (titleAlpha > 0.0f)
+	{
+		static const char *const gameTitle[2] = {"RICK DANGEROUS", "RICK DANGEROUS II"};
+		const char *title = gameTitle[current];
+		int tw = sysvid_overlayTextWidth(title);
+		U8 a = (U8)(titleAlpha * 255.0f + 0.5f);
+
+		sysvid_drawTextAlpha(frame, GS_W, GS_H, (GS_W - tw) / 2, TITLE_Y, title, 0xFF, 0xFF, 0xFF, a);
+	}
 
 	sysvid_updateRGBA(frame);
 
