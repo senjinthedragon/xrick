@@ -133,6 +133,7 @@ static const char *const bezelNames[] = {"NONE", "SC1224", "1084S"};
 static const char *const controlNames[] = {"CLASSIC", "MODERN"};
 
 static U8 active = FALSE;
+static U8 enabled = TRUE; /* gameselect.c turns this off: Escape there should just quit, not open the menu */
 static U8 page = PG_MAIN;
 static U8 cursor[PG_COUNT];
 static enum { NAV,
@@ -397,21 +398,23 @@ activate(int it)
 		control_last = CONTROL_EXIT;
 		return;
 	case I_SWITCH_YES:
-		/* back to the game select screen (gameselect.c), not straight to the other
-		   game: lets the player change their mind, and reuses the one place that
-		   already knows how to boot into either game cleanly, rather than trying to
-		   re-initialize RD1/RD2's single-lifetime engine state in place. */
+		/* straight to the other game's own splash+attract sequence (as if launched
+		   with -game N on the command line) -- the player already said which game
+		   they want, so there's no reason to detour back through the carousel */
 #ifdef __EMSCRIPTEN__
-		/* can't re-exec on the web -- reload instead. The page's own dropdown
-		   picker (player.js) isn't driven by the URL, so a plain reload lands back
-		   on its default state, same as a fresh visit -- not yet reconciled with
-		   this screen, see gameselect.h */
-		EM_ASM(location.reload());
+		/* can't re-exec on the web -- reload with ?game=N instead. buildArgs()
+		   (player.js) picks that up and skips building its own map/game dropdown
+		   (it only appears when the URL has no -game/-map/-submap/-demo), landing
+		   straight on that game once the player taps to start again */
+		EM_ASM({ location.href = location.pathname + '?game=' + $0; }, GAME2 ? 1 : 2);
 #else
 		{
-			char *args[2];
+			char gameArg[2] = { (char)('0' + (GAME2 ? 1 : 2)), '\0' };
+			char *args[4];
 			args[0] = sysarg_argv0;
-			args[1] = NULL;
+			args[1] = "-game";
+			args[2] = gameArg;
+			args[3] = NULL;
 			sys_shutdown();
 			execvp(sysarg_argv0, args);
 			/* execvp only returns on failure -- nothing sensible left to do but
@@ -624,9 +627,18 @@ openMenuOrStopDemo(void)
 	}
 }
 
+void
+menu_setEnabled(U8 e)
+{
+	enabled = e;
+}
+
 U8
 menu_handleEvent(const SDL_Event *ev)
 {
+	if (!enabled)
+		return FALSE;
+
 	if (!active) {
 		if (ev->type == SDL_EVENT_KEY_DOWN && !ev->key.repeat && ev->key.scancode == SDL_SCANCODE_ESCAPE) {
 			openMenuOrStopDemo();

@@ -38,6 +38,7 @@
 #include "sysevt.h"
 #include "control.h"
 #include "sysarg.h"
+#include "menu.h"
 #include "gameselect.h"
 #include "gameselect_embedded.h"
 #include "thirdparty/stb_image.h"
@@ -212,6 +213,10 @@ gameselect_start(void)
 	confirmed = FALSE;
 	oldFire = oldLeft = oldRight = FALSE;
 
+	/* this screen has no pause/settings of its own: Escape should quit the
+	   program outright, not pop up the in-game menu (see gameselect_done) */
+	menu_setEnabled(FALSE);
+
 	drawDiskTemplate(diskSprite[0]);
 	drawDiskTemplate(diskSprite[1]);
 
@@ -335,7 +340,10 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define SPOT_CY (GS_H - 46)
 #define SPOT_RX 118
 #define SPOT_RY 30
-#define DISK_CY (SPOT_CY - 6)
+/* resting position: the disk's bottom edge sits on the spotlight oval's own
+   horizontal axis (its vertical center), so it reads as standing IN the light
+   rather than in front of it -- not pinned to the screen bottom */
+#define DISK_CY ((int)(SPOT_CY - (DISK_SCALE * DISK_H / 2.0f)))
 #define DISK_SCALE 1.55f
 #define SIDE_SCALE 0.85f
 #define SIDE_OFFSET 108
@@ -361,6 +369,18 @@ gameselect_done(void)
 		return TRUE;
 
 	sysevt_poll();
+
+	/* Escape (or closing the window): quit immediately, no confirmation --
+	   the menu is disabled here (gameselect_start), so this is the only
+	   handler Escape reaches */
+	if (control_status & CONTROL_EXIT) {
+		sys_shutdown();
+#ifdef __EMSCRIPTEN__
+		emscripten_force_exit(0);
+#else
+		exit(0);
+#endif
+	}
 
 	fire = (control_status & CONTROL_FIRE) ? TRUE : FALSE;
 	left = (control_status & CONTROL_LEFT) ? TRUE : FALSE;
@@ -411,10 +431,19 @@ gameselect_done(void)
 	}
 	else
 	{
-		float tilt = sinf(bouncePhase) * 0.18f; /* seesaw, Z-axis only */
-		float bob = fabsf(sinf(bouncePhase)) * 5.0f;
+		/* hopping foot to foot, not rolling in place: fully committed to one
+		   corner (max tilt) exactly when grounded (bob == 0), leveling out
+		   toward upright at the apex of each hop (bob at its peak) -- so the
+		   tilt and the hop are 90 degrees out of phase, not in lockstep */
+		/* bob follows a parabolic arc (constant "gravity") per hop instead of a
+		   sine wave: launches fast off the planted foot, eases to a hang at the
+		   apex, then eases back in for a fast landing on the other foot */
+		float hopT = fmodf(bouncePhase, 3.14159265f) / 3.14159265f; /* 0..1 within this hop */
+		float tilt = cosf(bouncePhase) * 0.22f; /* seesaw, Z-axis only */
+		float bob = 4.0f * hopT * (1.0f - hopT) * 7.0f;
+		float sway = cosf(bouncePhase) * 10.0f; /* weight shift toward the planted foot */
 
-		frontCx = (float)(GS_W / 2);
+		frontCx = (float)(GS_W / 2) + sway;
 		frontCy = DISK_CY - bob;
 		frontScale = DISK_SCALE;
 		frontAngle = tilt;
@@ -431,6 +460,9 @@ gameselect_done(void)
 	if (fire && !oldFire && transition == 0.0f)
 		confirmed = TRUE;
 	oldFire = fire;
+
+	if (confirmed)
+		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
 
 	/* ---- draw ---- */
 	memset(frame, 0, sizeof(frame));

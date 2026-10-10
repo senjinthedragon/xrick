@@ -22,6 +22,10 @@ extern void menu_draw(void);
 /* returns TRUE if the menu consumed the event (the game shouldn't see it) */
 extern U8 menu_handleEvent(const SDL_Event *);
 
+/* gameselect.c disables the menu while its own carousel is up: Escape there
+   should quit the program directly, not open the settings menu */
+extern void menu_setEnabled(U8);
+
 #endif /* _MENU_H */
 
 /* eof */
