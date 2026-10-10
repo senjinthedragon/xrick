@@ -33,6 +33,8 @@
 #include <emscripten.h>
 #endif
 
+#include <SDL3/SDL.h> /* SDL_GetKeyboardState: Enter also confirms here, like the menu */
+
 #include "system.h"
 #include "sysvid.h"
 #include "sysvid_overlay.h" /* sysvid_drawTextAlpha: the fading game-title label */
@@ -69,7 +71,7 @@ static float bouncePhase;  /* radians, free-running while idle */
 static float titleAlpha;   /* 0..1, the bottom-center title label: in while idle, out mid-swap */
 static float backFadeIn;   /* 0..1, the dim background disk fading in after it finishes exiting */
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
-static U8 oldFire, oldLeft, oldRight; /* edge-detect: act once per press, not per frame held */
+static U8 oldFire, oldLeft, oldRight, oldEnter; /* edge-detect: act once per press, not per frame held */
 
 #define RGBA(r, g, b, a) ((U32)(U8)(r) | ((U32)(U8)(g) << 8) | ((U32)(U8)(b) << 16) | ((U32)(U8)(a) << 24))
 
@@ -209,7 +211,7 @@ gameselect_start(void)
 	titleAlpha = 0.0f;
 	backFadeIn = 1.0f; /* already settled at startup -- only a post-swap reappearance fades in */
 	confirmed = FALSE;
-	oldFire = oldLeft = oldRight = FALSE;
+	oldFire = oldLeft = oldRight = oldEnter = FALSE;
 
 	/* this screen has no pause/settings of its own: Escape should quit the
 	   program outright, not pop up the in-game menu (see gameselect_done) */
@@ -373,7 +375,7 @@ U8
 gameselect_done(void)
 {
 	static U32 frame[GS_W * GS_H];
-	U8 fire, left, right;
+	U8 fire, left, right, enter;
 	int otherIdx = current ^ 1;
 	float frontAngle, frontScale, frontCx, frontCy, frontBright, frontAlpha;
 	float backAngle, backScale, backCx, backCy, backBright, backAlpha;
@@ -398,6 +400,7 @@ gameselect_done(void)
 	fire = (control_status & CONTROL_FIRE) ? TRUE : FALSE;
 	left = (control_status & CONTROL_LEFT) ? TRUE : FALSE;
 	right = (control_status & CONTROL_RIGHT) ? TRUE : FALSE;
+	enter = SDL_GetKeyboardState(NULL)[SDL_SCANCODE_RETURN] ? TRUE : FALSE; /* confirms here too, like the menu */
 
 	if (transition == 0.0f)
 	{
@@ -434,7 +437,7 @@ gameselect_done(void)
 		}
 	}
 
-	bouncePhase += 0.09f;
+	bouncePhase += 0.14f;
 	if (bouncePhase > 6.2832f) bouncePhase -= 6.2832f;
 
 	/* the title label: fades in while settled on `current` (idle bounce),
@@ -550,9 +553,10 @@ gameselect_done(void)
 		backAlpha = backFadeIn;
 	}
 
-	if (fire && !oldFire && transition == 0.0f)
+	if (((fire && !oldFire) || (enter && !oldEnter)) && transition == 0.0f)
 		confirmed = TRUE;
 	oldFire = fire;
+	oldEnter = enter;
 
 	if (confirmed)
 		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
