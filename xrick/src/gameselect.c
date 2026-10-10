@@ -708,6 +708,20 @@ gameselect_done(void)
 		}
 	}
 
+	/* RD2's title theme is two separate tracks chained by the real game itself,
+	   not one: id 3 is a short ~6-chord sting that ends on its own, then id 0
+	   (d1=1) is the actual loop -- rd2_flow.c's own rd2_178dc()/rd2_17c86() poll
+	   [$1aa08] (0 once nothing is playing) every frame to chain the second one
+	   in exactly this way; this is that same polling, so the carousel's copy
+	   doesn't go silent after the sting. Confirming while this is already
+	   looping also fixes the obvious follow-on problem for free: rd2_178dc()
+	   runs again as part of a normal (non-demo) game start and only replays id 3
+	   if [$1aa08] reads 0 -- since the loop (id 0) leaves it nonzero the whole
+	   time, the real game picks up the same loop instead of restarting the
+	   sting. Found 2026-10-11. */
+	if (audioIdx == 1 && rd2_snd_rw(0x1aa08) == 0)
+		rd2_1a6aa(0, 1);
+
 	bouncePhase += 0.14f;
 	if (bouncePhase > 6.2832f) bouncePhase -= 6.2832f;
 
