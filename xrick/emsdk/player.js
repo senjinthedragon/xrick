@@ -10,7 +10,7 @@
 //
 //   <script>window.xrickPlayer = { start: '#xrick', label: '#xrick span',
 //     status: '#player_console', buttons: '#controls1 div[data-code]',
-//     selector: '#xrick-select', wasmUrl: '/media/1vqhdi1t/xrick.wasm' };</script>
+//     wasmUrl: '/media/1vqhdi1t/xrick.wasm' };</script>
 //   <script src="player.js"></script>
 //   <script src="xrick.js" async></script>
 
@@ -35,9 +35,6 @@ var defaults = {
   saveTrace: '#savetrace',
   // fullscreen button; optional -- hidden if the browser has no Fullscreen API
   fullscreen: '#fullscreen',
-  // container for the map and starting-room drop-downs; optional (without it, ?map=N
-  // and ?submap=N in the URL still choose the start)
-  selector: '#select',
   // where xrick.wasm is served from; null = next to xrick.js (emscripten's default)
   wasmUrl: null
 };
@@ -46,9 +43,12 @@ var cfg = Object.assign({}, defaults, window.xrickPlayer || {});
 
 // ---- arguments ----------------------------------------------------------------------------
 // query string -> xrick command line: ?demo -> -demo, ?speed=3 -> -speed 3, ...
-// (only options the game knows; -data is gone since assets are compiled in)
-// With the map selector on the page, the start point (-map / -submap / -game) comes from
-// it instead (selectionArgs); the URL's values only pre-select it.
+// (only options the game knows; -data is gone since assets are compiled in). With none of
+// -game/-map/-submap/-demo given, the game starts with no -game at all: the in-game diskette
+// carousel (gameselect.c) picks RD1 or RD2, and its own settings menu (SELECT MAP / WARP TO
+// ROOM, RD1; SWITCH GAME, both) is how a world/room/game choice is made from there -- the
+// page no longer has its own map/world drop-downs. Those menu actions reload the page with
+// ?game=/&map=/&submap= set, which this still reads, same as a shared/bookmarked link would.
 function buildArgs() {
   var q = new URLSearchParams(window.location.search);
   var args = [];
@@ -130,114 +130,7 @@ function bindPad(pad) {
   pad.addEventListener('touchcancel', stop, { passive: false });
 }
 
-// ---- map selector ---------------------------------------------------------------------------
-// One list of "<game> - <map>" entries, then the starting room within that map: "start of
-// map" (the map's own start, with its intro) or one of its other submaps. Chosen before
-// the game starts, then locked: a new choice means reloading the page. Submap numbers are
-// the game's own (env_submap, 0-based); on the command line -map and -submap are 1-based
-// and a map's first submap is the start of that map (sysarg.c). Every RD1 submap is a
-// valid start point (each has a rightward entry in map_connect). RD2 entries (game '2',
-// -game 2) have no rooms, only "start of map" (-map N, the level as picked on SELECT
-// LEVEL): RD2 enters a submap only through an exit trigger or a respawn, so xrick refuses
-// -submap with -game 2. RD2 names: the picker's strings ($179c0.., kb2/algo-flow.md).
-var MAPS = [
-  { game: '1', name: 'RD1 - South America',         map: 1, first: 0x00, last: 0x08 },
-  { game: '1', name: 'RD1 - Egypt',                 map: 2, first: 0x09, last: 0x13 },
-  { game: '1', name: 'RD1 - Schwarzendumpf Castle', map: 3, first: 0x14, last: 0x25 },
-  { game: '1', name: 'RD1 - Missile Base',          map: 4, first: 0x26, last: 0x2E },
-  { game: '2', name: 'RD2 - Hyde Park, Earth',           map: 1 },
-  { game: '2', name: 'RD2 - The Ice Caverns of Freezia', map: 2 },
-  { game: '2', name: 'RD2 - The Forests of Vegetablia',  map: 3 },
-  { game: '2', name: 'RD2 - The Atomic Mud Mines',       map: 4 }
-];
-var mapSelect = null, subSelect = null, playBox = null, modeSelect = null;
 var runtimeReady = false; // set once xrick.wasm is loaded: the game can start
-
-//function hex2(n) { return '0x' + (n < 16 ? '0' : '') + n.toString(16).toUpperCase(); }
-
-function option(value, text) {
-  var o = document.createElement('option');
-  o.value = value;
-  o.textContent = text;
-  return o;
-}
-
-function fillSubmaps(m) {
-  subSelect.innerHTML = '';
-  if (m.first === undefined) { // RD2: no rooms (see MAPS)
-    subSelect.appendChild(option('', 'start of map'));
-    return;
-  }
-  for (var s = m.first; s <= m.last; s++)
-    subSelect.appendChild(option(String(s), 'room ' + (s - m.first + 1) + ' (submap ' + s + ')'));
-}
-
-function buildSelector(box) {
-  mapSelect = document.createElement('select');
-  mapSelect.setAttribute('aria-label', 'map');
-  subSelect = document.createElement('select');
-  subSelect.setAttribute('aria-label', 'starting room');
-  MAPS.forEach(function (m, i) { mapSelect.appendChild(option(String(i), m.name)); });
-
-  // pre-select from the URL: ?submap=N or ?map=N, 1-based as on the command line
-  var q = new URLSearchParams(window.location.search);
-  var qs = parseInt(q.get('submap'), 10), qm = parseInt(q.get('map'), 10);
-  var game = q.get('game') === '2' ? '2' : '1'; // RD1 and RD2 maps share the numbers 1-4
-  var mi = 0, sub = null;
-  MAPS.forEach(function (m, i) {
-    if (m.game !== game) return;
-    if (qs >= 1 && qs - 1 >= m.first && qs - 1 <= m.last) { mi = i; sub = qs - 1; }
-    else if (!(qs >= 1) && qm === m.map) mi = i;
-  });
-  mapSelect.value = String(mi);
-  fillSubmaps(MAPS[mi]);
-  if (sub !== null && sub !== MAPS[mi].first) subSelect.value = String(sub);
-
-  mapSelect.addEventListener('change', function () { fillSubmaps(MAPS[mapSelect.value]); });
-  box.appendChild(mapSelect);
-  box.appendChild(subSelect);
-  box.appendChild(buildPlayButton());
-}
-
-// split button: the button starts the game; its drop-down switches it between "play"
-// (a playable game) and "demo" (the attract demo, -demo, from the selected start)
-function buildPlayButton() {
-  playBox = document.createElement('span');
-  playBox.className = 'split';
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  modeSelect = document.createElement('select');
-  modeSelect.setAttribute('aria-label', 'start mode');
-  modeSelect.appendChild(option('play', 'play'));
-  modeSelect.appendChild(option('demo', 'demo'));
-  if (cfg.startInDemo) modeSelect.value = 'demo';
-  function sync() {
-    btn.textContent = modeSelect.value;
-    setLabel(modeSelect.value === 'demo' ? 'click or touch to watch the demo' : 'click or touch to play');
-  }
-  modeSelect.addEventListener('change', sync);
-  btn.addEventListener('click', function () { if (runtimeReady) start(); });
-  sync();
-  playBox.appendChild(btn);
-  playBox.appendChild(modeSelect);
-  return playBox;
-}
-
-// the selection as command-line arguments
-function selectionArgs() {
-  var m = MAPS[mapSelect.value], s = subSelect.value;
-  var args = m.game === '2' ? ['-game', '2'] : [];
-  if (s === '') args.push('-map', String(m.map)); // FIXME first submap?
-  else args.push('-submap', String(parseInt(s, 10) + 1));
-  return args;
-}
-
-function lockSelector() {
-  if (!mapSelect) return;
-  mapSelect.remove();
-  subSelect.remove();
-  playBox.remove();
-}
 
 findAll(cfg.buttons).forEach(bindButton);
 
@@ -389,8 +282,8 @@ if (fsBtn) {
 }
 
 // ---- emscripten Module ---------------------------------------------------------------------
-// the command line is built when the game starts (the map selector is read then) and
-// given to callMain only (not Module.arguments)
+// the command line is built once, from the URL, before the start tap -- given to callMain
+// only (not Module.arguments)
 var Module = {
   canvas: canvas,
   // xrick.js asks this first for every file it loads: serve xrick.wasm from cfg.wasmUrl
@@ -404,7 +297,7 @@ var Module = {
   setStatus: function (text) { if (text) setStatus(text); },
   onRuntimeInitialized: function () {
     runtimeReady = true;
-    setLabel(modeSelect && modeSelect.value === 'demo' ? 'click or touch to watch the demo' : 'click or touch to play');
+    setLabel(args.indexOf('-demo') >= 0 ? 'click or touch to watch the demo' : 'click or touch to play');
     setStatus('');
     if (startBox) startBox.addEventListener('click', start);
     else start();   // no start element: nothing to click, but then no sound on most browsers
@@ -420,19 +313,11 @@ var Module = {
 };
 
 var args = buildArgs();
-if (args.indexOf('-game') < 0 && args.indexOf('-map') < 0 && args.indexOf('-submap') < 0 && args.indexOf('-demo') < 0) {
-  var selectBox = find(cfg.selector);
-  if (selectBox) buildSelector(selectBox);
-}
 
 function start() {
-  if (start.done) return; // the start element and the play button both start it, once
+  if (start.done) return; // only ever runs once
   start.done = true;
   unlockAudio(); // inside the tap: iOS playback audio
-  lockSelector(); // a new choice needs a page reload
-
-  if (mapSelect) args = args.concat(selectionArgs());
-  if (modeSelect && modeSelect.value === 'demo' && args.indexOf('-demo') < 0) args.push('-demo');
 
   if (startBox) startBox.style.display = 'none';
   canvas.style.display = 'block'; // pages may keep the canvas hidden until now
