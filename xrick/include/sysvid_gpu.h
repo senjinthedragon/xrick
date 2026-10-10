@@ -14,6 +14,23 @@
 #define _SYSVID_GPU_H
 
 #include "system.h"
+#include "sysvid_overlay.h" /* osdActive/overlayRect/overlayText -- shared with sysvid_gl.c */
+
+/* shared between both backends (sysvid_gpu.c, sysvid_gl.c) and menu.c, which cycles
+   through these by name -- keep both backends' *_COUNT-sized tables in sync with this */
+typedef enum { UPSCALE_NONE = 0,
+	       UPSCALE_SHARP,
+	       UPSCALE_FSR1,
+	       UPSCALE_COUNT } upscaleMode_t;
+typedef enum { CRT_NONE = 0,
+	       CRT_EASYMODE,
+	       CRT_LOTTES,
+	       CRT_ROYALE,
+	       CRT_COUNT } crtMode_t;
+typedef enum { BEZEL_NONE = 0,
+	       BEZEL_ATARI_SC1224,
+	       BEZEL_COMMODORE_1084S,
+	       BEZEL_COUNT } bezelMode_t;
 
 extern void sysvid_cycleUpscale(void);
 extern void sysvid_cycleCrt(void);

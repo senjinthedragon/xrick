@@ -385,14 +385,13 @@ static void game_loop(void)
 	sysvid_update(game_rects);
 	draw_STATUSRECT.next = NULL;  /* FIXME freerects should handle this */
 
-#ifndef __EMSCRIPTEN__
-	/* settings menu (native builds only -- see build.sh/sysvid_gpu.c, no
-	   menu on the WebGL renderer yet): the game stays frozen until it's closed */
+	/* settings menu: the game stays frozen until it's closed. Both backends
+	   implement the overlay/getter-setter API menu.c needs now (see
+	   sysvid_gpu.c/sysvid_gl.c), so this runs on the web build too */
 	if (menu_active()) {
 		sysevt_wait();
 		return;
 	}
-#endif
 
 	/* sound: nothing to do here, everything is managed via callbacks */
 

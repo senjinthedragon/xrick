@@ -33,6 +33,8 @@ var defaults = {
   pad: '#pad',
   // "download trace" button shown with ?trace; optional
   saveTrace: '#savetrace',
+  // fullscreen button; optional -- hidden if the browser has no Fullscreen API
+  fullscreen: '#fullscreen',
   // container for the map and starting-room drop-downs; optional (without it, ?map=N
   // and ?submap=N in the URL still choose the start)
   selector: '#select',
@@ -292,6 +294,33 @@ function resumeSdlAudio() {
   if (ctx && ctx.state !== 'running' && ctx.resume) ctx.resume();
 }
 
+// ---- settings persistence (Phase 4) ---------------------------------------------------
+// settings.c's SDL_GetPrefPath("xrick","xrick") resolves to /libsdl/xrick/xrick/ on the
+// web build (SDL's Emscripten filesystem backend, SDL_sysfilesystem.c); mounting IDBFS at
+// /libsdl -- its root, created here before any of SDL's own mkdir calls -- covers that
+// whole path. autoPersist writes each change back to IndexedDB on its own, so nothing
+// native-only (settings_save(), in the game's C code) needs to call FS.syncfs(false)
+// itself. The one async step is the initial load: it must finish before Module.callMain()
+// runs settings_load(), since that call is synchronous C code expecting the file (if any)
+// to already be there.
+var idbfsReady = false;
+function setupIDBFS(cb) {
+  if (idbfsReady) { cb(); return; }
+  try {
+    Module.FS.mkdir('/libsdl');
+    Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: true }, '/libsdl');
+    Module.FS.syncfs(true, function (err) {
+      if (err) console.error('xrick: IDBFS load failed, starting without saved settings', err);
+      idbfsReady = true;
+      cb();
+    });
+  } catch (e) {
+    console.error('xrick: IDBFS unavailable, settings will not persist', e);
+    idbfsReady = true; // proceed without persistence rather than block the game from starting
+    cb();
+  }
+}
+
 // ---- trace (wasm.md W1.7) ------------------------------------------------------------------
 // /trace.txt lives in MEMFS
 function traceText() {
@@ -314,6 +343,49 @@ if (saveBtn && new URLSearchParams(window.location.search).has('trace')) {
     a.click();
     URL.revokeObjectURL(a.href);
   });
+}
+
+// ---- fullscreen -----------------------------------------------------------------------------
+// Module.requestFullscreen (set up by SDL3's Emscripten video backend once the window exists,
+// i.e. after callMain -- see SDL_emscriptenvideo.c) goes through SDL_SetWindowFullscreen, so
+// SDL's own canvas-resize tracking stays correct; canvas.requestFullscreen() is the fallback
+// before the game has started (or if that hook is for some reason missing). Either way this
+// only works called directly from a user gesture (the button's own click), which is exactly
+// why this exists instead of relying on the in-game settings menu's FULLSCREEN toggle: that
+// one goes through SDL's event queue, a frame after the real keypress, which browsers don't
+// treat as "direct enough" to grant fullscreen from.
+var fsBtn = find(cfg.fullscreen);
+if (fsBtn) {
+  if (!document.fullscreenEnabled) {
+    fsBtn.hidden = true;
+    fsBtn.style.display = 'none';
+  } else {
+    fsBtn.addEventListener('click', function () {
+      function fail(label, e) {
+        console.error('xrick: fullscreen (' + label + ') failed:', e);
+        setStatus('fullscreen failed: ' + (e && e.message ? e.message : e));
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(function (e) { fail('exit', e); });
+        return;
+      }
+      // prefer the plain browser API: it works whether or not the game has started yet,
+      // and does not depend on SDL's own window/event-loop state at all. Module.requestFullscreen
+      // (SDL3's own hook, once the game has created its window) is tried only as a fallback,
+      // since going through SDL_SetWindowFullscreen's extra layers is more that can go wrong.
+      try {
+        var p = canvas.requestFullscreen();
+        if (p && p.catch) p.catch(function (e) {
+          fail('canvas', e);
+          if (Module.requestFullscreen) {
+            try { Module.requestFullscreen(false, true); } catch (e2) { fail('Module', e2); }
+          }
+        });
+      } catch (e) {
+        fail('canvas-sync', e);
+      }
+    });
+  }
 }
 
 // ---- emscripten Module ---------------------------------------------------------------------
@@ -366,8 +438,10 @@ function start() {
   canvas.style.display = 'block'; // pages may keep the canvas hidden until now
   canvas.focus();
   window.xrickStartArgs = args; // for checking what the game was started with
-  Module.callMain(args);
-  resumeSdlAudio();
+  setupIDBFS(function () {
+    Module.callMain(args);
+    resumeSdlAudio();
+  });
 }
 
 canvas.addEventListener('webglcontextlost', function (e) {

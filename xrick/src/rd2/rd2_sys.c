@@ -495,15 +495,23 @@ rd2_sys_pump(void)
 		exit(0);                                             /* window closed or ESC (rd1); sys_shutdown runs at exit */
 
 	/* settings menu (Senjin's SDL3 port): the game stays frozen -- no VBL
-	   advance, no input to the game -- until it's closed, as rd1's
-	   game_loop does. Unlike that early return, still present() every
-	   call: rd1's menu overlay is drawn inside sysvid_gl_present(), and
-	   nothing else here would ever draw it (no VBL ever fires to reach
-	   the present() below while menu_active(), since this would just
-	   keep returning before that point). */
+	   advance, no input to the game -- until it's closed, as rd1's game_loop
+	   does. Both backends implement the overlay/getter-setter API menu.c needs
+	   now (see sysvid_gpu.c/sysvid_gl.c), so this runs on the web build too.
+	   Unlike that early return, still present() every call: rd1's menu overlay
+	   is drawn inside sysvid_gl_present(), and nothing else here would ever
+	   draw it (no VBL ever fires to reach the present() below while
+	   menu_active(), since this would just keep returning before that point). */
 	if (menu_active()) {
 		present();
 		sysevt_wait();
+#ifdef __EMSCRIPTEN__
+		/* rd2_19216()'s "while (...) rd2_sys_pump();" is a tight native loop: without
+		   a real yield here, it would spin the wasm VM forever while the menu is open
+		   and never give the browser's event loop a turn (freezing the tab) -- same
+		   reason the vbl_next wait below calls emscripten_sleep instead of sys_sleep. */
+		emscripten_sleep(16);
+#endif
 		return;
 	}
 

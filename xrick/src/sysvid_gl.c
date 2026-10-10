@@ -49,8 +49,16 @@
 #include <SDL3/SDL_opengl.h>
 #endif
 
+#include <stdlib.h> /* malloc */
+
 #include "system.h"
+#include "sysarg.h"
 #include "sysvid_gl.h"
+#include "sysvid_gpu.h" /* menu/settings getter-setter API, shared with sysvid_gpu.c (see its own header) */
+#include "sysvid_overlay.h"
+#include "menu.h"
+#include "bezels_embedded.h"
+#include "thirdparty/stb_image.h"
 
 
 
@@ -78,33 +86,88 @@ typedef struct {
 	float max_scale;
 } shader_pass_t;
 
-/* src/shaders/xbrz/xbrz-freescale-multipass.glslp */
-static const char xbrz_freescale_pass0[] =
-#include "shaders/xbrz/xbrz-freescale-pass0.glsl.inc"
-;
-static const char xbrz_freescale_pass1[] =
-#include "shaders/xbrz/xbrz-freescale-pass1.glsl.inc"
-;
 /* src/shaders/stock.glsl: plain copy */
 static const char stock[] =
 #include "shaders/stock.glsl.inc"
 ;
+static const char sharp_bilinear[] =
+#include "shaders/sharp-bilinear.glsl.inc"
+;
+static const char fsr_easu[] =
+#include "shaders/fsr-easu.glsl.inc"
+;
+static const char fsr_rcas[] =
+#include "shaders/fsr-rcas.glsl.inc"
+;
+static const char crt_easymode[] =
+#include "shaders/crt-easymode.glsl.inc"
+;
+static const char crt_lottes[] =
+#include "shaders/crt-lottes.glsl.inc"
+;
+/* bezel screen curvature, run as an extra pass after the chain when a bezel is active --
+   see sysvid_gl_present()'s bezel branch and the shader's own header comment */
+static const char curvature[] =
+#include "shaders/curvature.glsl.inc"
+;
 
 /*
- * xBRZ draws its curves at the size of its output, so at a large zoom they get very
- * smooth and the pixel art looks like vector art. its output is capped at
- * XBRZ_MAX_SCALE x the game frame, and the last pass stretches that to the window with
- * linear filtering: up to that zoom the picture is plain xBRZ (the copy is 1:1), above
- * it the curves keep that level of detail and soften instead.
+ * runtime-switchable chains (sysvid_getUpscale/setUpscale/getCrt/setCrt, menu.c's
+ * VIDEO page), mirroring sysvid_gpu.h's upscaleMode_t/crtMode_t. A CRT mode other than
+ * CRT_NONE takes priority over the upscaler (same as sysvid_gpu.c: easymode/lottes are
+ * complete standalone effects run directly on the raw game frame, not something layered
+ * on top of a separate upscale pass) -- see activeChain() below. CRT_ROYALE needs a LUT
+ * texture (the phosphor mask) this driver's GLSL binder doesn't support yet, so it falls
+ * back to CRT_NONE's chain visually while still storing the setting.
  */
-#define XBRZ_MAX_SCALE 3.0f
+typedef struct {
+	const shader_pass_t *list;
+	int count;
+} shader_chain_t;
 
-static const shader_pass_t chain[] = {
-	{ "xbrz-freescale-pass0", xbrz_freescale_pass0, 0, SCALE_SOURCE, 1.0f, 0 },
-	{ "xbrz-freescale-pass1", xbrz_freescale_pass1, 0, SCALE_VIEWPORT, 1.0f, XBRZ_MAX_SCALE },
-	{ "stock", stock, 1, SCALE_VIEWPORT, 1.0f, 0 },
+static const shader_pass_t stock_chain[] = {
+	{ "stock", stock, 0, SCALE_VIEWPORT, 1.0f, 0 }, /* UPSCALE_NONE: nearest */
 };
-#define NPASSES ((int)(sizeof(chain) / sizeof(chain[0])))
+static const shader_pass_t sharp_chain[] = {
+	{ "sharp-bilinear", sharp_bilinear, 1, SCALE_VIEWPORT, 1.0f, 0 },
+};
+static const shader_pass_t fsr1_chain[] = {
+	{ "fsr-easu", fsr_easu, 0, SCALE_VIEWPORT, 1.0f, 0 },
+	{ "fsr-rcas", fsr_rcas, 0, SCALE_VIEWPORT, 1.0f, 0 },
+};
+static const shader_pass_t crt_easymode_chain[] = {
+	{ "crt-easymode", crt_easymode, 0, SCALE_VIEWPORT, 1.0f, 0 },
+};
+static const shader_pass_t crt_lottes_chain[] = {
+	{ "crt-lottes", crt_lottes, 0, SCALE_VIEWPORT, 1.0f, 0 },
+};
+
+static const shader_chain_t upscale_chains[] = {
+	{ stock_chain, 1 }, /* UPSCALE_NONE */
+	{ sharp_chain, 1 }, /* UPSCALE_SHARP */
+	{ fsr1_chain, 2 },  /* UPSCALE_FSR1 */
+};
+static const shader_chain_t crt_chains[] = {
+	{ crt_easymode_chain, 1 }, /* CRT_EASYMODE */
+	{ crt_lottes_chain, 1 },   /* CRT_LOTTES */
+};
+#define MAX_PASSES 2
+
+static int upscaleMode;
+static int crtMode;
+static int bezelMode;
+static int aspectMode;
+static const shader_chain_t *cur_chain = &upscale_chains[0];
+static int npasses = 1;
+
+/* crtMode's effective chain, or NULL to fall through to upscale_chains[upscaleMode] --
+   see the runtime-switchable-chains comment above */
+static const shader_chain_t *activeChain(void)
+{
+	if (crtMode == CRT_EASYMODE) return &crt_chains[0];
+	if (crtMode == CRT_LOTTES) return &crt_chains[1];
+	return &upscale_chains[upscaleMode];
+}
 
 
 
@@ -119,6 +182,7 @@ static const shader_pass_t chain[] = {
 	X(void,   glBindFramebuffer, (GLenum target, GLuint framebuffer)) \
 	X(void,   glBindTexture, (GLenum target, GLuint texture)) \
 	X(void,   glBindVertexArray, (GLuint array)) \
+	X(void,   glBlendFunc, (GLenum sfactor, GLenum dfactor)) \
 	X(void,   glBufferData, (GLenum target, GLsizeiptr size, const void *data, GLenum usage)) \
 	X(GLenum, glCheckFramebufferStatus, (GLenum target)) \
 	X(void,   glClear, (GLbitfield mask)) \
@@ -133,8 +197,10 @@ static const shader_pass_t chain[] = {
 	X(void,   glDeleteShader, (GLuint shader)) \
 	X(void,   glDeleteTextures, (GLsizei n, const GLuint *textures)) \
 	X(void,   glDeleteVertexArrays, (GLsizei n, const GLuint *arrays)) \
+	X(void,   glDisable, (GLenum cap)) \
 	X(void,   glDisableVertexAttribArray, (GLuint index)) \
 	X(void,   glDrawArrays, (GLenum mode, GLint first, GLsizei count)) \
+	X(void,   glEnable, (GLenum cap)) \
 	X(void,   glEnableVertexAttribArray, (GLuint index)) \
 	X(void,   glFramebufferTexture2D, (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)) \
 	X(void,   glGenBuffers, (GLsizei n, GLuint *buffers)) \
@@ -192,13 +258,27 @@ typedef struct {
 	int w, h;        /* output size */
 } pass_t;
 
+/* a bezel PNG (src/bezels/, embedded by bezels_embedded.c) plus where its screen cutout
+   sits within it, as fractions of the whole image -- same layout as sysvid_gpu.c's own
+   bezelInfo_t, duplicated rather than shared since the two backends' texture handles
+   are different types */
+typedef struct {
+	GLuint tex;
+	int w, h;
+	float x0, y0, x1, y1;
+} bezel_t;
+
 static SDL_Window *window;
 static SDL_GLContext context;
-static pass_t passes[NPASSES];
+static pass_t passes[MAX_PASSES];
 static GLuint vao, vbo, orig; /* orig: the game frame */
+static U32 *gl_pixels; /* composited RGBA frame, our own copy -- see sysvid_gl_present */
 /* plain copy for sysvid_gl_showImage: pictures that are not the game frame skip the chain */
 static const shader_pass_t image_pass = { "image", stock, 1, SCALE_VIEWPORT, 1.0f, 0 };
 static GLuint image_prog;
+static const shader_pass_t curvature_pass = { "curvature", curvature, 1, SCALE_VIEWPORT, 1.0f, 0 };
+static GLuint curvature_prog;
+static bezel_t bezels[BEZEL_COUNT]; /* [BEZEL_NONE] left zeroed/unused */
 static int orig_w, orig_h;
 static int frame_count;
 
@@ -336,6 +416,78 @@ static int size_output(pass_t *p, int w, int h)
 
 
 /*
+ * loadBezelTexture
+ *
+ * decodes an embedded bezel PNG (stb_image) and uploads it as a GL texture. Leaves
+ * tex == 0 without panicking on failure -- same as sysvid_gpu.c's loadPNGTexture, a
+ * missing bezel just means that option quietly isn't offered (see sysvid_cycleBezel).
+ */
+static void loadBezelTexture(bezel_t *bz, const unsigned char *png, unsigned long len,
+	float x0, float y0, float x1, float y1)
+{
+	int w, h, comp;
+	unsigned char *pix = stbi_load_from_memory(png, (int)len, &w, &h, &comp, 4);
+
+	(void)comp;
+	if (!pix) return;
+
+	bz->tex = new_texture(w, h);
+	GL(glBindTexture)(GL_TEXTURE_2D, bz->tex);
+	GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+	stbi_image_free(pix);
+
+	bz->w = w;
+	bz->h = h;
+	bz->x0 = x0;
+	bz->y0 = y0;
+	bz->x1 = x1;
+	bz->y1 = y1;
+}
+
+/*
+ * computeBezelViewports
+ *
+ * <outer> is the bezel image, letterboxed into the window like any other picture;
+ * <inner> is the game screen's cutout within it, from the bezel's own screenX0..Y1
+ * fractions of <outer> -- mirrors sysvid_gpu.c's own function of the same name, with
+ * one deliberate difference: SDL_GPU viewports are top-left origin (y grows downward,
+ * same as the bezel's own screenY0/Y1 fractions and sysvid_gpu.c's own oy/iy), but
+ * plain OpenGL's glViewport is bottom-left origin (y grows upward). The outer rect is
+ * always centered in the window, so that flip is invisible on it ((dh-h)/2 is the same
+ * measured from either edge) -- it only actually matters for the inner rect, offset
+ * asymmetrically within the outer one by the bezel's own cutout fractions, which is
+ * exactly the rect every caller here passes straight into glViewport(). *iy below is
+ * therefore returned already in GL's bottom-origin convention, not top-origin like
+ * sysvid_gpu.c's.
+ */
+static void computeBezelViewports(int dw, int dh, const bezel_t *bz,
+	int *ox, int *oy, int *ow, int *oh, int *ix, int *iy, int *iw, int *ih)
+{
+	int iyTop;
+
+	if ((long)dw * bz->h <= (long)dh * bz->w)
+	{
+		*ow = dw;
+		*oh = (int)((long)dw * bz->h / bz->w);
+	}
+	else
+	{
+		*oh = dh;
+		*ow = (int)((long)dh * bz->w / bz->h);
+	}
+	*ox = (dw - *ow) / 2;
+	*oy = (dh - *oh) / 2;
+
+	*ix = *ox + (int)(bz->x0 * (float)*ow);
+	iyTop = *oy + (int)(bz->y0 * (float)*oh);
+	*iw = (int)((bz->x1 - bz->x0) * (float)*ow);
+	*ih = (int)((bz->y1 - bz->y0) * (float)*oh);
+	*iy = dh - iyTop - *ih;
+}
+
+
+
+/*
  * bind texture <tex> (w x h) to the <prefix>Texture, <prefix>TextureSize,
  * <prefix>InputSize uniforms and <prefix>TexCoord attribute of <prog>, if it has them
  */
@@ -381,6 +533,17 @@ SDL_Window *sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFl
 	orig_w = fb_w;
 	orig_h = fb_h;
 
+	upscaleMode = sysarg_args_upscale;
+	crtMode = (sysarg_args_crt == CRT_ROYALE) ? CRT_NONE : sysarg_args_crt; /* see sysvid_setCrt */
+	bezelMode = sysarg_args_bezel;
+	aspectMode = sysarg_args_aspect ? 1 : 0;
+	cur_chain = activeChain();
+	npasses = cur_chain->count;
+
+	gl_pixels = (U32 *)malloc((size_t)orig_w * (size_t)orig_h * sizeof(U32));
+	memset(gl_pixels, 0, (size_t)orig_w * (size_t)orig_h * sizeof(U32));
+	sysvid_overlay_init(gl_pixels, (U16)orig_w, (U16)orig_h);
+
 	SDL_GL_ResetAttributes();
 #ifdef __EMSCRIPTEN__
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -417,10 +580,12 @@ SDL_Window *sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFl
 	SDL_GL_SetSwapInterval(0);
 #endif
 
-	for (i = 0; i < NPASSES; i++)
-		if (!(passes[i].prog = build_program(&chain[i])))
+	for (i = 0; i < npasses; i++)
+		if (!(passes[i].prog = build_program(&cur_chain->list[i])))
 			goto fail;
 	if (!(image_prog = build_program(&image_pass)))
+		goto fail;
+	if (!(curvature_prog = build_program(&curvature_pass)))
 		goto fail;
 
 	GL(glGenVertexArrays)(1, &vao);
@@ -431,6 +596,15 @@ SDL_Window *sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFl
 
 	orig = new_texture(orig_w, orig_h);
 	GL(glPixelStorei)(GL_UNPACK_ALIGNMENT, 4);
+
+	/* bezels: screenX0/Y0/X1/Y1 are the same hand-measured cutout fractions as
+	   sysvid_gpu.c's own bezels[] (see its init for how they were derived) */
+	loadBezelTexture(&bezels[BEZEL_COMMODORE_1084S], bezel_commodore_1084s_png,
+		bezel_commodore_1084s_png_len, 0.216326f, 0.075000f, 0.783673f, 0.848214f);
+	loadBezelTexture(&bezels[BEZEL_ATARI_SC1224], bezel_atari_sc1224_png,
+		bezel_atari_sc1224_png_len, 0.255469f, 0.106944f, 0.744531f, 0.758796f);
+	if (bezelMode != BEZEL_NONE && bezels[bezelMode].tex == 0)
+		bezelMode = BEZEL_NONE; /* failed to load -- fall back quietly, like a bad CRT mode */
 
 	return window; /* silent on success; failures above are logged */
 
@@ -527,25 +701,70 @@ void sysvid_gl_present(const Uint8 *rgba)
 {
 	int dw, dh, vw, vh, vx, vy, in_w, in_h, i;
 	GLuint in_tex;
+	const bezel_t *bz = (bezelMode != BEZEL_NONE && bezels[bezelMode].tex) ? &bezels[bezelMode] : NULL;
+	int bx = 0, by = 0, bw = 0, bh = 0; /* outer bezel-image rect, only set when bz */
 
 	if (!letterbox(&dw, &dh, &vx, &vy, &vw, &vh))
 		return;
 
+	/* a bezel overrides the chain's own target size to its screen cutout, drawn within
+	   the bezel image's own letterboxed rect -- the chain then runs exactly as it would
+	   fill the whole window, just smaller and offset; see the final curvature pass
+	   below for where that output actually reaches the window */
+	if (bz) computeBezelViewports(dw, dh, bz, &bx, &by, &bw, &bh, &vx, &vy, &vw, &vh);
+
+	/* our own copy (like sysvid_gpu.c's `pixels`) so the OSD and settings menu can draw
+	   on top without touching sysvid.c's buffer -- needed now that menu.c can link into
+	   the web build too (see build.sh) */
+	memcpy(gl_pixels, rgba, (size_t)orig_w * (size_t)orig_h * sizeof(U32));
+	if (sysvid_osdActive())
+		sysvid_drawOSD();
+	if (menu_active())
+		menu_draw();
+
 	GL(glActiveTexture)(GL_TEXTURE0);
 	GL(glBindTexture)(GL_TEXTURE_2D, orig);
-	GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, orig_w, orig_h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+	GL(glTexSubImage2D)(GL_TEXTURE_2D, 0, 0, 0, orig_w, orig_h, GL_RGBA, GL_UNSIGNED_BYTE, gl_pixels);
 
 	GL(glBindVertexArray)(vao);
 	GL(glBindBuffer)(GL_ARRAY_BUFFER, vbo);
 
+	if (bz)
+	{
+		/* background: the bezel artwork itself, letterboxed into the window. Drawn
+		   first so the chain's own passes (never cleared themselves) land on top of
+		   it within the cutout -- same layering as sysvid_gpu.c's bezel background +
+		   curvature passes. */
+		GLuint unit = 0;
+
+		GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+		GL(glViewport)(0, 0, dw, dh);
+		GL(glClearColor)(0, 0, 0, 1);
+		GL(glClear)(GL_COLOR_BUFFER_BIT);
+		GL(glViewport)(bx, by, bw, bh);
+		GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+		/* the bezel PNG's area outside the monitor shape is transparent, not opaque
+		   black -- blend it against the clear color instead of copying its (unused,
+		   possibly garbage-white) RGB straight in, same as sysvid_gpu.c's own
+		   gpuPassthroughPipeline for this draw (its only blend-enabled pipeline) */
+		GL(glEnable)(GL_BLEND);
+		GL(glBlendFunc)(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		set_filter(bz->tex, 1);
+		use_program(image_prog, mvp_window, bw, bh, bw, bh);
+		bind_frame(image_prog, "", bz->tex, bz->w, bz->h, &unit);
+		bind_frame(image_prog, "Orig", bz->tex, bz->w, bz->h, &unit);
+		GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+		GL(glDisable)(GL_BLEND);
+	}
+
 	in_tex = orig;
 	in_w = orig_w;
 	in_h = orig_h;
-	for (i = 0; i < NPASSES; i++)
+	for (i = 0; i < npasses; i++)
 	{
-		const shader_pass_t *c = &chain[i];
+		const shader_pass_t *c = &cur_chain->list[i];
 		pass_t *p = &passes[i];
-		int last = i == NPASSES - 1;
+		int last = i == npasses - 1 && !bz; /* with a bezel, the curvature pass below is last */
 		int ow, oh, j;
 		GLuint unit;
 		char name[32];
@@ -612,6 +831,24 @@ void sysvid_gl_present(const Uint8 *rgba)
 		in_w = ow;
 		in_h = oh;
 	}
+
+	if (bz)
+	{
+		/* screen curvature, straight into the cutout -- no clear, so the bezel
+		   background drawn above stays visible around it (see sysvid_gpu.c's
+		   crt-curvature.frag comment for why this is decoupled from the CRT chain
+		   itself: a physical tube curves inside its bezel regardless of which
+		   filter produced the picture) */
+		GLuint unit = 0;
+
+		GL(glBindFramebuffer)(GL_FRAMEBUFFER, 0);
+		GL(glViewport)(vx, vy, vw, vh);
+		GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+		use_program(curvature_prog, mvp_window, vw, vh, vw, vh);
+		set_filter(in_tex, 1);
+		bind_frame(curvature_prog, "", in_tex, in_w, in_h, &unit);
+		GL(glDrawArrays)(GL_TRIANGLE_STRIP, 0, 4);
+	}
 	GL(glColorMask)(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 	SDL_GL_SwapWindow(window);
@@ -667,13 +904,16 @@ void sysvid_gl_shutdown(void)
 
 	if (context)
 	{
-		for (i = 0; i < NPASSES; i++)
+		for (i = 0; i < MAX_PASSES; i++)
 		{
 			if (passes[i].prog) GL(glDeleteProgram)(passes[i].prog);
 			if (passes[i].tex) GL(glDeleteTextures)(1, &passes[i].tex);
 			if (passes[i].fbo) GL(glDeleteFramebuffers)(1, &passes[i].fbo);
 		}
 		if (image_prog) GL(glDeleteProgram)(image_prog);
+		if (curvature_prog) GL(glDeleteProgram)(curvature_prog);
+		for (i = 0; i < BEZEL_COUNT; i++)
+			if (bezels[i].tex) GL(glDeleteTextures)(1, &bezels[i].tex);
 		if (orig) GL(glDeleteTextures)(1, &orig);
 		if (vbo) GL(glDeleteBuffers)(1, &vbo);
 		if (vao) GL(glDeleteVertexArrays)(1, &vao);
@@ -682,10 +922,154 @@ void sysvid_gl_shutdown(void)
 	if (window)
 		SDL_DestroyWindow(window);
 	SDL_memset(passes, 0, sizeof(passes));
-	orig = vbo = vao = image_prog = 0;
+	SDL_memset(bezels, 0, sizeof(bezels));
+	orig = vbo = vao = image_prog = curvature_prog = 0;
 	context = NULL;
 	window = NULL;
+	if (gl_pixels) { free(gl_pixels); gl_pixels = NULL; }
 	SDL_GL_ResetAttributes();
+}
+
+
+
+/*
+ * Getters/setters for the settings menu (menu.c), matching sysvid_gpu.h's API
+ * one-for-one so the same menu code works against either backend.
+ * isFullscreen/getWindowZoom query the live SDL window state, same as sysvid_gpu.c.
+ */
+U8
+sysvid_isFullscreen(void)
+{
+	return window && (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) ? TRUE : FALSE;
+}
+
+U8
+sysvid_getWindowZoom(void)
+{
+	int w = 0, h = 0;
+
+	if (!window || orig_w == 0) return 1;
+	SDL_GetWindowSize(window, &w, &h);
+	return (U8)SDL_max(1, w / orig_w);
+}
+
+int
+sysvid_getUpscale(void)
+{
+	return upscaleMode;
+}
+
+/*
+ * switching chains tears down and rebuilds the GL programs/FBOs for the passes that
+ * differ in count/shape from the previous chain -- simplest to just rebuild all of
+ * them, same cost as sysvid_gl_init's own first build and only happens on a menu
+ * change, never per-frame.
+ */
+static void
+rebuildChain(void)
+{
+	int i;
+
+	if (!context) return;
+
+	for (i = 0; i < npasses; i++)
+	{
+		if (passes[i].prog) GL(glDeleteProgram)(passes[i].prog);
+		if (passes[i].tex) GL(glDeleteTextures)(1, &passes[i].tex);
+		if (passes[i].fbo) GL(glDeleteFramebuffers)(1, &passes[i].fbo);
+	}
+	SDL_memset(passes, 0, sizeof(passes));
+
+	cur_chain = activeChain();
+	npasses = cur_chain->count;
+	for (i = 0; i < npasses; i++)
+		passes[i].prog = build_program(&cur_chain->list[i]);
+}
+
+void
+sysvid_setUpscale(int v)
+{
+	if (v < 0 || v >= UPSCALE_COUNT || v == upscaleMode) return;
+	upscaleMode = v;
+	if (crtMode == CRT_NONE) rebuildChain(); /* else the CRT chain is active -- see activeChain() */
+}
+
+int
+sysvid_getCrt(void)
+{
+	return crtMode;
+}
+
+void
+sysvid_setCrt(int v)
+{
+	/* CRT_ROYALE needs a LUT texture (phosphor mask) this driver's GLSL binder doesn't
+	   support yet, so it's refused outright -- never offered as a menu choice on this
+	   backend (menu.c's I_CRT handler already retries on rejection, same as it does for
+	   sysvid_gpu.c's own royale-mask-failed-to-load case) and never settable via -crt
+	   either, unlike bezelMode/a missing bezel, which can still be *stored* since a
+	   bezel PNG could in principle load later -- royale can't, on this backend, ever */
+	if (v < 0 || v >= CRT_COUNT || v == CRT_ROYALE || v == crtMode) return;
+	crtMode = v;
+	rebuildChain();
+}
+
+int
+sysvid_getBezel(void)
+{
+	return bezelMode;
+}
+
+void
+sysvid_setBezel(int v)
+{
+	if (v >= 0 && v < BEZEL_COUNT && (v == BEZEL_NONE || bezels[v].tex != 0))
+		bezelMode = v;
+}
+
+int
+sysvid_getAspect(void)
+{
+	return aspectMode;
+}
+
+void
+sysvid_setAspect(int v)
+{
+	aspectMode = v ? 1 : 0;
+}
+
+/*
+ * F10/F11/F12 direct key handling (sysevt.c) -- cycling still works without the menu;
+ * no OSD confirmation here (unlike sysvid_gpu.c's own cycle* functions) since the next
+ * sysvid_gl_present already redraws the frame right after these run.
+ */
+void
+sysvid_cycleUpscale(void)
+{
+	sysvid_setUpscale((upscaleMode + 1) % UPSCALE_COUNT);
+}
+
+void
+sysvid_cycleCrt(void)
+{
+	int next = crtMode;
+
+	do {
+		next = (next + 1) % CRT_COUNT;
+	} while (next == CRT_ROYALE);
+	sysvid_setCrt(next);
+}
+
+void
+sysvid_cycleBezel(void)
+{
+	int next = bezelMode;
+
+	do {
+		next = (next + 1) % BEZEL_COUNT;
+	} while (next != BEZEL_NONE && bezels[next].tex == 0);
+	bezelMode = next;
 }
 
 #endif /* ENABLE_SHADERS */

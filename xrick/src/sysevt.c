@@ -209,12 +209,11 @@ processEvent()
 	SDL_ActiveEvent *aevent;
 #endif
 
-#ifndef __EMSCRIPTEN__
-	/* the settings menu (Escape / gamepad menu button) gets first pick --
-	   native builds only, see build.sh/sysvid_gpu.c: no menu on WebGL yet */
+	/* the settings menu (Escape / gamepad menu button) gets first pick -- both
+	   backends now implement the overlay/getter-setter API menu.c needs (see
+	   sysvid_gpu.c/sysvid_gl.c), so this runs on the web build too */
 	if (menu_handleEvent(&event))
 		return;
-#endif
 
 	switch (event.type) {
 	case SDL_EVENT_KEY_DOWN:
@@ -282,8 +281,8 @@ processEvent()
 			if (sysarg_args_game == 2) rd2_snd_vol(+1); else syssnd_vol(+1);
 		}
 #endif
-#ifndef __EMSCRIPTEN__
-		/* upscale/CRT/bezel cycling: sysvid_gpu.c (native builds) only */
+		/* upscale/CRT/bezel cycling: both backends implement these now (sysvid_gpu.c
+		   natively, sysvid_gl.c's getter/setter-backed versions on the web build) */
 		else if (key == SDL_SCANCODE_F10) {
 			sysvid_cycleUpscale();
 		}
@@ -293,11 +292,8 @@ processEvent()
 		else if (key == SDL_SCANCODE_F12) {
 			sysvid_cycleBezel();
 		}
-#endif
-#ifndef __EMSCRIPTEN__
 		if ((key >= SDL_SCANCODE_F1 && key <= SDL_SCANCODE_F6) || (key >= SDL_SCANCODE_F10 && key <= SDL_SCANCODE_F12))
 			settings_save();
-#endif
 		break;
 	case SDL_EVENT_KEY_UP:
 		key = event.key.scancode;

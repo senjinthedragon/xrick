@@ -136,19 +136,23 @@ CXXFLAGS="$INC -O2 -std=c++17 -sUSE_SDL=3"
 # EXIT_RUNTIME: exit() and emscripten_force_exit() really end the runtime, flush stdio and
 # call Module.onExit (the page shows why the game stopped). _fflush: the page flushes the
 # -trace file before reading it from MEMFS while the game runs (wasm.md W1.7).
-LDFLAGS="-O2 -sUSE_SDL=3 -sMAX_WEBGL_VERSION=2 -sINVOKE_RUN=0 -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS -sEXPORTED_FUNCTIONS=_main,_fflush -sALLOW_MEMORY_GROWTH=1"
+# -lidbfs.js: settings persistence (Phase 4) -- player.js's setupIDBFS() mounts IDBFS at
+# /libsdl (autoPersist: true) and syncs it from IndexedDB before calling Module.callMain(),
+# so settings.c's fopen("/libsdl/xrick/xrick/settings.ini") sees last visit's file.
+LDFLAGS="-O2 -sUSE_SDL=3 -sMAX_WEBGL_VERSION=2 -sINVOKE_RUN=0 -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS -sEXPORTED_FUNCTIONS=_main,_fflush -sALLOW_MEMORY_GROWTH=1 -lidbfs.js"
 
 cd "$SRCDIR"
 # src/sysvid_gpu.c (SDL_GPU, Linux/Windows native renderer) is excluded here: the web
 # build keeps using sysvid_gl.c/WebGL (SDL_GPU has no WebGPU backend yet) -- both
 # define the same sysvid_gl_* symbols sysvid.c calls, so including both would be a
 # straight duplicate-symbol link error, not just dead code.
-# src/menu.c and src/settings.c (the settings menu, Phase 3) are excluded for the same
-# reason: the menu draws itself through sysvid_overlayRect/overlayText, which only
-# sysvid_gpu.c implements -- every call site that can reach menu_active()/menu_draw()/
-# menu_handleEvent() is itself guarded with #ifndef __EMSCRIPTEN__ (game.c, rd2_sys.c,
-# sysevt.c), so leaving these two files out is dead-code removal, not a missing symbol.
-CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c|src/menu\.c|src/settings\.c')
+# src/menu.c and src/settings.c (the settings menu, Phase 3) now build for the web too
+# (Phase 4): sysvid_gl.c implements sysvid_overlayRect/overlayText/the upscale-CRT-bezel
+# getter-setter API itself (see its own header comment), using the same shared
+# src/sysvid_overlay.c menu.c always drew through -- the #ifndef __EMSCRIPTEN__ guards
+# that used to make the menu dead code on the web build are gone (game.c, rd2_sys.c,
+# sysevt.c).
+CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c')
 CXXSRC=$(ls src/audio_engine/*.cpp src/audio_engine/external/Musashi/*.cpp)
 
 mkdir -p "$WEB/obj"
