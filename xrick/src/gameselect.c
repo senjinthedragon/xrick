@@ -588,6 +588,23 @@ gameselect_done(void)
 	float frontAngle, frontScale, frontCx, frontCy, frontBright, frontAlpha;
 	float backAngle, backScale, backCx, backCy, backBright, backAlpha;
 
+	/* RD2's title theme is two separate tracks chained by the real game itself,
+	   not one: id 3 is a short ~6-chord sting that ends on its own, then id 0
+	   (d1=1) is the actual loop -- rd2_flow.c's own rd2_178dc()/rd2_17c86() poll
+	   [$1aa08] (0 once nothing is playing) every frame to chain the second one
+	   in exactly this way; this is that same polling, so the carousel's copy
+	   doesn't go silent after the sting. Kept unconditional here, ahead of the
+	   confirmed-branch's early returns below, rather than further down with the
+	   idle/transition logic: that placement stopped running the moment Enter
+	   was pressed (the whole ~260ms confirm-zoom wind-up returns before ever
+	   reaching it), and if the loop's own natural restart gap (same brief
+	   [$1aa08]==0 blip this poll exists to catch) landed in that window with
+	   nothing polling, rd2_178dc() would find it 0 once the real game started
+	   and replay the sting after all -- found 2026-10-11, confirmed still
+	   happening even though the loop was, in isolation, chaining correctly. */
+	if (audioIdx == 1 && rd2_snd_rw(0x1aa08) == 0)
+		rd2_1a6aa(0, 1);
+
 	if (confirmed)
 	{
 		/* a quick "flying at the viewer" wind-up instead of an instant cut:
@@ -707,20 +724,6 @@ gameselect_done(void)
 			bouncePhase = 1.5707963f;
 		}
 	}
-
-	/* RD2's title theme is two separate tracks chained by the real game itself,
-	   not one: id 3 is a short ~6-chord sting that ends on its own, then id 0
-	   (d1=1) is the actual loop -- rd2_flow.c's own rd2_178dc()/rd2_17c86() poll
-	   [$1aa08] (0 once nothing is playing) every frame to chain the second one
-	   in exactly this way; this is that same polling, so the carousel's copy
-	   doesn't go silent after the sting. Confirming while this is already
-	   looping also fixes the obvious follow-on problem for free: rd2_178dc()
-	   runs again as part of a normal (non-demo) game start and only replays id 3
-	   if [$1aa08] reads 0 -- since the loop (id 0) leaves it nonzero the whole
-	   time, the real game picks up the same loop instead of restarting the
-	   sting. Found 2026-10-11. */
-	if (audioIdx == 1 && rd2_snd_rw(0x1aa08) == 0)
-		rd2_1a6aa(0, 1);
 
 	bouncePhase += 0.14f;
 	if (bouncePhase > 6.2832f) bouncePhase -= 6.2832f;
