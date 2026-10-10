@@ -308,6 +308,82 @@ static void blitRotScale(U32 *dst, int dw, int dh, const U32 *src, int sw, int s
 	}
 }
 
+/*
+ * blitReflection
+ *
+ * a cheap floor-reflection variant of blitRotScale: the sprite is mirrored
+ * vertically about <mirrorY> (not just moved there) and squashed flatter by
+ * <squashY>, at 50% opacity, and only shows up inside the spotlight ellipse
+ * -- outside it the floor is pitch black, nothing to reflect in. Rotation
+ * direction is mirrored too (a reflection of a clockwise tilt tilts the
+ * other way), which is why ca/sa use -angle rather than angle.
+ */
+static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int sh,
+	float cx, float mirrorY, float angle, float scale, float squashY,
+	int spotCx, int spotCy, int spotRx, int spotRy)
+{
+	float ca = cosf(-angle), sa = sinf(-angle);
+	float halfExt = 0.5f * scale * sqrtf((float)(sw * sw + sh * sh)) + 1.0f;
+	int x0 = (int)(cx - halfExt), x1 = (int)(cx + halfExt);
+	int y0 = (int)(mirrorY - halfExt), y1 = (int)(mirrorY + halfExt);
+	int x, y;
+
+	if (scale <= 0.001f || squashY <= 0.001f) return;
+	if (x0 < 0) x0 = 0;
+	if (y0 < 0) y0 = 0;
+	if (x1 >= dw) x1 = dw - 1;
+	if (y1 >= dh) y1 = dh - 1;
+
+	for (y = y0; y <= y1; y++)
+	{
+		float ey = ((float)y - (float)spotCy) / (float)spotRy;
+
+		for (x = x0; x <= x1; x++)
+		{
+			float ex = ((float)x - (float)spotCx) / (float)spotRx;
+			float dx, dy, ux, uy, sx, sy;
+			int isx, isy;
+			U32 sc;
+			U8 sr, sg, sb, sa8;
+			float a;
+			U32 *dp;
+			U8 dr, dg, db;
+
+			if (ex * ex + ey * ey > 1.0f) continue; /* outside the spotlight: no floor to reflect in */
+
+			dx = (float)x + 0.5f - cx;
+			dy = (float)y + 0.5f - mirrorY;
+			ux = (dx * ca + dy * sa) / scale;
+			uy = -(-dx * sa + dy * ca) / (scale * squashY); /* mirrored and flattened */
+			sx = ux + (float)sw * 0.5f;
+			sy = uy + (float)sh * 0.5f;
+
+			if (sx < 0.0f || sx >= (float)sw || sy < 0.0f || sy >= (float)sh) continue;
+			isx = (int)sx;
+			isy = (int)sy;
+			sc = src[isy * sw + isx];
+			sa8 = (U8)(sc >> 24);
+			if (sa8 == 0) continue;
+			sr = (U8)sc;
+			sg = (U8)(sc >> 8);
+			sb = (U8)(sc >> 16);
+
+			a = (float)sa8 / 255.0f * 0.5f; /* flat 50% opacity */
+			if (a <= 0.0f) continue;
+
+			dp = &dst[y * dw + x];
+			dr = (U8)*dp;
+			dg = (U8)(*dp >> 8);
+			db = (U8)(*dp >> 16);
+
+			dr = (U8)((float)dr * (1.0f - a) + (float)sr * a);
+			dg = (U8)((float)dg * (1.0f - a) + (float)sg * a);
+			db = (U8)((float)db * (1.0f - a) + (float)sb * a);
+			*dp = RGBA(dr, dg, db, 0xFF);
+		}
+	}
+}
+
 /* filled ellipse, full brightness out to 55% of each radius then a smooth
    falloff to black at the edge -- a soft-edged spotlight, not a flat disc */
 static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
@@ -370,6 +446,7 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define CONFIRM_ZOOM_DROP 70.0f /* drifts downward by this many px while it zooms,
                                     instead of growing in place */
 #define TITLE_Y (GS_H - 14)
+#define REFLECT_SQUASH 0.75f /* flattened vertically, like a real floor reflection */
 
 /*
  * gameselect_done
@@ -610,6 +687,15 @@ gameselect_done(void)
 	/* ---- draw ---- */
 	memset(frame, 0, sizeof(frame));
 	drawSpotlight(frame, SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY, RGBA(0xD8, 0x6C, 0x00, 0xFF));
+
+	/* the front disk's own floor reflection, mirrored about the spotlight's
+	   own horizontal axis (the same line its bottom edge rests on) -- only
+	   while idle-bouncing: a carousel swap or the confirm-zoom already have
+	   enough going on without reflecting those too */
+	if (transition == 0.0f)
+		blitReflection(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
+			frontCx, 2.0f * (float)SPOT_CY - frontCy, frontAngle, frontScale, REFLECT_SQUASH,
+			SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY);
 
 	/* background disk first (behind), then front disk on top */
 	blitRotScale(frame, GS_W, GS_H, diskSprite[otherIdx], DISK_W, DISK_H,
