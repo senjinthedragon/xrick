@@ -130,16 +130,19 @@ static const pagedef_t pages[PG_COUNT] = {
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
     {"CREDITS", PG_MAIN, 1, {I_BACK}}, /* menu_draw special-cases this page's own full-screen draw */
-    {"SELECT MAP", PG_GAME, 5, {I_MAP_0 + 0, I_MAP_0 + 1, I_MAP_0 + 2, I_MAP_0 + 3, I_BACK}},
+    {"SELECT MAP", PG_CHEATS, 5, {I_MAP_0 + 0, I_MAP_0 + 1, I_MAP_0 + 2, I_MAP_0 + 3, I_BACK}},
     {"WARP TO ROOM", PG_CHEATS, 5, {I_MAP_0 + 0, I_MAP_0 + 1, I_MAP_0 + 2, I_MAP_0 + 3, I_BACK}},
     {"WARP TO ROOM", PG_WARPROOM, 3, {I_WARP_ROOMVAL, I_WARP_GO, I_BACK}},
 };
 
-/* GAME and CHEATS gain an extra, RD1-only row (world select / room warp -- RD2 has
-   its own native world picker at startup already, and no submap concept to warp
-   into at all), so their pagedef depends on which game is running */
-static const pagedef_t gameRD1 = {"GAME", PG_MAIN, 4, {I_CONTROLS, I_SPEED, I_SELECT_MAP, I_BACK}};
-static const pagedef_t cheatsRD1 = {"CHEATS", PG_MAIN, 6, {I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_AUTOPLAY, I_WARP_ROOM, I_BACK}};
+/* CHEATS gains two extra, RD1-only rows (world select / room warp -- RD2 has its
+   own native world picker at startup already, and no submap concept to warp into
+   at all), so its pagedef depends on which game is running. Both count as cheats
+   for RD1: unlike RD2, the original game never let you start anywhere but South
+   America, so SELECT MAP lives here too, not on GAME -- see I_SELECT_MAP's
+   high-score disqualification in rd1/game.c (sysarg_args_map != 0). */
+static const pagedef_t cheatsRD1 = {"CHEATS", PG_MAIN, 7,
+	{I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_AUTOPLAY, I_SELECT_MAP, I_WARP_ROOM, I_BACK}};
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
 static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE"};
@@ -165,7 +168,6 @@ static U8 capIndex; /* which binding is being captured */
 static const pagedef_t *
 curPageDef(void)
 {
-	if (page == PG_GAME && !GAME2) return &gameRD1;
 	if (page == PG_CHEATS && !GAME2) return &cheatsRD1;
 	return &pages[page];
 }
