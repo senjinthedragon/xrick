@@ -57,6 +57,7 @@ int sysarg_args_upscale = 0;
 int sysarg_args_crt = 0;
 int sysarg_args_bezel = 0;
 int sysarg_args_aspect = 0;  /* 0 = 4:3 corrected, 1 = square pixels */
+int sysarg_args_controls = 0;  /* controlsMode_t: 0 classic, 1 modern */
 int sysarg_args_nosound = 0;
 int sysarg_args_vol = -1;  /* -vol: 0 (silence) .. SYSSND_MAXVOL; -1 = not given */
 int sysarg_args_game = 1;   /* -game: 1 = Rick Dangerous, 2 = Rick Dangerous 2 */
@@ -94,7 +95,13 @@ sysarg_fail(char *msg)
         "                         <left>-<right>-<up>-<down>-<fire>, default S-D-O-K-SPACE.\n"
         "                         Keys are named after their place on a US keyboard, not the\n"
         "                         letter printed on yours: A..Z, 0..9, F1..F24, SPACE, RETURN,\n"
-        "                         TAB, LEFT, RIGHT, UP, DOWN, KP_0..KP_9, etc. (src/sdlcodes.e)\n",
+        "                         TAB, LEFT, RIGHT, UP, DOWN, KP_0..KP_9, etc. (src/sdlcodes.e)\n"
+        "  -upscale <mode>      upscale filter: none, sharp, fsr1, default is none\n"
+        "  -crt <mode>          CRT shader: none, easymode, lottes, royale, default is none\n"
+        "  -bezel <mode>        screen bezel: none, sc1224, 1084s, default is none\n"
+        "  -aspect <mode>       pixel aspect ratio: 4:3, square, default is 4:3\n"
+        "  -controls <mode>     control scheme: classic, modern (adds dedicated shoot/bomb\n"
+        "                         keys), default is classic. Not with -game 2.\n",
         // FIXME nb of maps/submaps depend on game!
         VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS);
 #ifdef ENABLE_SOUND
@@ -276,6 +283,13 @@ sysarg_init(int argc, char **argv)
       if (!strcmp(argv[i], "4:3")) sysarg_args_aspect = 0;
       else if (!strcasecmp(argv[i], "square")) sysarg_args_aspect = 1;
       else sysarg_fail("invalid aspect mode");
+    }
+
+    else if (!strcmp(argv[i], "-controls")) {
+      if (++i == argc) sysarg_fail("missing controls mode");
+      if (!strcasecmp(argv[i], "classic")) sysarg_args_controls = 0;
+      else if (!strcasecmp(argv[i], "modern")) sysarg_args_controls = 1;
+      else sysarg_fail("invalid controls mode");
     }
 
     else if (!strcmp(argv[i], "-map")) {

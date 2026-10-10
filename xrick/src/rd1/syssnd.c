@@ -228,6 +228,36 @@ syssnd_vol(S8 d)
 	}
 }
 
+/* Senjin's SDL3 port: absolute get/set, for the settings menu/file (syssnd_vol's
+ * relative +/-1 suits the F5/F6 keys but not a slider or a saved value). */
+U8
+syssnd_getVol(void)
+{
+	return sndUVol;
+}
+
+void
+syssnd_setVol(U8 v)
+{
+	SDL_LockMutex(sndlock);
+	sndUVol = (v > SYSSND_MAXVOL) ? SYSSND_MAXVOL : v;
+	SDL_UnlockMutex(sndlock);
+}
+
+U8
+syssnd_getMute(void)
+{
+	return sndMute;
+}
+
+void
+syssnd_setMute(U8 on)
+{
+	SDL_LockMutex(sndlock);
+	sndMute = on ? TRUE : FALSE;
+	SDL_UnlockMutex(sndlock);
+}
+
 /*
  * Play a track through the live engine, exactly as the original game does:
  * play_music() itself arbitrates the 3 shared PSG voices (audio-sndh.md S2) -- there

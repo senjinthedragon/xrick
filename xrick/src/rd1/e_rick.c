@@ -114,6 +114,16 @@ e_rick_boxtest(U8 e)
 }
 
 
+/*
+ * Clear the shoot trigger -- used by modern controls' dedicated shoot/bomb
+ * keys on release, which otherwise bypass the UP+FIRE combo that's the only
+ * other place `trigger` gets cleared, leaving a second shot blocked forever.
+ */
+void
+e_rick_resetShootDebounce(void)
+{
+	trigger = FALSE;
+}
 
 
 /*

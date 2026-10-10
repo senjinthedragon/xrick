@@ -150,6 +150,40 @@ rd2_snd_vol(S8 d)
 	}
 }
 
+/* Senjin's SDL3 port: absolute get/set, as rd1's syssnd_getVol/setVol, for the
+ * settings menu/file. */
+U8
+rd2_snd_getVol(void)
+{
+	return uvol;
+}
+
+void
+rd2_snd_setVol(U8 v)
+{
+	if (!machine)
+		return;
+	SDL_LockMutex(lock);
+	uvol = (v > SYSSND_MAXVOL) ? SYSSND_MAXVOL : v;
+	SDL_UnlockMutex(lock);
+}
+
+U8
+rd2_snd_getMute(void)
+{
+	return mute;
+}
+
+void
+rd2_snd_setMute(U8 on)
+{
+	if (!machine)
+		return;
+	SDL_LockMutex(lock);
+	mute = on ? TRUE : FALSE;
+	SDL_UnlockMutex(lock);
+}
+
 /* $1a6aa play_sound(d0 = id, d1 = param) */
 void
 rd2_1a6aa(U16 d0, U16 d1)

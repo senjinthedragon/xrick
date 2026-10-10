@@ -28,7 +28,34 @@ U8 syskbd_pause = SDL_SCANCODE_P;
 U8 syskbd_end = SDL_SCANCODE_E;
 U8 syskbd_xtra = SDL_SCANCODE_ESCAPE;
 U8 syskbd_fire = SDL_SCANCODE_SPACE;
-U8 syskbd_sndset = SDL_SCANCODE_F10;  /* rd2 only: the ST's S key ($1f), debug sound-id remap [$1a5ce] */
+/* Senjin's SDL3 port: modern controls' dedicated shoot/bomb keys (see
+ * control.h). Z/X rather than master's A/S, since this tree's left/right
+ * already sit on S/D. */
+U8 syskbd_shoot = SDL_SCANCODE_Z;
+U8 syskbd_bomb = SDL_SCANCODE_X;
+/* rd2 only: the ST's S key ($1f), debug sound-id remap [$1a5ce]. Not F10
+ * (the original choice, made before F10/F11/F12 became the renderer's
+ * upscale/CRT/bezel cycle hotkeys, user decision 2026-10-10) to avoid
+ * colliding with those. */
+U8 syskbd_sndset = SDL_SCANCODE_TAB;
+
+/*
+ * Senjin's SDL3 port: resets the menu's remappable keys (left/right/up/down/
+ * fire/shoot/bomb/pause) to their defaults -- end/xtra/sndset aren't exposed
+ * to remapping, so they're left untouched.
+ */
+void
+syskbd_resetDefaults(void)
+{
+	syskbd_up = SDL_SCANCODE_O;
+	syskbd_down = SDL_SCANCODE_K;
+	syskbd_left = SDL_SCANCODE_S;
+	syskbd_right = SDL_SCANCODE_D;
+	syskbd_pause = SDL_SCANCODE_P;
+	syskbd_fire = SDL_SCANCODE_SPACE;
+	syskbd_shoot = SDL_SCANCODE_Z;
+	syskbd_bomb = SDL_SCANCODE_X;
+}
 
 /* eof */
 

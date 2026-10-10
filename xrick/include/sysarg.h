@@ -27,6 +27,7 @@ extern int sysarg_args_upscale;
 extern int sysarg_args_crt;
 extern int sysarg_args_bezel;
 extern int sysarg_args_aspect;
+extern int sysarg_args_controls; /* controlsMode_t (control.h): 0 classic, 1 modern */
 #ifdef ENABLE_SOUND
 extern int sysarg_args_nosound;
 extern int sysarg_args_vol;

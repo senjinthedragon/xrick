@@ -48,8 +48,9 @@
    the page shows the last line when the game stops (xrick/emsdk/player.js) */
 #define ENABLE_LOG
 
-/* joystick support */
-#undef ENABLE_JOYSTICK
+/* joystick/gamepad support -- Senjin's SDL3 port: on, for the settings menu's
+   gamepad remapping (menu.c, sysjoy.c) */
+#define ENABLE_JOYSTICK
 
 /* sound support */
 #define ENABLE_SOUND

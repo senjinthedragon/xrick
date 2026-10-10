@@ -30,7 +30,11 @@ typedef struct {
 extern void syssnd_init(void);
 extern void syssnd_shutdown(void);
 extern void syssnd_vol(S8);
+extern U8 syssnd_getVol(void);
+extern void syssnd_setVol(U8);
 extern void syssnd_toggleMute(void);
+extern U8 syssnd_getMute(void);
+extern void syssnd_setMute(U8);
 extern void syssnd_play(const sound_t *sound);
 extern void syssnd_play_track(U8 track, S8 d1);
 extern void syssnd_pause(U8, U8);
