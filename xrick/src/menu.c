@@ -38,6 +38,7 @@
 #include "sysvid_gpu.h"
 #include "game.h"
 #include "env.h"
+#include "demo.h"
 
 #define GAME2 (sysarg_args_game == 2)
 
@@ -46,6 +47,7 @@ typedef enum {
 	PG_VIDEO,
 	PG_AUDIO,
 	PG_GAME,
+	PG_CHEATS,
 	PG_KEYS,
 	PG_PAD,
 	PG_CONFIRM,
@@ -57,6 +59,7 @@ typedef enum {
 	I_GOTO_VIDEO,
 	I_GOTO_AUDIO,
 	I_GOTO_GAME,
+	I_GOTO_CHEATS,
 	I_GOTO_KEYS,
 	I_GOTO_PAD,
 	I_QUIT,
@@ -74,6 +77,7 @@ typedef enum {
 	I_TRAINER,
 	I_INVINCIBLE,
 	I_HIGHLIGHT,
+	I_AUTOPLAY,
 	I_KEY_0, /* I_KEY_0 .. I_KEY_0 + KEY_COUNT - 1 */
 	I_KEY_LAST = I_KEY_0 + 7,
 	I_PAD_0, /* I_PAD_0 .. I_PAD_0 + PAD_COUNT - 1 */
@@ -95,10 +99,11 @@ typedef struct {
 } pagedef_t;
 
 static const pagedef_t pages[PG_COUNT] = {
-    {"SETTINGS", PG_MAIN, 7, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_QUIT}},
+    {"SETTINGS", PG_MAIN, 8, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_CHEATS, I_GOTO_KEYS, I_GOTO_PAD, I_QUIT}},
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
-    {"GAME", PG_MAIN, 6, {I_CONTROLS, I_SPEED, I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_BACK}},
+    {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
+    {"CHEATS", PG_MAIN, 5, {I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_AUTOPLAY, I_BACK}},
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
@@ -356,6 +361,9 @@ activate(int it)
 	case I_GOTO_GAME:
 		gotoPage(PG_GAME);
 		return;
+	case I_GOTO_CHEATS:
+		gotoPage(PG_CHEATS);
+		return;
 	case I_GOTO_KEYS:
 		gotoPage(PG_KEYS);
 		return;
@@ -381,6 +389,16 @@ activate(int it)
 	case I_PAD_RESET:
 		sysjoy_resetDefaults();
 		settings_save();
+		return;
+	case I_AUTOPLAY:
+		demo_active = TRUE;
+		if (GAME2) {
+			rd2_demo_rearm();
+			rd2_sys_forceEnd();
+		} else {
+			game_endRun();
+		}
+		closeMenu();
 		return;
 	default:
 		break;
@@ -530,18 +548,54 @@ onAxis(int axis, int value)
 		navigate(0, d, 0, 0);
 }
 
+/*
+ * While AUTOPLAY (or -demo) is driving the game, Escape/the gamepad menu
+ * button stops it and hands control back, in place, instead of opening the
+ * menu -- opening the menu on top of a running demo would just pause the
+ * autoplay rather than exit it. A second press, with the demo now stopped,
+ * opens the menu as usual.
+ */
+static void
+openMenuOrStopDemo(void)
+{
+	if (demo_active) {
+		/* not rd2_demo_stop(): it's gated on demo_playing() (demo_active
+		   && a script is currently loaded), which is false between
+		   segments/during cutscenes -- exactly where this can be pressed
+		   -- and would then leave demo_active on, letting rd2_demo_autostart()
+		   fire all over again once the run it's mid-ending reaches TITLE. */
+		demo_end();
+		if (GAME2) rd2_sys_joyresync();
+	} else {
+		openMenu();
+	}
+}
+
 U8
 menu_handleEvent(const SDL_Event *ev)
 {
 	if (!active) {
 		if (ev->type == SDL_EVENT_KEY_DOWN && !ev->key.repeat && ev->key.scancode == SDL_SCANCODE_ESCAPE) {
-			openMenu();
+			openMenuOrStopDemo();
 			return TRUE;
 		}
+		/*
+		 * Escape's matching key-up: normally irrelevant here, since opening
+		 * the menu above already makes `active` true before this arrives,
+		 * so it's caught by the switch below instead. But openMenuOrStopDemo()
+		 * can choose to stop a demo and deliberately NOT open the menu, in
+		 * which case this key-up would otherwise fall through all the way to
+		 * sysevt.c's main switch -- where Escape is also syskbd_xtra's
+		 * default binding, setting control_last = CONTROL_EXIT and ending
+		 * the game on the very next CTRL_ACTION check. Always consumed here
+		 * instead, paired with the key-down above.
+		 */
+		if (ev->type == SDL_EVENT_KEY_UP && ev->key.scancode == SDL_SCANCODE_ESCAPE)
+			return TRUE;
 #ifdef ENABLE_JOYSTICK
 		if (ev->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && sysjoy_isActive(ev->gbutton.which) &&
 		    ev->gbutton.button == sysjoy_btn_menu) {
-			openMenu();
+			openMenuOrStopDemo();
 			return TRUE;
 		}
 #endif
@@ -629,6 +683,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_GOTO_GAME:
 		label = "GAME";
 		break;
+	case I_GOTO_CHEATS:
+		label = "CHEATS";
+		break;
 	case I_GOTO_KEYS:
 		label = "KEYBOARD CONTROLS";
 		break;
@@ -679,6 +736,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		break;
 	case I_HIGHLIGHT:
 		label = "HIGHLIGHT";
+		break;
+	case I_AUTOPLAY:
+		label = "AUTOPLAY (FULL DEMO)";
 		break;
 	case I_KEYS_RESET:
 		label = "RESET TO DEFAULTS";
