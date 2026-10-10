@@ -28,7 +28,9 @@
  * modern: adds dedicated shoot/bomb keys (see syskbd_shoot/syskbd_bomb),
  * each just synthesizing that same combo -- classic's combo keeps
  * working either way, this only adds an alternative on top of it.
- * rd1 only; rd2 has no modern-controls equivalent (port-rd2.md §7).
+ * Shared by rd1 and rd2: both games' own input readers already treat
+ * fire+up/fire+down as shoot/bomb, so the same synthesized combo works
+ * for either.
  */
 typedef enum { CONTROLS_CLASSIC = 0, CONTROLS_MODERN = 1 } controlsMode_t;
 

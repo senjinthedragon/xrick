@@ -46,10 +46,13 @@ U8 sysevt_quit = 0;
 
 /*
  * Modern controls' dedicated shoot/bomb inputs (keyboard or gamepad): each
- * just synthesizes the fire+up / fire+down combo e_rick.c already looks
- * for. Releasing also resets the shoot debounce, which the classic combo
- * only ever gets by keeping fire held (see e_rick_resetShootDebounce).
- * rd1 only -- rd2 has no modern-controls equivalent (port-rd2.md §7).
+ * just synthesizes the fire+up / fire+down combo both games' own input
+ * readers already look for (rd1's e_rick.c; rd2's joystick(), rd2_sys.c,
+ * feeding $13096's d0 the same way). Releasing also resets rd1's shoot
+ * debounce, which the classic combo only ever gets by keeping fire held
+ * (see e_rick_resetShootDebounce) -- a harmless no-op while playing rd2,
+ * which gates its own laser/bomb repeat through its own flags ($12e26,
+ * $16b12) rather than needing a release-edge reset from here.
  */
 static void
 setShoot(int down)
@@ -120,7 +123,7 @@ padSetFire(int down)
 static void
 padButton(int button, int down)
 {
-	int modern = sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN;
+	int modern = sysarg_args_controls == CONTROLS_MODERN;
 
 	/* movement is always the d-pad; everything else is remappable */
 	if (button == SDL_GAMEPAD_BUTTON_DPAD_UP) {
@@ -250,10 +253,10 @@ processEvent()
 			SETBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
 		}
-		else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+		else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
 			setShoot(1);
 		}
-		else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+		else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
 			setBomb(1);
 		}
 		else if (key == SDL_SCANCODE_F1) {
@@ -339,10 +342,10 @@ processEvent()
       CLRBIT(control_status, CONTROL_FIRE);
       control_last = CONTROL_FIRE;
     }
-    else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+    else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
       setShoot(0);
     }
-    else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+    else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
       setBomb(0);
     }
     break;

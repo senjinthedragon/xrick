@@ -101,7 +101,7 @@ sysarg_fail(char *msg)
         "  -bezel <mode>        screen bezel: none, sc1224, 1084s, default is none\n"
         "  -aspect <mode>       pixel aspect ratio: 4:3, square, default is 4:3\n"
         "  -controls <mode>     control scheme: classic, modern (adds dedicated shoot/bomb\n"
-        "                         keys), default is classic. Not with -game 2.\n",
+        "                         keys), default is classic\n",
         // FIXME nb of maps/submaps depend on game!
         VERSION, msg, GAME_PERIOD, MAP_NBR_MAPS-1, MAP_NBR_SUBMAPS);
 #ifdef ENABLE_SOUND

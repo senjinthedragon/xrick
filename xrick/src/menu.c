@@ -105,9 +105,9 @@ static const pagedef_t pages[PG_COUNT] = {
 };
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
-static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "ACTION", "SHOOT (MODERN, RD1)", "BOMB (MODERN, RD1)", "PAUSE"};
+static const char *const keyLabel[KEY_COUNT] = {"LEFT", "RIGHT", "UP / JUMP", "DOWN / CRAWL", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE"};
 static int *const padVar[PAD_COUNT] = {&sysjoy_btn_jump, &sysjoy_btn_fire, &sysjoy_btn_shoot, &sysjoy_btn_bomb, &sysjoy_btn_pause, &sysjoy_btn_menu};
-static const char *const padLabel[PAD_COUNT] = {"JUMP", "ACTION", "SHOOT (MODERN, RD1)", "BOMB (MODERN, RD1)", "PAUSE", "MENU"};
+static const char *const padLabel[PAD_COUNT] = {"JUMP", "ACTION", "SHOOT (MODERN)", "BOMB (MODERN)", "PAUSE", "MENU"};
 
 static const char *const onOff[] = {"OFF", "ON"};
 static const char *const upscaleNames[] = {"NONE", "SHARP", "FSR1"};
@@ -311,7 +311,6 @@ adjust(int it, int dir)
 		audioToggleMute();
 		break;
 	case I_CONTROLS:
-		if (GAME2) return; /* rd1 only */
 		sysarg_args_controls = sysarg_args_controls ? 0 : 1;
 		sysevt_resetInput();
 		break;
@@ -752,8 +751,7 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		choiceText(xr, y, onOff[audioGetMute() ? 1 : 0]);
 		break;
 	case I_CONTROLS:
-		if (GAME2) textRight(xr, y, "N/A FOR RD2", grey);
-		else choiceText(xr, y, controlNames[sysarg_args_controls ? 1 : 0]);
+		choiceText(xr, y, controlNames[sysarg_args_controls ? 1 : 0]);
 		break;
 	case I_SPEED:
 		if (GAME2) {
