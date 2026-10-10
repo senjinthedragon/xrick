@@ -308,19 +308,37 @@ static void blitRotScale(U32 *dst, int dw, int dh, const U32 *src, int sw, int s
 	}
 }
 
+/* shared with drawSpotlight: how far out (as a fraction of radius) the
+   spotlight stays full strength before it starts falling off to black --
+   the reflection fades on this same curve so it dims out in lockstep with
+   the floor it's sitting on, instead of being hard-clipped at the ellipse's
+   mathematical edge while the visible light there is already half gone */
+#define SPOT_CORE 0.8f
+
+/* how opaque the reflection is right at the object, and how much of the
+   floor's own colour tints it (a reflection isn't a transparent "ghost" --
+   it's floor-coloured, like it's bouncing off something, not a see-through
+   copy floating over black) */
+#define REFLECT_MAX_ALPHA 0.45f
+#define REFLECT_TINT 0.35f
+
 /*
  * blitReflection
  *
  * a cheap floor-reflection variant of blitRotScale: the sprite is mirrored
  * vertically about <mirrorY> (not just moved there) and squashed flatter by
- * <squashY>, at 50% opacity, and only shows up inside the spotlight ellipse
- * -- outside it the floor is pitch black, nothing to reflect in. Rotation
- * direction is mirrored too (a reflection of a clockwise tilt tilts the
- * other way), which is why ca/sa use -angle rather than angle.
+ * <squashY>. Three things make it read as a reflection instead of a floating
+ * translucent ghost: (1) opacity fades with distance from the object being
+ * reflected, same as a real reflection dims the further it stretches from
+ * what's casting it; (2) it's tinted by the floor's own colour rather than
+ * passing the sprite's colours through unchanged; (3) its edge fades out on
+ * the same falloff curve as the spotlight itself (SPOT_CORE), not a sharp cut
+ * at the ellipse boundary. Rotation direction is mirrored too (a reflection
+ * of a clockwise tilt tilts the other way), which is why ca/sa use -angle.
  */
 static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int sh,
 	float cx, float mirrorY, float angle, float scale, float squashY,
-	int spotCx, int spotCy, int spotRx, int spotRy)
+	int spotCx, int spotCy, int spotRx, int spotRy, U8 tintR, U8 tintG, U8 tintB)
 {
 	float ca = cosf(-angle), sa = sinf(-angle);
 	float halfExt = 0.5f * scale * sqrtf((float)(sw * sw + sh * sh)) + 1.0f;
@@ -337,10 +355,20 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 	for (y = y0; y <= y1; y++)
 	{
 		float ey = ((float)y - (float)spotCy) / (float)spotRy;
+		/* 0 right at the object, 1 by the time the reflection reaches the
+		   bottom of the oval -- the far end of the floor it's cast on */
+		float distT = ((float)y - mirrorY) / (float)spotRy;
+		float distFade;
+
+		if (distT < 0.0f) distT = 0.0f;
+		if (distT > 1.0f) distT = 1.0f;
+		distFade = 1.0f - distT * distT * (3.0f - 2.0f * distT); /* smoothstep, 1..0 */
 
 		for (x = x0; x <= x1; x++)
 		{
 			float ex = ((float)x - (float)spotCx) / (float)spotRx;
+			float d = sqrtf(ex * ex + ey * ey);
+			float edgeFade, t;
 			float dx, dy, ux, uy, sx, sy;
 			int isx, isy;
 			U32 sc;
@@ -349,7 +377,9 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 			U32 *dp;
 			U8 dr, dg, db;
 
-			if (ex * ex + ey * ey > 1.0f) continue; /* outside the spotlight: no floor to reflect in */
+			if (d > 1.0f) continue; /* outside the spotlight: no floor to reflect in */
+			t = d < SPOT_CORE ? 0.0f : (d - SPOT_CORE) / (1.0f - SPOT_CORE);
+			edgeFade = 1.0f - t * t * (3.0f - 2.0f * t);
 
 			dx = (float)x + 0.5f - cx;
 			dy = (float)y + 0.5f - mirrorY;
@@ -364,11 +394,11 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 			sc = src[isy * sw + isx];
 			sa8 = (U8)(sc >> 24);
 			if (sa8 == 0) continue;
-			sr = (U8)sc;
-			sg = (U8)(sc >> 8);
-			sb = (U8)(sc >> 16);
+			sr = (U8)((float)(U8)sc * (1.0f - REFLECT_TINT) + (float)tintR * REFLECT_TINT);
+			sg = (U8)((float)(U8)(sc >> 8) * (1.0f - REFLECT_TINT) + (float)tintG * REFLECT_TINT);
+			sb = (U8)((float)(U8)(sc >> 16) * (1.0f - REFLECT_TINT) + (float)tintB * REFLECT_TINT);
 
-			a = (float)sa8 / 255.0f * 0.5f; /* flat 50% opacity */
+			a = (float)sa8 / 255.0f * REFLECT_MAX_ALPHA * distFade * edgeFade;
 			if (a <= 0.0f) continue;
 
 			dp = &dst[y * dw + x];
@@ -390,7 +420,6 @@ static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
 {
 	int x, y;
 	U8 cr = (U8)color, cg = (U8)(color >> 8), cb = (U8)(color >> 16);
-	const float core = 0.8f; /* fraction of the radius that stays full brightness */
 
 	for (y = -ry; y <= ry; y++)
 	{
@@ -403,7 +432,7 @@ static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
 			float t, inten;
 
 			if (d > 1.0f) continue;
-			t = d < core ? 0.0f : (d - core) / (1.0f - core);
+			t = d < SPOT_CORE ? 0.0f : (d - SPOT_CORE) / (1.0f - SPOT_CORE);
 			inten = 1.0f - t * t * (3.0f - 2.0f * t); /* smoothstep falloff */
 			putpx(fb, GS_W, GS_H, cx + x, cy + y,
 				RGBA((U8)((float)cr * inten), (U8)((float)cg * inten), (U8)((float)cb * inten), 0xFF));
@@ -447,6 +476,8 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
                                     instead of growing in place */
 #define TITLE_Y (GS_H - 14)
 #define REFLECT_SQUASH 0.75f /* flattened vertically, like a real floor reflection */
+#define REFLECT_GAP 6.0f /* extra px pushing the reflection down, away from the mirror
+                             line, so a fast bounce never lets the two visibly touch/clip */
 
 /*
  * gameselect_done
@@ -694,8 +725,8 @@ gameselect_done(void)
 	   enough going on without reflecting those too */
 	if (transition == 0.0f)
 		blitReflection(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
-			frontCx, 2.0f * (float)SPOT_CY - frontCy, frontAngle, frontScale, REFLECT_SQUASH,
-			SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY);
+			frontCx, 2.0f * (float)SPOT_CY - frontCy + REFLECT_GAP, frontAngle, frontScale, REFLECT_SQUASH,
+			SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY, 0xD8, 0x6C, 0x00);
 
 	/* background disk first (behind), then front disk on top */
 	blitRotScale(frame, GS_W, GS_H, diskSprite[otherIdx], DISK_W, DISK_H,
