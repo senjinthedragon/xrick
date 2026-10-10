@@ -71,6 +71,7 @@ static float bouncePhase;  /* radians, free-running while idle */
 static float titleAlpha;   /* 0..1, the bottom-center title label: in while idle, out mid-swap */
 static float backFadeIn;   /* 0..1, the dim background disk fading in after it finishes exiting */
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
+static float confirmZoom;  /* 0..1, the post-confirm "flying at the viewer" wind-up */
 static U8 oldFire, oldLeft, oldRight, oldEnter; /* edge-detect: act once per press, not per frame held */
 
 #define RGBA(r, g, b, a) ((U32)(U8)(r) | ((U32)(U8)(g) << 8) | ((U32)(U8)(b) << 16) | ((U32)(U8)(a) << 24))
@@ -211,6 +212,7 @@ gameselect_start(void)
 	titleAlpha = 0.0f;
 	backFadeIn = 1.0f; /* already settled at startup -- only a post-swap reappearance fades in */
 	confirmed = FALSE;
+	confirmZoom = 0.0f;
 	oldFire = oldLeft = oldRight = oldEnter = FALSE;
 
 	/* this screen has no pause/settings of its own: Escape should quit the
@@ -362,6 +364,11 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define TRANSITION_MS 320.0f
 #define TITLE_FADE_MS 300.0f
 #define BACK_FADE_MS 280.0f
+#define CONFIRM_ZOOM_MS 260.0f  /* quick -- "briefly/rapidly", not a slow reveal */
+#define CONFIRM_ZOOM_SCALE 6.0f /* overflows the screen at the end on purpose: a
+                                    full-bleed zoom, not a framed, centered disk */
+#define CONFIRM_ZOOM_DROP 70.0f /* drifts downward by this many px while it zooms,
+                                    instead of growing in place */
 #define TITLE_Y (GS_H - 14)
 
 /*
@@ -381,7 +388,45 @@ gameselect_done(void)
 	float backAngle, backScale, backCx, backCy, backBright, backAlpha;
 
 	if (confirmed)
+	{
+		/* a quick "flying at the viewer" wind-up instead of an instant cut:
+		   the chosen disk's label rushes toward the screen and everything
+		   fades to black, landing on black right as the real game takes
+		   over. No attempt to match the real title screen's exact framing
+		   (the label is a decorative crop, not guaranteed pixel-identical
+		   to it) -- the fade to black hides any mismatch instead. */
+		float e;
+		U32 *fp;
+		size_t i;
+
+		sysevt_poll(); /* still pump events -- e.g. the window's own close button */
+
+		confirmZoom += (1000.0f / CONFIRM_ZOOM_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+		if (confirmZoom > 1.0f) confirmZoom = 1.0f;
+		e = confirmZoom * confirmZoom * (3.0f - 2.0f * confirmZoom);
+
+		memset(frame, 0, sizeof(frame));
+		blitRotScale(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
+			(float)(GS_W / 2), DISK_CY + CONFIRM_ZOOM_DROP * e, 0.0f,
+			DISK_SCALE + (CONFIRM_ZOOM_SCALE - DISK_SCALE) * e, 1.0f, 1.0f);
+
+		fp = frame;
+		for (i = 0; i < (size_t)GS_W * GS_H; i++, fp++)
+		{
+			U8 r = (U8)*fp, g = (U8)(*fp >> 8), b = (U8)(*fp >> 16);
+			r = (U8)((float)r * (1.0f - e));
+			g = (U8)((float)g * (1.0f - e));
+			b = (U8)((float)b * (1.0f - e));
+			*fp = RGBA(r, g, b, 0xFF);
+		}
+
+		sysvid_updateRGBA(frame);
+
+		if (confirmZoom < 1.0f)
+			return FALSE;
+		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
 		return TRUE;
+	}
 
 	sysevt_poll();
 
@@ -554,12 +599,13 @@ gameselect_done(void)
 	}
 
 	if (((fire && !oldFire) || (enter && !oldEnter)) && transition == 0.0f)
+	{
 		confirmed = TRUE;
+		sysarg_args_game = current == 1 ? 2 : 1; /* the confirm-zoom wind-up (above,
+			next frame onward) is what actually reports TRUE and hands off */
+	}
 	oldFire = fire;
 	oldEnter = enter;
-
-	if (confirmed)
-		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
 
 	/* ---- draw ---- */
 	memset(frame, 0, sizeof(frame));
@@ -586,9 +632,8 @@ gameselect_done(void)
 
 	sysvid_updateRGBA(frame);
 
-	if (confirmed)
-		sysarg_args_game = current == 1 ? 2 : 1;
-	return confirmed;
+	return FALSE; /* the confirm-zoom wind-up (top of this function, from the
+	                  next frame on) is what eventually reports TRUE */
 }
 
 /*
