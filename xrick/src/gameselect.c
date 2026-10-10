@@ -67,6 +67,7 @@ static float transition;   /* 0 = settled on `current`; ramps to 1 during a caro
 static int transitionDir;  /* +1 swapping to the right-hand disk, -1 to the left */
 static float bouncePhase;  /* radians, free-running while idle */
 static float titleAlpha;   /* 0..1, the bottom-center title label: in while idle, out mid-swap */
+static float backFadeIn;   /* 0..1, the dim background disk fading in after it finishes exiting */
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
 static U8 oldFire, oldLeft, oldRight; /* edge-detect: act once per press, not per frame held */
 
@@ -206,6 +207,7 @@ gameselect_start(void)
 	transitionDir = 0;
 	bouncePhase = 0.0f;
 	titleAlpha = 0.0f;
+	backFadeIn = 1.0f; /* already settled at startup -- only a post-swap reappearance fades in */
 	confirmed = FALSE;
 	oldFire = oldLeft = oldRight = FALSE;
 
@@ -357,6 +359,7 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define SIDE_OFFSET 108
 #define TRANSITION_MS 320.0f
 #define TITLE_FADE_MS 300.0f
+#define BACK_FADE_MS 280.0f
 #define TITLE_Y (GS_H - 14)
 
 /*
@@ -372,7 +375,7 @@ gameselect_done(void)
 	static U32 frame[GS_W * GS_H];
 	U8 fire, left, right;
 	int otherIdx = current ^ 1;
-	float frontAngle, frontScale, frontCx, frontCy, frontBright;
+	float frontAngle, frontScale, frontCx, frontCy, frontBright, frontAlpha;
 	float backAngle, backScale, backCx, backCy, backBright, backAlpha;
 
 	if (confirmed)
@@ -413,6 +416,8 @@ gameselect_done(void)
 			transitionDir = 0;
 			current = otherIdx;
 			otherIdx = current ^ 1;
+			backFadeIn = 0.0f; /* the disk that just exited reappears dim in the
+			                      background, faded in rather than snapped on */
 		}
 	}
 
@@ -442,6 +447,8 @@ gameselect_done(void)
 		frontScale = DISK_SCALE + (SIDE_SCALE - DISK_SCALE) * e;
 		frontAngle = 0.0f;
 		frontBright = 1.0f - 0.65f * e;
+		frontAlpha = 1.0f - e; /* fades to pitch black as it exits, instead of
+		                          just shrinking/dimming and then snapping away */
 
 		backCx = (float)(GS_W / 2) + sideSign * (1.0f - e) * SIDE_OFFSET;
 		backCy = DISK_CY;
@@ -469,13 +476,23 @@ gameselect_done(void)
 		frontScale = DISK_SCALE;
 		frontAngle = tilt;
 		frontBright = 1.0f;
+		frontAlpha = 1.0f;
+
+		/* the background disk fades in dim, rather than snapping straight to
+		   0.35 brightness -- most noticeable right after a swap, when this is
+		   the disk that just finished fading out on its way off-screen */
+		if (backFadeIn < 1.0f)
+		{
+			backFadeIn += (1000.0f / BACK_FADE_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+			if (backFadeIn > 1.0f) backFadeIn = 1.0f;
+		}
 
 		backCx = (float)(GS_W / 2) + SIDE_OFFSET;
 		backCy = DISK_CY;
 		backScale = SIDE_SCALE;
 		backAngle = 0.0f;
 		backBright = 0.35f;
-		backAlpha = 1.0f;
+		backAlpha = backFadeIn;
 	}
 
 	if (fire && !oldFire && transition == 0.0f)
@@ -493,7 +510,7 @@ gameselect_done(void)
 	blitRotScale(frame, GS_W, GS_H, diskSprite[otherIdx], DISK_W, DISK_H,
 		backCx, backCy, backAngle, backScale, backBright, backAlpha);
 	blitRotScale(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
-		frontCx, frontCy, frontAngle, frontScale, frontBright, 1.0f);
+		frontCx, frontCy, frontAngle, frontScale, frontBright, frontAlpha);
 
 	drawArrow(frame, SPOT_CX - 150, DISK_CY, 7, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
 	drawArrow(frame, SPOT_CX + 150, DISK_CY, 7, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
