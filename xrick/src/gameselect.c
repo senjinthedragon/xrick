@@ -491,8 +491,11 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
                                     instead of growing in place */
 #define TITLE_Y (GS_H - 14)
 #define REFLECT_SQUASH 0.75f /* flattened vertically, like a real floor reflection */
-#define REFLECT_GAP 6.0f /* extra px pushing the reflection down, away from the mirror
-                             line, so a fast bounce never lets the two visibly touch/clip */
+#define REFLECT_GAP 16.0f /* extra px pushing the reflection down, away from the mirror
+                              line, so a fast bounce never lets the two visibly touch/clip.
+                              Needs to clear the disk's own diagonal-tilt protrusion (its
+                              corner sticks down further than its half-height alone once
+                              tilted), not just its flat resting edge. */
 
 /*
  * gameselect_done
