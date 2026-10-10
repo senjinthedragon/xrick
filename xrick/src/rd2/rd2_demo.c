@@ -182,6 +182,19 @@ rd2_demo_resumeAutoplay(void)
 	}
 }
 
+/* menu's AUTOPLAY picked right from the attract screen, no run active to force-end
+   through END_OF_RUN -- so there's nothing about to clear demo_active, and it can
+   just be activated directly instead of going through the rearm()/pending dance.
+   rd2_sys_forceEnd() (menu.c) still needs calling alongside this, to break the
+   attract loop's own wait early (rd2_17c86(), rd2_flow.c) -- setting demo_active
+   alone doesn't interrupt a loop that isn't checking it. */
+void
+rd2_demo_startNow(void)
+{
+	autostart_done = 0;
+	demo_active = TRUE;
+}
+
 /* the run is over (END_OF_RUN, or ESC back to the title): the keyboard takes over for
    game over, name entry and the title */
 void
@@ -202,6 +215,7 @@ void rd2_demo_stop(void) {}
 U8 rd2_demo_autostart(void) { return 0; }
 void rd2_demo_rearm(void) {}
 void rd2_demo_resumeAutoplay(void) {}
+void rd2_demo_startNow(void) {}
 
 #endif /* ENABLE_DEMO */
 

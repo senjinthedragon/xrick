@@ -500,6 +500,18 @@ static void game_cycle(void)
 			if (demo_pending) {
 				demo_pending = FALSE;
 				demo_active = TRUE;
+				/* AUTOPLAY always plays from the real start (South America,
+				   submap 0): the recorded script is one take per submap visit
+				   in that canonical order (see the demoset comment above), so
+				   it only makes sense from there. Previously it'd replay take
+				   #0 regardless of whatever map SELECT MAP had left active,
+				   driving Rick through map 1's opening moves on a different
+				   map's layout; now it just ignores that selection outright,
+				   same as a vanilla "new game" would, rather than disable
+				   the menu item (found & changed per Senjin's request,
+				   2026-10-10). init() (next, at INIT) reads these fresh. */
+				sysarg_args_map = 0;
+				sysarg_args_submap = 0;
 			}
 #endif
 			switch (screen_introMain())

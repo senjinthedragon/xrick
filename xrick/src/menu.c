@@ -53,14 +53,15 @@
 
 /* RD1's recorded AUTOPLAY script is one take per submap VISIT, in the order a
    canonical South-America-first playthrough enters them (see rd1/game.c's
-   demoset comment) -- not indexed by which submap it actually is. Starting
-   anywhere else (SELECT MAP / WARP TO ROOM, same condition that disqualifies
-   the high score in rd1/game.c) still replays take #0, i.e. the real map 1
-   opening moves, which has nothing to do with wherever Rick actually spawned
-   -- he'd just walk into whatever's there and die repeatedly. Found
-   2026-10-10. RD2 has no such restriction: its own level-select is legitimate
-   and rd2_demo_scripts is indexed by map number directly. */
-#define RD1_AUTOPLAY_UNAVAILABLE (!GAME2 && (sysarg_args_map || sysarg_args_submap))
+   demoset comment) -- not indexed by which submap it actually is, so it only
+   makes sense from the real start. Rather than disable the menu item when
+   SELECT MAP/WARP TO ROOM left a different map active (confusing: Senjin's
+   call, 2026-10-10 -- some players would expect picking it to just work),
+   game.c's MAIN_INTRO now resets sysarg_args_map/submap to 0 itself when
+   AUTOPLAY's demo_pending fires, so it always plays from world 1 regardless
+   of whatever was selected. RD2 has no such restriction to begin with: its
+   own level-select is legitimate and rd2_demo_scripts is indexed by map
+   number directly. */
 
 typedef enum {
 	PG_MAIN,
@@ -559,18 +560,30 @@ activate(int it)
 		settings_save();
 		return;
 	case I_AUTOPLAY:
-		if (RD1_AUTOPLAY_UNAVAILABLE)
-			return; /* see the #define: no recorded script matches this start */
 		if (GAME2) {
-			/* not demo_active = TRUE directly here: rd2_game.c's END_OF_RUN
-			   unconditionally calls demo_end() right after this forced end,
-			   which would immediately clear it again before TITLE's
-			   rd2_demo_autostart() ever saw it (found 2026-10-10, AUTOPLAY
-			   silently never started a run). rd2_demo_rearm() now also marks
-			   the request so rd2_demo_resumeAutoplay() -- called right after
-			   that demo_end() -- restores demo_active for it. */
-			rd2_demo_rearm();
-			rd2_sys_forceEnd();
+			if (rd2_sys_inGame()) {
+				/* not demo_active = TRUE directly here: rd2_game.c's
+				   END_OF_RUN unconditionally calls demo_end() right after
+				   this forced end, which would immediately clear it again
+				   before TITLE's rd2_demo_autostart() ever saw it (found
+				   2026-10-10, AUTOPLAY silently never started a run).
+				   rd2_demo_rearm() now also marks the request so
+				   rd2_demo_resumeAutoplay() -- called right after that
+				   demo_end() -- restores demo_active for it. */
+				rd2_demo_rearm();
+				rd2_sys_forceEnd();
+			} else {
+				/* picked right from the attract screen, no run to end: there's
+				   no END_OF_RUN about to clear demo_active, so activate it
+				   directly. rd2_sys_forceEnd() still does double duty breaking
+				   the attract loop's own wait early (rd2_17c86(), rd2_flow.c,
+				   now also checks rd2_sys_endreq()) -- without it this just sat
+				   unconsumed until the attract cycle finished on its own (found
+				   2026-10-10, Senjin: "some people would get confused if they
+				   select it right off the bat"). */
+				rd2_demo_startNow();
+				rd2_sys_forceEnd();
+			}
 		} else {
 			/* not demo_active = TRUE directly: game_endRun() leads to
 			   FADEOUT__GAMEOVER, which unconditionally calls demo_end() as
@@ -957,11 +970,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		label = "HIGHLIGHT";
 		break;
 	case I_AUTOPLAY:
-		label = RD1_AUTOPLAY_UNAVAILABLE
-		            ? "AUTOPLAY (N/A ON THIS MAP)"
-		            : (GAME2 ? rd2_sys_inGame() : game_isRunning())
-		                ? "AUTOPLAY (ENDS THIS RUN)"
-		                : "AUTOPLAY (FULL DEMO)";
+		label = (GAME2 ? rd2_sys_inGame() : game_isRunning())
+		            ? "AUTOPLAY (ENDS THIS RUN)"
+		            : "AUTOPLAY (FULL DEMO)";
 		break;
 	case I_KEYS_RESET:
 		label = "RESET TO DEFAULTS";

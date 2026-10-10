@@ -81,7 +81,13 @@ rd2_17cd8(void)
 	rd2_19134();
 }
 
-/* $17c86 wait up to 176 frames or a new fire press (carry) */
+/* $17c86 wait up to 176 frames or a new fire press (carry). Host addition:
+   also breaks early on rd2_sys_endreq() (rd1's E key, or menu.c's AUTOPLAY
+   forcing an end) -- same as a fire press, since nothing else inside this
+   loop or rd2_178dc()'s other calls checks it, and this is the only wait long
+   enough to matter. Without this, AUTOPLAY picked straight from the attract
+   screen just sat there unconsumed until the attract cycle finished on its
+   own, instead of jumping into a game right away (found 2026-10-10). */
 static int
 rd2_17c86(void)
 {
@@ -89,6 +95,8 @@ rd2_17c86(void)
 	for (d7 = 0xaf; ; ) {
 		rd2_17cd8();
 		rd2_191e6();
+		if (rd2_sys_endreq())
+			return 1;
 		if (rd2_snd_rw(0x1aa08) == 0)
 			rd2_1a6aa(0, 1);
 		if (FIRE()) {
