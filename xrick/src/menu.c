@@ -573,12 +573,11 @@ static void
 openMenuOrStopDemo(void)
 {
 	if (demo_active) {
-		/* not rd2_demo_stop(): it's gated on demo_playing() (demo_active
-		   && a script is currently loaded), which is false between
-		   segments/during cutscenes -- exactly where this can be pressed
-		   -- and would then leave demo_active on, letting rd2_demo_autostart()
-		   fire all over again once the run it's mid-ending reaches TITLE. */
-		demo_end();
+		/* Not calling demo_end() here first: both game_endRun() and
+		   rd2_sys_forceEnd() need demo_active to still read TRUE, to capture
+		   that the run now ending was a demo for the high-score skip (see
+		   game.c's enterGameOver() / rd2_game.c's END_OF_RUN). Each game's
+		   own end-of-run handling stops the demo script itself afterward. */
 		if (GAME2) rd2_sys_forceEnd(); else game_endRun();
 	} else {
 		openMenu();
@@ -752,7 +751,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		label = "HIGHLIGHT";
 		break;
 	case I_AUTOPLAY:
-		label = "AUTOPLAY (FULL DEMO)";
+		label = (GAME2 ? rd2_sys_inGame() : game_isRunning())
+		            ? "AUTOPLAY (ENDS THIS RUN)"
+		            : "AUTOPLAY (FULL DEMO)";
 		break;
 	case I_KEYS_RESET:
 		label = "RESET TO DEFAULTS";
