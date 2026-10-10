@@ -97,6 +97,27 @@ sys_init(int argc, char** argv)
 #ifdef ENABLE_JOYSTICK
 	sysjoy_init();
 #endif
+
+	atexit(sys_shutdown);
+	signal(SIGINT, exit);
+	signal(SIGTERM, exit);
+}
+
+/*
+ * sys_initSound
+ *
+ * picks and initializes the chosen game's own sound engine (rd1's syssnd or
+ * rd2's rd2_snd), then applies the saved volume/mute to it. Split out of
+ * sys_init() because sysarg_args_game isn't final until main() either reads
+ * -game explicitly or the carousel (gameselect.c) picks one -- sys_init()
+ * runs before either, so calling this from there always saw sysarg_args_game
+ * at whatever the command line left it (0, same as RD1), meaning the carousel
+ * picking RD2 never ran rd2_snd_init() at all: no engine, no sound. main()
+ * calls this once sysarg_args_game is actually settled. Found 2026-10-10.
+ */
+void
+sys_initSound(void)
+{
 #ifdef ENABLE_SOUND
 	if (sysarg_args_nosound == 0) {
 		if (sysarg_args_game == 2)
@@ -106,10 +127,6 @@ sys_init(int argc, char** argv)
 	}
 #endif
 	settings_apply();
-
-	atexit(sys_shutdown);
-	signal(SIGINT, exit);
-	signal(SIGTERM, exit);
 }
 
 
@@ -153,6 +170,8 @@ main(int argc, char *argv[])
 	   every launch. */
 	if (!sysarg_args_game_explicit)
 		gameselect_run();
+
+	sys_initSound(); /* sysarg_args_game is final now either way -- see sys_initSound() */
 
 	if (sysarg_args_game == 2)
 		rd2_game_run();

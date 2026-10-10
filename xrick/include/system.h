@@ -63,6 +63,7 @@ typedef signed int S32;           /* 32 bits signed   */
 #define FALSE 0
 
 extern void sys_init(int, char **);
+extern void sys_initSound(void);     /* xrick.c's main(): once sysarg_args_game is final */
 extern void sys_shutdown(void);
 extern void sys_panic(char *, ...);
 extern void sys_printf(char *, ...);
