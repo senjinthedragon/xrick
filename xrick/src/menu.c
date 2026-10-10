@@ -40,6 +40,13 @@
 #include "env.h"
 #include "demo.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
+#include <unistd.h> /* execvp, for I_SWITCH_YES */
+#include <errno.h>
+#endif
+
 #define GAME2 (sysarg_args_game == 2)
 
 typedef enum {
@@ -51,6 +58,7 @@ typedef enum {
 	PG_KEYS,
 	PG_PAD,
 	PG_CONFIRM,
+	PG_SWITCHCONFIRM,
 	PG_COUNT
 } page_t;
 
@@ -62,6 +70,7 @@ typedef enum {
 	I_GOTO_CHEATS,
 	I_GOTO_KEYS,
 	I_GOTO_PAD,
+	I_SWITCH_GAME,
 	I_QUIT,
 	I_BACK,
 	I_FULLSCREEN,
@@ -85,7 +94,8 @@ typedef enum {
 	I_KEYS_RESET,
 	I_PAD_RESET,
 	I_YES,
-	I_NO
+	I_NO,
+	I_SWITCH_YES
 } item_t;
 
 #define KEY_COUNT 8
@@ -99,7 +109,7 @@ typedef struct {
 } pagedef_t;
 
 static const pagedef_t pages[PG_COUNT] = {
-    {"SETTINGS", PG_MAIN, 8, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_CHEATS, I_GOTO_KEYS, I_GOTO_PAD, I_QUIT}},
+    {"SETTINGS", PG_MAIN, 9, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_CHEATS, I_GOTO_KEYS, I_GOTO_PAD, I_SWITCH_GAME, I_QUIT}},
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
     {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
@@ -107,6 +117,7 @@ static const pagedef_t pages[PG_COUNT] = {
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
     {"QUIT THE GAME?", PG_MAIN, 2, {I_NO, I_YES}},
+    {"SWITCH GAME?", PG_MAIN, 2, {I_NO, I_SWITCH_YES}},
 };
 
 static U8 *const keyVar[KEY_COUNT] = {&syskbd_left, &syskbd_right, &syskbd_up, &syskbd_down, &syskbd_fire, &syskbd_shoot, &syskbd_bomb, &syskbd_pause};
@@ -266,7 +277,7 @@ static void
 gotoPage(int p)
 {
 	page = (U8)p;
-	if (p == PG_CONFIRM) cursor[p] = 0; /* default: NO */
+	if (p == PG_CONFIRM || p == PG_SWITCHCONFIRM) cursor[p] = 0; /* default: NO */
 }
 
 static void
@@ -370,6 +381,9 @@ activate(int it)
 	case I_GOTO_PAD:
 		gotoPage(PG_PAD);
 		return;
+	case I_SWITCH_GAME:
+		gotoPage(PG_SWITCHCONFIRM);
+		return;
 	case I_QUIT:
 		gotoPage(PG_CONFIRM);
 		return;
@@ -381,6 +395,32 @@ activate(int it)
 		closeMenu();
 		control_status |= CONTROL_EXIT; /* same path as closing the window */
 		control_last = CONTROL_EXIT;
+		return;
+	case I_SWITCH_YES:
+		/* back to the game select screen (gameselect.c), not straight to the other
+		   game: lets the player change their mind, and reuses the one place that
+		   already knows how to boot into either game cleanly, rather than trying to
+		   re-initialize RD1/RD2's single-lifetime engine state in place. */
+#ifdef __EMSCRIPTEN__
+		/* can't re-exec on the web -- reload instead. The page's own dropdown
+		   picker (player.js) isn't driven by the URL, so a plain reload lands back
+		   on its default state, same as a fresh visit -- not yet reconciled with
+		   this screen, see gameselect.h */
+		EM_ASM(location.reload());
+#else
+		{
+			char *args[2];
+			args[0] = sysarg_argv0;
+			args[1] = NULL;
+			sys_shutdown();
+			execvp(sysarg_argv0, args);
+			/* execvp only returns on failure -- nothing sensible left to do but
+			   carry on with the current game rather than vanish silently */
+			sys_printf("xrick/menu: could not restart (%s) -- switch game cancelled\n", strerror(errno));
+			sysvid_init(FB_WIDTH, FB_HEIGHT);
+			goBack();
+		}
+#endif
 		return;
 	case I_KEYS_RESET:
 		syskbd_resetDefaults();
@@ -705,6 +745,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_GOTO_PAD:
 		label = "GAMEPAD CONTROLS";
 		break;
+	case I_SWITCH_GAME:
+		label = GAME2 ? "SWITCH TO RICK DANGEROUS" : "SWITCH TO RICK DANGEROUS 2";
+		break;
 	case I_QUIT:
 		label = "QUIT GAME";
 		break;
@@ -766,6 +809,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 		break;
 	case I_NO:
 		label = "NO, KEEP PLAYING";
+		break;
+	case I_SWITCH_YES:
+		label = "YES, SWITCH";
 		break;
 	default:
 		break;

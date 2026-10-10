@@ -93,7 +93,7 @@ $(BIN): $(OBJ)
 # C23 compiler -- only this one file needs that dialect, so it's a target-specific
 # override rather than a blanket -std= for every C file.
 $(OUTDIR)/obj/src/shaders_embedded.o: $(SHADER_SPVS)
-$(OUTDIR)/obj/src/shaders_embedded.o $(OUTDIR)/obj/src/bezels_embedded.o $(OUTDIR)/obj/src/masks_embedded.o: CFLAGS += -std=gnu23
+$(OUTDIR)/obj/src/shaders_embedded.o $(OUTDIR)/obj/src/bezels_embedded.o $(OUTDIR)/obj/src/masks_embedded.o $(OUTDIR)/obj/src/gameselect_embedded.o: CFLAGS += -std=gnu23
 
 $(OUTDIR)/obj/%.o: %.c
 	@mkdir -p $(dir $@)

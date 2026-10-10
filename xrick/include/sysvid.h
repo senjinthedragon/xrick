@@ -23,6 +23,11 @@
 extern void sysvid_init(U16 width, U16 height);
 extern void sysvid_shutdown(void);
 extern void sysvid_update(rect_t*);
+/* like sysvid_update, but the caller already has a full SYSVID_WIDTH x SYSVID_HEIGHT
+   RGBA32 frame ready (the game select screen draws its own, with no indexed palette
+   to convert) -- skips straight to presenting it through the same shader/bezel chain
+   gameplay uses, instead of converting from the 8-bit frame buffer first */
+extern void sysvid_updateRGBA(const U32 *rgba);
 extern void sysvid_zoom(S8);
 extern void sysvid_toggleFullscreen(void);
 extern void sysvid_setDisplayPalette(void);

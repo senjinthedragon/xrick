@@ -32,6 +32,7 @@ extern int sysarg_args_controls; /* controlsMode_t (control.h): 0 classic, 1 mod
 extern int sysarg_args_nosound;
 extern int sysarg_args_vol;
 extern int sysarg_args_game;
+extern int sysarg_args_game_explicit;
 #endif
 #ifdef ENABLE_DEMO
 extern int sysarg_args_demo;
@@ -40,6 +41,10 @@ extern char* sysarg_args_trace;
 #endif
 
 extern void sysarg_init(int, char**);
+
+/* argv[0] as main() received it, kept for menu.c's "SWITCH GAME" (re-execs into the
+   select screen, see gameselect.h) -- not otherwise used by argument parsing itself */
+extern char *sysarg_argv0;
 
 #endif /* _SYSARG_H */
 

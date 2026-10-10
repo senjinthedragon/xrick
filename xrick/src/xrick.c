@@ -21,6 +21,7 @@
 #include "splash.h"
 #include "settings.h"
 #include "sysjoy.h"
+#include "gameselect.h"
 
 #include <SDL3/SDL.h>
 #ifdef __EMSCRIPTEN__
@@ -65,11 +66,11 @@ sys_init(int argc, char** argv)
 {
 	setConsole();
 
-#ifndef __EMSCRIPTEN__
-	/* saved settings first, so command-line options override them --
-	   native builds only, see build.sh (settings.c needs sysvid_gpu.c) */
+	/* saved settings first, so command-line options override them. On the web
+	   build this reads from the IDBFS-backed /libsdl mount player.js syncs from
+	   IndexedDB before calling Module.callMain(), so the file is already there
+	   by the time this runs synchronously -- see player.js's setupIDBFS(). */
 	settings_load();
-#endif
 	sysarg_init(argc, argv);
 
 	// FIXME not writing to stdxxx.txt files anymore?
@@ -105,9 +106,7 @@ sys_init(int argc, char** argv)
 			syssnd_init();
 	}
 #endif
-#ifndef __EMSCRIPTEN__
 	settings_apply();
-#endif
 
 	atexit(sys_shutdown);
 	signal(SIGINT, exit);
@@ -146,18 +145,27 @@ main(int argc, char *argv[])
 {
 	sys_init(argc, argv);
 
-	/* the splash, before either game. on the web it cannot wait here: the game's web
-	   frame waits for splash_done instead (src/rd1/game.c web_frame) */
+	/* no -game given: the diskette carousel picks one instead of the usual splash --
+	   it's interactive, so it always needs its own loop (gameselect.c), both natively
+	   and on the web (emscripten_sleep there, same yield-to-the-browser trick RD2's
+	   own main loop already relies on) */
+	if (!sysarg_args_game_explicit)
+		gameselect_run();
+	else
+	{
+		/* the splash, before either game. on the web it cannot wait here: the game's
+		   web frame waits for splash_done instead (src/rd1/game.c web_frame) */
 #ifdef __EMSCRIPTEN__
-	splash_start();
-	/* RD2 has no per-frame callback: it runs on from here and yields by sleeping
-	   (ASYNCIFY, rd2_sys_pump), so the splash is waited for here the same way */
-	if (sysarg_args_game == 2)
-		while (!splash_done())
-			emscripten_sleep(10);
+		splash_start();
+		/* RD2 has no per-frame callback: it runs on from here and yields by sleeping
+		   (ASYNCIFY, rd2_sys_pump), so the splash is waited for here the same way */
+		if (sysarg_args_game == 2)
+			while (!splash_done())
+				emscripten_sleep(10);
 #else
-	splash_run();
+		splash_run();
 #endif
+	}
 
 	if (sysarg_args_game == 2)
 		rd2_game_run();

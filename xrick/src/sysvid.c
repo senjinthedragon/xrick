@@ -460,6 +460,55 @@ sysvid_update(rect_t *rects)
 
 
 /*
+ * sysvid_updateRGBA
+ *
+ * see sysvid.h. <rgba> is exactly fb_width x fb_height pixels (SYSVID_WIDTH x
+ * SYSVID_HEIGHT) -- same assumption sysvid_update's own use_gl branch makes about
+ * `pixels`, since that's the only size sysvid_init ever allocates it at.
+ */
+void
+sysvid_updateRGBA(const U32 *rgba)
+{
+#ifdef ENABLE_SHADERS
+	if (use_gl)
+	{
+		memcpy(pixels, rgba, (size_t)fb_width * fb_height * sizeof(U32));
+		sysvid_gl_present((U8 *)pixels);
+		return;
+	}
+#endif
+	{
+		SDL_Rect sdlrect = { 0, 0, fb_width, fb_height };
+		int pitch;
+		U32 *pixelx;
+
+		if (!SDL_LockTexture(texture, &sdlrect, (void **)&pixelx, &pitch))
+			return;
+
+		for (int y = 0; y < fb_height; y++)
+		{
+			const U32 *srcx = rgba + y * fb_width;
+			U8 *dstx = (U8 *)pixelx + y * pitch;
+
+			for (int x = 0; x < fb_width; x++)
+			{
+				U32 v = *srcx++;
+				*dstx++ = (U8)((v >> 16) & 0xFF); /* b */
+				*dstx++ = (U8)((v >> 8) & 0xFF);  /* g */
+				*dstx++ = (U8)(v & 0xFF);         /* r */
+				*dstx++ = (U8)((v >> 24) & 0xFF); /* a */
+			}
+		}
+
+		SDL_UnlockTexture(texture);
+		SDL_RenderTexture(renderer, texture, NULL, NULL);
+		SDL_RenderPresent(renderer);
+	}
+}
+
+
+
+/*
  * sysvid_showImage
  *
  * see sysvid.h. <img> must be SDL_PIXELFORMAT_RGBA32.

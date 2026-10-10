@@ -61,6 +61,9 @@ int sysarg_args_controls = 0;  /* controlsMode_t: 0 classic, 1 modern */
 int sysarg_args_nosound = 0;
 int sysarg_args_vol = -1;  /* -vol: 0 (silence) .. SYSSND_MAXVOL; -1 = not given */
 int sysarg_args_game = 1;   /* -game: 1 = Rick Dangerous, 2 = Rick Dangerous 2 */
+int sysarg_args_game_explicit = 0; /* TRUE once -game has actually been parsed below --
+                                       xrick.c's game select screen (gameselect.c) only
+                                       shows when this is still FALSE */
 #ifdef ENABLE_DEMO
 int sysarg_args_demo = 0;
 char *sysarg_args_record = NULL;
@@ -217,10 +220,14 @@ sysarg_scankeys(char *keys)
 /*
  * Read and process arguments
  */
+char *sysarg_argv0;
+
 void
 sysarg_init(int argc, char **argv)
 {
   int i;
+
+  sysarg_argv0 = argv[0];
 
   for (i = 1; i < argc; i++) {
 
@@ -324,6 +331,7 @@ sysarg_init(int argc, char **argv)
       sysarg_args_game = atoi(argv[i]);
       if (sysarg_args_game != 1 && sysarg_args_game != 2)
 	sysarg_fail("invalid game number");
+      sysarg_args_game_explicit = 1;
     }
 #ifdef ENABLE_DEMO
     else if (!strcmp(argv[i], "-demo")) {
