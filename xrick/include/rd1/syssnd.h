@@ -38,6 +38,8 @@ extern void syssnd_setMute(U8);
 extern void syssnd_play(const sound_t *sound);
 extern void syssnd_play_track(U8 track, S8 d1);
 extern void syssnd_pause(U8, U8);
+extern U8 syssnd_isActive(void);       /* gameselect.c / xrick.c: is this engine live right now */
+extern void syssnd_setFadeGain(float); /* gameselect.c's carousel crossfade, 0..1 */
 
 /* mono, signed 16-bit -- what AtariMachine::ComputeNextSample() produces */
 #define SYSSND_FREQ 44100

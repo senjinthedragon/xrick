@@ -47,6 +47,10 @@
 #include "thirdparty/stb_image.h"
 
 #include "rd1/pics.h" /* pic_splash: RD1's real title picture, decoded live below */
+#include "syssnd.h"   /* rd1's engine: the carousel's own music/crossfade/scream */
+#include "sounds.h"   /* SND_TRACK_ATTRACT, WAV_DIE */
+#include "rd2_snd.h"  /* rd2's engine, same purpose */
+#include "rd2_game.h" /* rd2_1a6aa: play_sound(id, d1), for the RD2 scream */
 
 #define GS_W SYSVID_WIDTH  /* 320 */
 #define GS_H SYSVID_HEIGHT /* 200 */
@@ -73,6 +77,14 @@ static float backFadeIn;   /* 0..1, the dim background disk fading in after it f
 static U8 confirmed;       /* TRUE once Enter/fire chose a game */
 static float confirmZoom;  /* 0..1, the post-confirm "flying at the viewer" wind-up */
 static U8 oldFire, oldLeft, oldRight, oldEnter; /* edge-detect: act once per press, not per frame held */
+
+/* the carousel's own music/scream, played through whichever game's real engine
+   matches the disk currently front-and-center -- RD1 and RD2 each have their own
+   separate emulated machine (different program images), so only one is ever live
+   here at a time; swapping disks means tearing one down and bringing up the other,
+   timed to happen in the silent middle of the crossfade below. */
+static int audioIdx = -1;       /* 0 = RD1, 1 = RD2; -1 = no engine started yet */
+static U8 audioSwapped;         /* one-shot per carousel swap: has the engine switched yet */
 
 #define RGBA(r, g, b, a) ((U32)(U8)(r) | ((U32)(U8)(g) << 8) | ((U32)(U8)(b) << 16) | ((U32)(U8)(a) << 24))
 
@@ -194,6 +206,60 @@ static void blackenAboveLabel(U32 *buf)
 }
 
 /*
+ * audioStart / audioStop / audioSetFade
+ *
+ * bring up (or tear down) whichever game's real sound engine matches <idx>
+ * (0 = RD1, 1 = RD2), and loop that game's own title music on it -- the exact
+ * same engine, same program image, the real game itself uses; nothing here is
+ * synthesized or a sample standing in for it. audioStart() reuses an engine
+ * already left running by a previous carousel visit (xrick.c's sys_initSound
+ * does the same isActive() check on the other side of the handoff once a disk
+ * is confirmed) instead of always tearing down and rebuilding.
+ */
+#ifdef ENABLE_SOUND
+static void audioStart(int idx)
+{
+	if (idx == 1) {
+		if (!rd2_snd_isActive()) rd2_snd_init();
+		rd2_snd_setFadeGain(0.0f);
+		rd2_1a6aa(3, 0); /* RD2's own title/attract tune, same cue rd2_flow.c uses */
+	} else {
+		if (!syssnd_isActive()) syssnd_init();
+		syssnd_setFadeGain(0.0f);
+		sounds_setMusic(SND_TRACK_ATTRACT, 1); /* RD1's title tune, d1=1 loops */
+	}
+}
+
+static void audioStop(int idx)
+{
+	if (idx == 1) rd2_snd_shutdown();
+	else if (idx == 0) syssnd_shutdown();
+}
+
+static void audioSetFade(int idx, float gain)
+{
+	if (idx == 1) rd2_snd_setFadeGain(gain);
+	else if (idx == 0) syssnd_setFadeGain(gain);
+}
+
+/* the real death "scream" -- WAV_DIE (track 19, d1=0) in RD1, play_sound id 0x0a in
+   RD2 -- played once on confirm, over whichever engine is already running rather
+   than a third, separate asset. Both are plain sound effects on their engine's own
+   dedicated SFX voice, so they layer over the music instead of interrupting it,
+   same as a real in-game death does. */
+static void audioPlayScream(int idx)
+{
+	if (idx == 1) rd2_1a6aa(0x0a, 0);
+	else if (idx == 0) syssnd_play(WAV_DIE);
+}
+#else
+static void audioStart(int idx) { (void)idx; }
+static void audioStop(int idx) { (void)idx; }
+static void audioSetFade(int idx, float gain) { (void)idx; (void)gain; }
+static void audioPlayScream(int idx) { (void)idx; }
+#endif
+
+/*
  * gameselect_start
  *
  * see gameselect.h
@@ -218,6 +284,11 @@ gameselect_start(void)
 	/* this screen has no pause/settings of its own: Escape should quit the
 	   program outright, not pop up the in-game menu (see gameselect_done) */
 	menu_setEnabled(FALSE);
+
+	audioSwapped = FALSE;
+	audioIdx = current;
+	audioStart(audioIdx);
+	audioSetFade(audioIdx, 1.0f); /* full volume immediately -- nothing to fade from yet */
 
 	drawDiskTemplate(diskSprite[0]);
 	drawDiskTemplate(diskSprite[1]);
@@ -482,6 +553,10 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
 #define SIDE_SCALE 0.85f
 #define SIDE_OFFSET 108
 #define TRANSITION_MS 320.0f
+#define AUDIO_FADE_HALF 0.5f /* fraction of the swap (same clock as TRANSITION_MS)
+                                 where the outgoing disk's music finishes fading
+                                 out and the incoming disk's engine takes over,
+                                 starting silent and fading back in by t=1 */
 #define TITLE_FADE_MS 300.0f
 #define BACK_FADE_MS 280.0f
 #define CONFIRM_ZOOM_MS 260.0f  /* quick -- "briefly/rapidly", not a slow reveal */
@@ -583,13 +658,38 @@ gameselect_done(void)
 
 	if (transition > 0.0f)
 	{
-		transition += (1000.0f / TRANSITION_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+		/* the audio crossfade shares this same clock but runs on its own schedule
+		   within it (AUDIO_FADE_HALF): fade the outgoing disk's music out over the
+		   first half, swap to the incoming disk's engine in the silent middle, fade
+		   that one in over the second half -- using <t>, this frame's progress
+		   before the end-of-swap wrap below, so the fade-in's last frame (t -> 1)
+		   isn't lost to transition being reset to 0.0f in the same step. */
+		float t = transition + (1000.0f / TRANSITION_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
+
+		if (t < AUDIO_FADE_HALF)
+			audioSetFade(audioIdx, 1.0f - t / AUDIO_FADE_HALF);
+		else
+		{
+			float fadeIn = (t - AUDIO_FADE_HALF) / (1.0f - AUDIO_FADE_HALF);
+
+			if (!audioSwapped)
+			{
+				audioStop(audioIdx);
+				audioIdx = otherIdx; /* the disk becoming current -- see below */
+				audioStart(audioIdx);
+				audioSwapped = TRUE;
+			}
+			audioSetFade(audioIdx, fadeIn > 1.0f ? 1.0f : fadeIn);
+		}
+
+		transition = t;
 		if (transition >= 1.0f)
 		{
 			U8 cameFromRight = transitionDir > 0;
 
 			transition = 0.0f;
 			transitionDir = 0;
+			audioSwapped = FALSE;
 			current = otherIdx;
 			otherIdx = current ^ 1;
 			/* idle always shows the dim background disk fixed on the right
@@ -729,6 +829,11 @@ gameselect_done(void)
 		confirmed = TRUE;
 		sysarg_args_game = current == 1 ? 2 : 1; /* the confirm-zoom wind-up (above,
 			next frame onward) is what actually reports TRUE and hands off */
+		audioSetFade(audioIdx, 1.0f); /* idle already holds it at 1.0 -- just in case */
+		audioPlayScream(audioIdx);    /* the same "waaaaa" a real death plays, layered
+			over the music rather than stopping it, same as it does in-game. audioIdx
+			already matches current/sysarg_args_game above, and is left running for
+			xrick.c's sys_initSound() to hand off into the real game unchanged. */
 	}
 	oldFire = fire;
 	oldEnter = enter;

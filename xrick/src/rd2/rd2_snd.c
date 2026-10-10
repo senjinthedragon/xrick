@@ -50,6 +50,7 @@ static SDL_Mutex *lock;
 static U32 per_tick, countdown;
 static U8 uvol = SYSSND_MAXVOL;     /* user volume and mute, as rd1's sndUVol/sndMute (syssnd.c) */
 static U8 mute = FALSE;
+static float fadeGain = 1.0f;       /* gameselect.c's carousel crossfade, see rd2_snd_setFadeGain */
 
 static void
 callback(void *ud, SDL_AudioStream *s, int want, int total)
@@ -71,7 +72,7 @@ callback(void *ud, SDL_AudioStream *s, int want, int total)
 				buf[i] = 0;
 			else {
 				S32 v = atari_machine_next_sample(machine);
-				buf[i] = (S16)((v * (S32)uvol) / SYSSND_MAXVOL);
+				buf[i] = (S16)(((float)v * fadeGain * (float)uvol) / (float)SYSSND_MAXVOL);
 			}
 		}
 		SDL_UnlockMutex(lock);
@@ -181,6 +182,28 @@ rd2_snd_setMute(U8 on)
 		return;
 	SDL_LockMutex(lock);
 	mute = on ? TRUE : FALSE;
+	SDL_UnlockMutex(lock);
+}
+
+/* gameselect.c's carousel: whether this engine is the one currently live, so it
+   knows whether to init a fresh one or reuse what's already running (e.g. handing
+   off to the real game once a disk is confirmed, see xrick.c's sys_initSound). */
+U8
+rd2_snd_isActive(void)
+{
+	return machine != NULL;
+}
+
+/* gameselect.c's carousel crossfade: a second, finer-grained multiplier alongside
+   uvol (0..SYSSND_MAXVOL is too coarse a scale for a smooth fade -- audible
+   steps/zipper noise), driven once per carousel frame rather than per sample. */
+void
+rd2_snd_setFadeGain(float g)
+{
+	if (g < 0.0f) g = 0.0f;
+	if (g > 1.0f) g = 1.0f;
+	SDL_LockMutex(lock);
+	fadeGain = g;
 	SDL_UnlockMutex(lock);
 }
 

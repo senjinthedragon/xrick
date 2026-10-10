@@ -114,16 +114,26 @@ sys_init(int argc, char** argv)
  * at whatever the command line left it (0, same as RD1), meaning the carousel
  * picking RD2 never ran rd2_snd_init() at all: no engine, no sound. main()
  * calls this once sysarg_args_game is actually settled. Found 2026-10-10.
+ *
+ * Guarded by *_isActive(): the carousel (gameselect.c) now runs the matching
+ * engine itself for its own music/crossfade, already settled on the chosen
+ * game's engine by the time a disk is confirmed -- re-initializing it here
+ * would tear down and recreate the very engine that's correctly already
+ * playing, for an audible hitch and no benefit. Only the explicit -game path
+ * (which never touches the carousel) actually needs this to do anything.
  */
 void
 sys_initSound(void)
 {
 #ifdef ENABLE_SOUND
 	if (sysarg_args_nosound == 0) {
-		if (sysarg_args_game == 2)
-			rd2_snd_init();
-		else
-			syssnd_init();
+		if (sysarg_args_game == 2) {
+			if (!rd2_snd_isActive()) rd2_snd_init();
+			rd2_snd_setFadeGain(1.0f);
+		} else {
+			if (!syssnd_isActive()) syssnd_init();
+			syssnd_setFadeGain(1.0f);
+		}
 	}
 #endif
 	settings_apply();
@@ -138,10 +148,13 @@ void
 sys_shutdown(void)
 {
 #ifdef ENABLE_SOUND
-	if (sysarg_args_game == 2)
-		rd2_snd_shutdown();
-	else
-		syssnd_shutdown();
+	/* not dispatched on sysarg_args_game: the carousel can leave either
+	   engine as the one actually live (e.g. quitting from it while RD2's
+	   disk is front-and-center, before ever confirming/setting
+	   sysarg_args_game) -- each shutdown is a no-op if it was never
+	   initialized, so calling both unconditionally is always correct. */
+	rd2_snd_shutdown();
+	syssnd_shutdown();
 #endif
 #ifdef ENABLE_JOYSTICK
 	sysjoy_shutdown();

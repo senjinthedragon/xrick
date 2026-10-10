@@ -27,6 +27,8 @@ U8   rd2_snd_getVol(void);
 void rd2_snd_setVol(U8 v);
 U8   rd2_snd_getMute(void);
 void rd2_snd_setMute(U8 on);
+U8   rd2_snd_isActive(void);       /* gameselect.c / xrick.c: is this engine live right now */
+void rd2_snd_setFadeGain(float g); /* gameselect.c's carousel crossfade, 0..1 */
 U16  rd2_snd_rw(U32 a);   /* game-side read of an engine cell, e.g. [$1aa08] */
 
 #endif /* _RD2_SND_H */
