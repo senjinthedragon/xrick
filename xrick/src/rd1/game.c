@@ -165,6 +165,22 @@ game_isPaused(void)
 	       game_state == PAUSE_PRESSED1B || game_state == PAUSE_PRESSED2;
 }
 
+/*
+ * Senjin's SDL3 port: see game.h -- ends the current run in place of a real
+ * CONTROL_END key, for menu.c's AUTOPLAY action.
+ */
+void
+game_endRun(void)
+{
+	if (game_state != MAIN_INTRO && game_state != MAP_INTRO &&
+	    game_state != GAMEOVER && game_state != GETNAME &&
+#ifdef ENABLE_DEVTOOLS
+	    game_state != DEVTOOLS &&
+#endif
+	    game_state != EXIT)
+		game_state = FADEOUT__GAMEOVER;
+}
+
 void game_toggleCheat(U8 nbr)
 {
 #ifdef ENABLE_CHEATS

@@ -60,6 +60,13 @@ extern void game_toggleCheat(U8);
  * doesn't resume sound on close if the game's own pause is still held. */
 extern U8 game_isPaused(void);
 
+/* Senjin's SDL3 port: ends the current run (as CONTROL_END would) without
+ * going through a real key -- menu.c's AUTOPLAY action uses this, since a
+ * synthetic CONTROL_END with no matching key-up would never clear and would
+ * end every run from then on. No-op outside real gameplay (title, map
+ * intro, game over, name entry). */
+extern void game_endRun(void);
+
 #endif
 
 /* eof */
