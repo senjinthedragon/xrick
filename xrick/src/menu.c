@@ -927,11 +927,11 @@ typedef struct { const char *s; const U8 *color; } creditLine_t;
 static const creditLine_t creditLines[] = {
 	{"XRICK", yellow},
 	{"", NULL},
-	{"RICK DANGEROUS I AND II", white},
+	{"RICK DANGEROUS I & II", white},
 	{"originally created by Core Design", grey},
 	{"published by Firebird", grey},
 	{"", NULL},
-	{"reverse-engineered and ported by", grey},
+	{"reverse-engineered & ported by", grey},
 	{"Stephane Gay (bigorno / ZpqrtBnk)", white},
 	{"", NULL},
 	{"THIS BUILD", yellow},
