@@ -165,24 +165,25 @@ game_isPaused(void)
 	       game_state == PAUSE_PRESSED1B || game_state == PAUSE_PRESSED2;
 }
 
-/*
- * Senjin's SDL3 port: see game.h -- ends the current run in place of a real
- * CONTROL_END key, for menu.c's AUTOPLAY action.
- */
-void
-game_endRun(void)
+U8
+game_isRunning(void)
 {
-	if (game_state != MAIN_INTRO && game_state != MAP_INTRO &&
-	    game_state != GAMEOVER && game_state != GETNAME &&
+	return game_state != MAIN_INTRO && game_state != MAP_INTRO &&
+	       game_state != GAMEOVER && game_state != GETNAME &&
 #ifdef ENABLE_DEVTOOLS
-	    game_state != DEVTOOLS &&
+	       game_state != DEVTOOLS &&
 #endif
-	    game_state != EXIT)
-		game_state = FADEOUT__GAMEOVER;
+	       game_state != EXIT;
 }
 
 #ifdef ENABLE_DEMO
 static U8 demo_pending;
+/* true when the run now ending was AUTOPLAY/-demo, so GAMEOVER can skip
+   GETNAME for it -- set by enterGameOver() below, not inside
+   FADEOUT__GAMEOVER's own case: that case re-runs every frame of the fade,
+   and by the second frame demo_end() has already cleared demo_active, so
+   capturing it there would overwrite TRUE with FALSE immediately. */
+static U8 demo_wasActive;
 
 void
 game_queueDemo(void)
@@ -191,15 +192,32 @@ game_queueDemo(void)
 }
 #endif
 
+/* every `game_state = FADEOUT__GAMEOVER` site goes through this instead, to
+   capture demo_wasActive exactly once, at the actual transition. */
+static void
+enterGameOver(void)
+{
+#ifdef ENABLE_DEMO
+	demo_wasActive = demo_active;
+#endif
+	game_state = FADEOUT__GAMEOVER;
+}
+
+/*
+ * Senjin's SDL3 port: see game.h -- ends the current run in place of a real
+ * CONTROL_END key, for menu.c's AUTOPLAY action.
+ */
+void
+game_endRun(void)
+{
+	if (game_isRunning())
+		enterGameOver();
+}
+
 void game_toggleCheat(U8 nbr)
 {
 #ifdef ENABLE_CHEATS
-	if (game_state != MAIN_INTRO && game_state != MAP_INTRO &&
-		game_state != GAMEOVER && game_state != GETNAME &&
-#ifdef ENABLE_DEVTOOLS
-		game_state != DEVTOOLS &&
-#endif
-		game_state != EXIT)
+	if (game_isRunning())
 	{
 		switch (nbr)
 		{
@@ -558,7 +576,7 @@ static void game_cycle(void)
 #endif
 				sysarg_args_map = 0; // FIXME game completed, start all over. fine, but... ack...
 				sysarg_args_submap = 0;
-				game_state = FADEOUT__GAMEOVER;
+				enterGameOver();
 #ifdef ENABLE_DEMO
 				/*
 				 * a demo that plays the whole game loops: back to the title
@@ -658,7 +676,7 @@ static void game_cycle(void)
 #endif
 			if (control_status & CONTROL_END) /* request to end the game */
 			{
-				game_state = FADEOUT__GAMEOVER;
+				enterGameOver();
 			}
 			else
 			if (control_last == CONTROL_EXIT) /* request to exit the game */
@@ -726,10 +744,10 @@ static void game_cycle(void)
 				}
 				else
 				{
-					game_state = FADEOUT__GAMEOVER;
+					enterGameOver();
 				}
 			}
-			else 
+			else
 			if (e_rick_atExit) /* rick is exiting the submap, must chain to next submap */
 			{
 				//	e_rick_enterMap(); // akn
@@ -902,7 +920,11 @@ static void game_cycle(void)
 		case FADEOUT__GAMEOVER:
 
 #ifdef ENABLE_DEMO
-			/* the demo is over -- the hall of fame is entered by hand. idempotent. */
+			/* the demo is over -- the hall of fame is entered by hand. idempotent.
+			   demo_wasActive is captured where game_state is set to this state,
+			   not here: this case re-runs every frame of the fade, and by the
+			   second frame demo_end() has already cleared demo_active, so
+			   capturing it here would overwrite TRUE with FALSE immediately. */
 			demo_end();
 #endif
 			if (fb_fadeOut())
@@ -928,7 +950,14 @@ static void game_cycle(void)
 				case SCREEN_RUNNING:
 					return;
 				case SCREEN_DONE:
+#ifdef ENABLE_DEMO
+					/* host: an AUTOPLAY/-demo run's score doesn't go in the
+					   hall of fame -- same reasoning as the game's own
+					   attract demo never doing so. */
+					game_state = demo_wasActive ? XRICK_CLR : GETNAME;
+#else
 					game_state = GETNAME;
+#endif
 					break;
 				case SCREEN_EXIT:
 					game_state = EXIT;
