@@ -138,14 +138,24 @@ rd2_demo_frame(void)
 /* after the title sequence ($178dc), once: with -demo and a script for map 1, the
    solved game (PLAN.md T47) starts by itself as a real game on map 1, whether the
    title timed out or fire was pressed */
+static U8 autostart_done;
+
 U8
 rd2_demo_autostart(void)
 {
-	static U8 done;
-	if (done || !demo_active || demo_recording() || rd2_demo_scripts[0].nbr == 0)
+	if (autostart_done || !demo_active || demo_recording() || rd2_demo_scripts[0].nbr == 0)
 		return 0;
-	done = 1;
+	autostart_done = 1;
 	return 1;
+}
+
+/* lets rd2_demo_autostart() fire again -- it's normally a once-per-process
+   latch for -demo's own autostart, but the menu's AUTOPLAY action (menu.c)
+   needs to re-arm it each time it's picked */
+void
+rd2_demo_rearm(void)
+{
+	autostart_done = 0;
 }
 
 /* the run is over (END_OF_RUN, or ESC back to the title): the keyboard takes over for
@@ -166,6 +176,7 @@ void rd2_demo_level(void) {}
 void rd2_demo_frame(void) {}
 void rd2_demo_stop(void) {}
 U8 rd2_demo_autostart(void) { return 0; }
+void rd2_demo_rearm(void) {}
 
 #endif /* ENABLE_DEMO */
 

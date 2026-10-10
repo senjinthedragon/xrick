@@ -44,6 +44,7 @@ void rd2_sys_paused(U8 on);                       /* the rd1 "PAUSED" box over t
 void rd2_sys_info(U8 on);                         /* map / submap numbers in the left border */
 U8 rd2_sys_endreq(void);                          /* the rd1 "end game" key (E) is down */
 U8 rd2_sys_pausekey(void);                        /* the rd1 pause key (P) is down */
+void rd2_sys_forceEnd(void);                      /* menu.c's AUTOPLAY: end the run with no real key */
 
 /* rd1's cheats F7/F8/F9 (game_toggleCheat), host additions: trainer = lives, laser and bombs
    stay at 6; invincible = nothing kills Rick; highlight = sprites drawn over the foreground and
@@ -62,6 +63,7 @@ void rd2_demo_level(void);                        /* level start $10a4e */
 void rd2_demo_frame(void);                        /* frame head $10a54 */
 void rd2_demo_stop(void);                         /* end of run / back to the title */
 U8 rd2_demo_autostart(void);                      /* -demo: start the scripted game now (once) */
+void rd2_demo_rearm(void);                        /* let rd2_demo_autostart() fire again (menu.c) */
 
 void rd2_1a546(U8 b);   /* ACIA handler, one received IKBD byte */
 void rd2_1a866(void);   /* TICK: runs in the audio thread, rd2_snd.c */

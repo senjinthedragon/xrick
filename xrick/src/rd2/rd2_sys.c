@@ -213,6 +213,11 @@ joystick(void)
 
 /* ---- host overlays (rd1 features, not in the original; drawn into fb only) ---- */
 static U8 ovl_paused, ovl_info;
+/* true across a real level (TITLE/LOAD clear it, right before FRAME sets it --
+   rd2_game.c), regardless of whether the devtools overlay is actually drawn.
+   rd2_sys_toggleCheat() needs this, not ovl_info: cheats must still work with
+   devtools off, which is when ovl_info never turns on at all (see below). */
+static U8 in_game;
 
 void rd2_sys_paused(U8 on) { ovl_paused = on; }
 /* As rd1's env_paintXtra() (game.c): the M/S map/submap row is a devtools-only
@@ -224,13 +229,19 @@ void rd2_sys_paused(U8 on) { ovl_paused = on; }
    screen) still can't turn it on outside a devtools build. */
 void rd2_sys_info(U8 on)
 {
+	in_game = on;
 #ifdef ENABLE_DEVTOOLS
 	ovl_info = on;
-#else
-	(void)on;
 #endif
 }
-U8 rd2_sys_endreq(void)    { return (U8)((control_status & CONTROL_END) != 0); }
+/* one-shot, self-clearing: the menu's AUTOPLAY action (menu.c) needs to force
+   the current run to end without going through a real key, which CONTROL_END
+   otherwise expects (a synthetic set with no matching key-up would never
+   clear and would end every run from here on). rd2_sys_endreq() consumes it
+   the one time it's read. */
+static U8 force_end;
+void rd2_sys_forceEnd(void) { force_end = 1; }
+U8 rd2_sys_endreq(void)    { U8 r = (U8)((control_status & CONTROL_END) != 0) || force_end; force_end = 0; return r; }
 U8 rd2_sys_pausekey(void)  { return (U8)((control_status & CONTROL_PAUSE) != 0); }
 
 /* ---- cheats (rd1 game_toggleCheat; host additions, rd2_sys.h) ---- */
@@ -243,7 +254,7 @@ rd2_sys_toggleCheat(U8 n)
 	(void)n;
 	return;
 #endif
-	if (!ovl_info || rd2_rw(RD2_DEMO) != 0)                  /* in a level, played by hand */
+	if (!in_game || rd2_rw(RD2_DEMO) != 0)                  /* in a level, played by hand */
 		return;
 #ifdef ENABLE_DEMO
 	if (sysarg_args_record)
