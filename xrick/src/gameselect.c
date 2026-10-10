@@ -52,12 +52,12 @@
 /* the composited diskette sprite (template + label), built once per game at
    gameselect_start() and only ever rotated/scaled/dimmed from there on */
 #define DISK_W 72
-#define DISK_H 64
+#define DISK_H 72 /* a real 3.5" disk's case is near-square, not noticeably wider than tall */
 /* label band within the disk sprite -- a real 3.5" disk's paper label, roughly */
-#define LABEL_X 7
-#define LABEL_Y 9
-#define LABEL_W 58
-#define LABEL_H 30
+#define LABEL_X 10
+#define LABEL_Y 2
+#define LABEL_W 54
+#define LABEL_H 43
 
 static U32 diskSprite[2][DISK_W * DISK_H]; /* [0] = RD1, [1] = RD2 */
 
@@ -79,49 +79,26 @@ static void putpx(U32 *buf, int w, int h, int x, int y, U32 c)
 /*
  * drawDiskTemplate
  *
- * a plain 3.5" diskette silhouette: light plastic body, a corner notch (top-left,
- * the classic cut corner), and a metal shutter band near the bottom. Transparent
- * (alpha 0) outside the silhouette, so blitRotScale only ever shows disk-shaped
- * pixels over whatever is behind it.
+ * decodes the embedded diskette body art (gameselect_embedded.h) straight into
+ * <buf> -- already exactly DISK_W x DISK_H, so no resampling needed. See that
+ * header for what the art is and why it's already rotated/recoloured.
  */
 static void drawDiskTemplate(U32 *buf)
 {
-	int x, y;
-	const U32 body = RGBA(0xB4, 0xB6, 0xC2, 0xFF);
-	const U32 bodyShade = RGBA(0x9A, 0x9C, 0xA8, 0xFF);
-	const U32 shutter = RGBA(0xC8, 0xCA, 0xD2, 0xFF);
-	const U32 shutterSlot = RGBA(0x30, 0x30, 0x34, 0xFF);
-	const int notch = 10; /* top-left cut corner size */
+	U8 *rgb;
+	int w, h, comp;
 
 	memset(buf, 0, (size_t)DISK_W * DISK_H * sizeof(U32));
 
-	for (y = 0; y < DISK_H; y++)
+	rgb = stbi_load_from_memory(gameselect_disk_body_png, (int)gameselect_disk_body_png_len,
+		&w, &h, &comp, 4);
+	if (!rgb || w != DISK_W || h != DISK_H)
 	{
-		for (x = 0; x < DISK_W; x++)
-		{
-			U32 c;
-
-			if (x + y < notch) /* cut corner */
-				continue;
-			if (x < 3 || x >= DISK_W - 3 || y < 2)
-				c = bodyShade; /* thin rim */
-			else
-				c = body;
-			putpx(buf, DISK_W, DISK_H, x, y, c);
-		}
+		if (rgb) stbi_image_free(rgb);
+		return;
 	}
-
-	/* metal shutter band, lower third, with a dark slot cut into it */
-	for (y = DISK_H - 18; y < DISK_H - 4; y++)
-	{
-		for (x = 6; x < DISK_W - 6; x++)
-		{
-			U32 c = shutter;
-			if (y >= DISK_H - 14 && y < DISK_H - 8 && x >= DISK_W / 2 - 10 && x < DISK_W / 2 + 10)
-				c = shutterSlot;
-			putpx(buf, DISK_W, DISK_H, x, y, c);
-		}
-	}
+	memcpy(buf, rgb, (size_t)DISK_W * DISK_H * sizeof(U32));
+	stbi_image_free(rgb);
 }
 
 /*
@@ -195,6 +172,22 @@ static void decodeRD1Label(U8 *out /* RD1_CROP_W * RD1_CROP_H * 3 */)
 }
 
 /*
+ * blackenAboveLabel
+ *
+ * real disk labels commonly wrap slightly over the top edge of the case;
+ * paints that same strip (directly above the label, same width) solid black
+ * instead of leaving the diskette body's own plastic/rim visible there.
+ */
+static void blackenAboveLabel(U32 *buf)
+{
+	int x, y;
+
+	for (y = 0; y < LABEL_Y; y++)
+		for (x = LABEL_X; x < LABEL_X + LABEL_W; x++)
+			putpx(buf, DISK_W, DISK_H, x, y, RGBA(0, 0, 0, 0xFF));
+}
+
+/*
  * gameselect_start
  *
  * see gameselect.h
@@ -225,6 +218,7 @@ gameselect_start(void)
 	{
 		decodeRD1Label(rd1rgb);
 		compositeLabel(diskSprite[0], rd1rgb, RD1_CROP_W, RD1_CROP_H, 3);
+		blackenAboveLabel(diskSprite[0]);
 		free(rd1rgb);
 	}
 
@@ -233,6 +227,7 @@ gameselect_start(void)
 	if (rd2rgb)
 	{
 		compositeLabel(diskSprite[1], rd2rgb, rd2w, rd2h, rd2comp);
+		blackenAboveLabel(diskSprite[1]);
 		stbi_image_free(rd2rgb);
 	}
 }
