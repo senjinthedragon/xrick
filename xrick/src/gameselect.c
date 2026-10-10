@@ -325,25 +325,37 @@ static void blitRotScale(U32 *dst, int dw, int dh, const U32 *src, int sw, int s
 /*
  * blitReflection
  *
- * a cheap floor-reflection variant of blitRotScale: the sprite is mirrored
- * vertically about <mirrorY> (not just moved there) and squashed flatter by
- * <squashY>. Three things make it read as a reflection instead of a floating
- * translucent ghost: (1) opacity fades with distance from the object being
- * reflected, same as a real reflection dims the further it stretches from
- * what's casting it; (2) it's tinted by the floor's own colour rather than
- * passing the sprite's colours through unchanged; (3) its edge fades out on
- * the same falloff curve as the spotlight itself (SPOT_CORE), not a sharp cut
- * at the ellipse boundary. Rotation direction is mirrored too (a reflection
- * of a clockwise tilt tilts the other way), which is why ca/sa use -angle.
+ * a cheap floor-reflection variant of blitRotScale. A true mirror image is
+ * just the object's own sampling function evaluated at a vertically-flipped
+ * screen position -- so this reuses blitRotScale's exact forward rotation
+ * (<angle>, not negated) and only flips/squashes/shifts the *y coordinate
+ * fed into it* (about <floorY>, the floor line, before sampling). An earlier
+ * version negated the angle instead, hand-rolling the mirror inside the
+ * rotated frame; that's wrong on two counts: it spins the tilt the wrong way
+ * (a disk leaning right touched down its reflection's *left* corner instead
+ * of its right -- the giveaway bug), and squashing inside that frame shears
+ * the silhouette sideways whenever the disk isn't level. Reusing the same
+ * forward formula at a transformed y avoids both: no separate handedness
+ * logic to get backwards, no shear, since x is never touched by the flip.
+ *
+ * Three things beyond the geometry make it read as a reflection instead of a
+ * floating translucent ghost: (1) opacity fades with distance from the
+ * object, same as a real reflection dims the further it stretches from what's
+ * casting it; (2) it's tinted by the floor's own colour; (3) its edge fades
+ * out on the spotlight's own falloff curve (SPOT_CORE) instead of a hard cut
+ * at the ellipse boundary.
  */
 static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int sh,
-	float cx, float mirrorY, float angle, float scale, float squashY,
+	float cx, float cy, float floorY, float gap, float angle, float scale, float squashY,
 	int spotCx, int spotCy, int spotRx, int spotRy, U8 tintR, U8 tintG, U8 tintB)
 {
-	float ca = cosf(-angle), sa = sinf(-angle);
+	float ca = cosf(angle), sa = sinf(angle); /* the object's own forward rotation --
+		see function comment for why this must not be negated */
 	float halfExt = 0.5f * scale * sqrtf((float)(sw * sw + sh * sh)) + 1.0f;
+	float yCenter = floorY + gap + squashY * (floorY - cy);
+	float yHalfExt = squashY * halfExt;
 	int x0 = (int)(cx - halfExt), x1 = (int)(cx + halfExt);
-	int y0 = (int)(mirrorY - halfExt), y1 = (int)(mirrorY + halfExt);
+	int y0 = (int)(yCenter - yHalfExt), y1 = (int)(yCenter + yHalfExt);
 	int x, y;
 
 	if (scale <= 0.001f || squashY <= 0.001f) return;
@@ -357,7 +369,7 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 		float ey = ((float)y - (float)spotCy) / (float)spotRy;
 		/* 0 right at the object, 1 by the time the reflection reaches the
 		   bottom of the oval -- the far end of the floor it's cast on */
-		float distT = ((float)y - mirrorY) / (float)spotRy;
+		float distT = ((float)y - (floorY + gap)) / (float)spotRy;
 		float distFade;
 
 		if (distT < 0.0f) distT = 0.0f;
@@ -369,7 +381,7 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 			float ex = ((float)x - (float)spotCx) / (float)spotRx;
 			float d = sqrtf(ex * ex + ey * ey);
 			float edgeFade, t;
-			float dx, dy, ux, uy, sx, sy;
+			float dx, dy, yPre, ux, uy, sx, sy;
 			int isx, isy;
 			U32 sc;
 			U8 sr, sg, sb, sa8;
@@ -381,10 +393,13 @@ static void blitReflection(U32 *dst, int dw, int dh, const U32 *src, int sw, int
 			t = d < SPOT_CORE ? 0.0f : (d - SPOT_CORE) / (1.0f - SPOT_CORE);
 			edgeFade = 1.0f - t * t * (3.0f - 2.0f * t);
 
+			/* flip + squash the destination y about the floor line, in screen
+			   space, before handing it to the object's own rotation formula */
+			yPre = floorY - (((float)y + 0.5f - gap - floorY) / squashY);
 			dx = (float)x + 0.5f - cx;
-			dy = (float)y + 0.5f - mirrorY;
+			dy = yPre - cy;
 			ux = (dx * ca + dy * sa) / scale;
-			uy = -(-dx * sa + dy * ca) / (scale * squashY); /* mirrored and flattened */
+			uy = (-dx * sa + dy * ca) / scale;
 			sx = ux + (float)sw * 0.5f;
 			sy = uy + (float)sh * 0.5f;
 
@@ -725,7 +740,7 @@ gameselect_done(void)
 	   enough going on without reflecting those too */
 	if (transition == 0.0f)
 		blitReflection(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
-			frontCx, 2.0f * (float)SPOT_CY - frontCy + REFLECT_GAP, frontAngle, frontScale, REFLECT_SQUASH,
+			frontCx, frontCy, (float)SPOT_CY, REFLECT_GAP, frontAngle, frontScale, REFLECT_SQUASH,
 			SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY, 0xD8, 0x6C, 0x00);
 
 	/* background disk first (behind), then front disk on top */
