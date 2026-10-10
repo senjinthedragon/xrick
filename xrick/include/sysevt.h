@@ -17,6 +17,9 @@
 extern void sysevt_poll(void);
 extern void sysevt_wait(void);
 
+/* Senjin's SDL3 port: forget every held input (see sysevt.c) */
+extern void sysevt_resetInput(void);
+
 #endif /* _SYSEVT_H */
 
 /* eof */

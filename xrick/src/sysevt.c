@@ -7,6 +7,8 @@
  * terms of this license.
  *
  * You must not remove this notice, or any other, from this software.
+ *
+ * SDL3 port and later modifications by Senjin the Dragon.
  */
 
 /*
@@ -19,16 +21,19 @@
 #include "system.h"
 #include "syskbd.h"
 #include "sysvid.h"
+#include "sysvid_gpu.h"
 #include "game.h"
 #include "debug.h"
 
 #include "control.h"
 #include "sysarg.h"
 #include "draw.h"
+#include "e_rick.h"
+#include "sysjoy.h"
+#include "menu.h"
+#include "settings.h"
 #include "rd2_snd.h"
 #include "rd2_sys.h"
-
-#define SYSJOY_RANGE 3280
 
 #define SETBIT(x,b) x |= (b)
 #define CLRBIT(x,b) x &= ~(b)
@@ -38,6 +43,157 @@ static SDL_Event event;
 /* raw key hook (rd2's IKBD model, rd2_sys.c) and window-close flag; NULL/0 for rd1 */
 void (*sysevt_rawkey)(U16 scancode, U8 down, U8 repeat) = NULL;
 U8 sysevt_quit = 0;
+
+/*
+ * Modern controls' dedicated shoot/bomb inputs (keyboard or gamepad): each
+ * just synthesizes the fire+up / fire+down combo e_rick.c already looks
+ * for. Releasing also resets the shoot debounce, which the classic combo
+ * only ever gets by keeping fire held (see e_rick_resetShootDebounce).
+ * rd1 only -- rd2 has no modern-controls equivalent (port-rd2.md §7).
+ */
+static void
+setShoot(int down)
+{
+	if (down) {
+		SETBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+	} else {
+		CLRBIT(control_status, CONTROL_FIRE | CONTROL_UP);
+		e_rick_resetShootDebounce();
+	}
+	control_last = CONTROL_FIRE;
+}
+
+static void
+setBomb(int down)
+{
+	if (down) {
+		SETBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
+	} else {
+		CLRBIT(control_status, CONTROL_FIRE | CONTROL_DOWN);
+		e_rick_resetShootDebounce();
+	}
+	control_last = CONTROL_FIRE;
+}
+
+#ifdef ENABLE_JOYSTICK
+#define PAD_DEADZONE 12000
+
+/*
+ * Gamepad directions come from two sources (d-pad and left stick) that
+ * can overlap, so track each, and only ever clear the bits the gamepad
+ * itself set -- not ones a held keyboard key is also contributing.
+ */
+static U8 padStick = 0, padDpad = 0, padJump = 0, padApplied = 0;
+static U8 padFire = 0, padShoot = 0, padBomb = 0;
+
+static void
+padApplyDirs(void)
+{
+	U8 want = padStick | padDpad | padJump;
+
+	CLRBIT(control_status, padApplied & ~want);
+	SETBIT(control_status, want);
+	padApplied = want;
+}
+
+static void
+padSetBit(U8 *mask, U8 bit, int on)
+{
+	if (on)
+		*mask |= bit;
+	else
+		*mask &= ~bit;
+	padApplyDirs();
+}
+
+static void
+padSetFire(int down)
+{
+	if (down)
+		SETBIT(control_status, CONTROL_FIRE);
+	else
+		CLRBIT(control_status, CONTROL_FIRE);
+	control_last = CONTROL_FIRE;
+	padFire = (U8)down;
+}
+
+static void
+padButton(int button, int down)
+{
+	int modern = sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN;
+
+	/* movement is always the d-pad; everything else is remappable */
+	if (button == SDL_GAMEPAD_BUTTON_DPAD_UP) {
+		padSetBit(&padDpad, CONTROL_UP, down);
+		control_last = CONTROL_UP;
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) {
+		padSetBit(&padDpad, CONTROL_DOWN, down);
+		control_last = CONTROL_DOWN;
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_LEFT) {
+		padSetBit(&padDpad, CONTROL_LEFT, down);
+		control_last = CONTROL_LEFT;
+	} else if (button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT) {
+		padSetBit(&padDpad, CONTROL_RIGHT, down);
+		control_last = CONTROL_RIGHT;
+	} else if (button == sysjoy_btn_jump) {
+		padSetBit(&padJump, CONTROL_UP, down);
+		control_last = CONTROL_UP;
+	} else if (button == sysjoy_btn_fire) {
+		padSetFire(down);
+	} else if (button == sysjoy_btn_shoot) {
+		if (modern) {
+			setShoot(down);
+			padShoot = (U8)down;
+		} else {
+			padSetFire(down);
+		}
+	} else if (button == sysjoy_btn_bomb) {
+		if (modern) {
+			setBomb(down);
+			padBomb = (U8)down;
+		} else {
+			padSetFire(down);
+		}
+	} else if (button == sysjoy_btn_pause) {
+		if (down)
+			SETBIT(control_status, CONTROL_PAUSE);
+		else
+			CLRBIT(control_status, CONTROL_PAUSE);
+		control_last = CONTROL_PAUSE;
+	}
+}
+
+/* release everything the active gamepad was holding (it was unplugged) */
+static void
+padReleaseAll(void)
+{
+	padStick = padDpad = padJump = 0;
+	padApplyDirs();
+	if (padShoot)
+		setShoot(0);
+	if (padBomb)
+		setBomb(0);
+	if (padFire)
+		padSetFire(0);
+	padShoot = padBomb = 0;
+}
+#endif /* ENABLE_JOYSTICK */
+
+/*
+ * Forget every held input: used when the settings menu opens or closes,
+ * so a key or button released while the menu had the focus can't leave
+ * the game thinking it's still held.
+ */
+void
+sysevt_resetInput(void)
+{
+	control_status = 0;
+	control_last = 0;
+#ifdef ENABLE_JOYSTICK
+	padStick = padDpad = padJump = padApplied = 0;
+	padFire = padShoot = padBomb = 0;
+#endif
+}
 
 /*
  * Process an event
@@ -50,12 +206,18 @@ processEvent()
 	SDL_ActiveEvent *aevent;
 #endif
 
+#ifndef __EMSCRIPTEN__
+	/* the settings menu (Escape / gamepad menu button) gets first pick --
+	   native builds only, see build.sh/sysvid_gpu.c: no menu on WebGL yet */
+	if (menu_handleEvent(&event))
+		return;
+#endif
+
 	switch (event.type) {
 	case SDL_EVENT_KEY_DOWN:
 		key = event.key.scancode; /* SDL3 flattened keysym onto the event directly */
 		if (sysevt_rawkey)
 			sysevt_rawkey(key, 1, event.key.repeat ? 1 : 0);
-		//key = event.key.key;
 		if (key == syskbd_up || key == SDL_SCANCODE_UP) {
 			SETBIT(control_status, CONTROL_UP);
 			control_last = CONTROL_UP;
@@ -88,6 +250,12 @@ processEvent()
 			SETBIT(control_status, CONTROL_FIRE);
 			control_last = CONTROL_FIRE;
 		}
+		else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+			setShoot(1);
+		}
+		else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+			setBomb(1);
+		}
 		else if (key == SDL_SCANCODE_F1) {
 			sysvid_toggleFullscreen();
 		}
@@ -118,12 +286,27 @@ processEvent()
 		else if (key == SDL_SCANCODE_F9) {
 			if (sysarg_args_game == 2) rd2_sys_toggleCheat(3); else game_toggleCheat(3);
 		}
+#ifndef __EMSCRIPTEN__
+		/* upscale/CRT/bezel cycling: sysvid_gpu.c (native builds) only */
+		else if (key == SDL_SCANCODE_F10) {
+			sysvid_cycleUpscale();
+		}
+		else if (key == SDL_SCANCODE_F11) {
+			sysvid_cycleCrt();
+		}
+		else if (key == SDL_SCANCODE_F12) {
+			sysvid_cycleBezel();
+		}
+#endif
+#ifndef __EMSCRIPTEN__
+		if ((key >= SDL_SCANCODE_F1 && key <= SDL_SCANCODE_F6) || (key >= SDL_SCANCODE_F10 && key <= SDL_SCANCODE_F12))
+			settings_save();
+#endif
 		break;
 	case SDL_EVENT_KEY_UP:
 		key = event.key.scancode;
 		if (sysevt_rawkey)
 			sysevt_rawkey(key, 0, 0);
-		//key = event.key.key;
 		if (key == syskbd_up || key == SDL_SCANCODE_UP) {
       CLRBIT(control_status, CONTROL_UP);
       control_last = CONTROL_UP;
@@ -156,6 +339,12 @@ processEvent()
       CLRBIT(control_status, CONTROL_FIRE);
       control_last = CONTROL_FIRE;
     }
+    else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_shoot) {
+      setShoot(0);
+    }
+    else if (sysarg_args_game != 2 && sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
+      setBomb(0);
+    }
     break;
   case SDL_EVENT_QUIT:
     /* player tries to close the window -- this is the same as pressing ESC */
@@ -164,55 +353,44 @@ processEvent()
     control_last = CONTROL_EXIT;
     break;
 #ifdef ENABLE_FOCUS
-  case SDL_ACTIVEEVENT: {
-    aevent = (SDL_ActiveEvent *)&event;
-    IFDEBUG_EVENTS(
-      sys_printf("xrick/events: active %x %x\n", aevent->gain, aevent->state);
-      );
-    if (aevent->gain == 1)
-      control_active = TRUE;
-    else
-      control_active = FALSE;
-    }
-  break;
+  case SDL_EVENT_WINDOW_FOCUS_GAINED:
+    control_active = TRUE;
+    break;
+  case SDL_EVENT_WINDOW_FOCUS_LOST:
+    control_active = FALSE;
+    break;
 #endif
 #ifdef ENABLE_JOYSTICK
-  case SDL_EVENT_JOYSTICK_AXIS_MOTION:
-    IFDEBUG_EVENTS(sys_printf("xrick/events: joystick\n"););
-    if (event.jaxis.axis == 0) {  /* left-right */
-      if (event.jaxis.value < -SYSJOY_RANGE) {  /* left */
-	SETBIT(control_status, CONTROL_LEFT);
-	CLRBIT(control_status, CONTROL_RIGHT);
-      }
-      else if (event.jaxis.value > SYSJOY_RANGE) {  /* right */
-	SETBIT(control_status, CONTROL_RIGHT);
-	CLRBIT(control_status, CONTROL_LEFT);
-      }
-      else {  /* center */
-	CLRBIT(control_status, CONTROL_RIGHT);
-	CLRBIT(control_status, CONTROL_LEFT);
-      }
-    }
-    if (event.jaxis.axis == 1) {  /* up-down */
-      if (event.jaxis.value < -SYSJOY_RANGE) {  /* up */
-	SETBIT(control_status, CONTROL_UP);
-	CLRBIT(control_status, CONTROL_DOWN);
-      }
-      else if (event.jaxis.value > SYSJOY_RANGE) {  /* down */
-	SETBIT(control_status, CONTROL_DOWN);
-	CLRBIT(control_status, CONTROL_UP);
-      }
-      else {  /* center */
-	CLRBIT(control_status, CONTROL_DOWN);
-	CLRBIT(control_status, CONTROL_UP);
-      }
+  case SDL_EVENT_GAMEPAD_ADDED:
+    sysjoy_added(event.gdevice.which);
+    break;
+  case SDL_EVENT_GAMEPAD_REMOVED:
+    if (sysjoy_removed(event.gdevice.which))
+      padReleaseAll();
+    break;
+  case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+    if (!sysjoy_isActive(event.gaxis.which))
+      break;
+    if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX) {
+      padStick &= (U8)~(CONTROL_LEFT | CONTROL_RIGHT);
+      if (event.gaxis.value < -PAD_DEADZONE)
+        padStick |= CONTROL_LEFT;
+      else if (event.gaxis.value > PAD_DEADZONE)
+        padStick |= CONTROL_RIGHT;
+      padApplyDirs();
+    } else if (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY) {
+      padStick &= (U8)~(CONTROL_UP | CONTROL_DOWN);
+      if (event.gaxis.value < -PAD_DEADZONE)
+        padStick |= CONTROL_UP;
+      else if (event.gaxis.value > PAD_DEADZONE)
+        padStick |= CONTROL_DOWN;
+      padApplyDirs();
     }
     break;
-  case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
-    SETBIT(control_status, CONTROL_FIRE);
-    break;
-  case SDL_EVENT_JOYSTICK_BUTTON_UP:
-    CLRBIT(control_status, CONTROL_FIRE);
+  case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+  case SDL_EVENT_GAMEPAD_BUTTON_UP:
+    if (sysjoy_isActive(event.gbutton.which))
+      padButton(event.gbutton.button, event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
     break;
 #endif
   default:
@@ -241,13 +419,22 @@ sysevt_wait(void)
 
 #ifdef __EMSCRIPTEN__
   if (SDL_PollEvent(&event))
+    processEvent();
 #else
-  SDL_WaitEvent(&event);
+  /* Block indefinitely as usual, except while the OSD's few-second message
+   * is still counting down: bound the wait so the game loop keeps ticking
+   * (and the OSD timer keeps getting checked) even on an otherwise-static
+   * screen like a menu, where nothing else would wake this loop up before
+   * the next real input event -- which could be much later than a few
+   * seconds away. */
+  if (sysvid_osdActive()) {
+    if (SDL_WaitEventTimeout(&event, 100))
+      processEvent();
+  } else {
+    SDL_WaitEvent(&event);
+    processEvent();
+  }
 #endif
-  processEvent();
 }
 
 /* eof */
-
-
-
