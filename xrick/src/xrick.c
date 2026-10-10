@@ -19,6 +19,8 @@
 #include "rd2_game.h"
 #include "rd2_snd.h"
 #include "splash.h"
+#include "settings.h"
+#include "sysjoy.h"
 
 #include <SDL3/SDL.h>
 #ifdef __EMSCRIPTEN__
@@ -63,6 +65,11 @@ sys_init(int argc, char** argv)
 {
 	setConsole();
 
+#ifndef __EMSCRIPTEN__
+	/* saved settings first, so command-line options override them --
+	   native builds only, see build.sh (settings.c needs sysvid_gpu.c) */
+	settings_load();
+#endif
 	sysarg_init(argc, argv);
 
 	// FIXME not writing to stdxxx.txt files anymore?
@@ -97,6 +104,9 @@ sys_init(int argc, char** argv)
 		else
 			syssnd_init();
 	}
+#endif
+#ifndef __EMSCRIPTEN__
+	settings_apply();
 #endif
 
 	atexit(sys_shutdown);

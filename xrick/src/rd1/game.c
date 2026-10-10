@@ -16,6 +16,7 @@
 #include "sysarg.h"
 #include "sysvid.h"
 #include "sysevt.h"
+#include "menu.h"
 #include "env.h"
 
 #include "game.h"
@@ -153,6 +154,17 @@ static void trace_tick(void);
  * toggles one of the three cheat options
  * FIXME weird dependencies here! + _state exclusion is not complete
  */
+/*
+ * Senjin's SDL3 port: true while the player has the game paused (the pause
+ * key), as opposed to merely being in the settings menu.
+ */
+U8
+game_isPaused(void)
+{
+	return game_state == PAUSED || game_state == PAUSE_PRESSED1 ||
+	       game_state == PAUSE_PRESSED1B || game_state == PAUSE_PRESSED2;
+}
+
 void game_toggleCheat(U8 nbr)
 {
 #ifdef ENABLE_CHEATS
@@ -328,6 +340,15 @@ static void game_loop(void)
 	//sysvid_update(fb_updatedRects);
 	sysvid_update(game_rects);
 	draw_STATUSRECT.next = NULL;  /* FIXME freerects should handle this */
+
+#ifndef __EMSCRIPTEN__
+	/* settings menu (native builds only -- see build.sh/sysvid_gpu.c, no
+	   menu on the WebGL renderer yet): the game stays frozen until it's closed */
+	if (menu_active()) {
+		sysevt_wait();
+		return;
+	}
+#endif
 
 	/* sound: nothing to do here, everything is managed via callbacks */
 

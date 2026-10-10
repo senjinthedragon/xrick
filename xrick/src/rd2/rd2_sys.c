@@ -34,6 +34,7 @@
 #include "rd2_sys.h"
 #include "rd2_game.h"
 #include "sysarg.h"
+#include "menu.h"
 
 U16 rd2_hw_pal[16];
 
@@ -113,7 +114,9 @@ extern U8 sysevt_quit;
 
 /* The host bindings (syskbd.c, -keys) decide, as in rd1: a key bound to a direction or fire
    is only that (sysevt.c tests those first), P is the pause binding, and the ST's S ($1f, debug
-   sound-id remap [$1a5ce]) is syskbd_sndset (F10), since S is a direction key (user decision 2026-10-04).
+   sound-id remap [$1a5ce]) is syskbd_sndset, since S is a direction key (user decision 2026-10-04;
+   syskbd_sndset's own default scancode moved off F10 to TAB once F10/F11/F12 became the renderer's
+   upscale/CRT/bezel cycle hotkeys, user decision 2026-10-10).
    The fire key (Space) is therefore not also sent as the keyboard's $39: see port-rd2.md §7. */
 static U8
 st_code(U16 sdl)
@@ -464,6 +467,20 @@ rd2_sys_pump(void)
 	sysevt_poll();
 	if (sysevt_quit || (control_status & CONTROL_EXIT))
 		exit(0);                                             /* window closed or ESC (rd1); sys_shutdown runs at exit */
+
+	/* settings menu (Senjin's SDL3 port): the game stays frozen -- no VBL
+	   advance, no input to the game -- until it's closed, as rd1's
+	   game_loop does. Unlike that early return, still present() every
+	   call: rd1's menu overlay is drawn inside sysvid_gl_present(), and
+	   nothing else here would ever draw it (no VBL ever fires to reach
+	   the present() below while menu_active(), since this would just
+	   keep returning before that point). */
+	if (menu_active()) {
+		present();
+		sysevt_wait();
+		return;
+	}
+
 	joystick();
 
 	now = sys_gettime();

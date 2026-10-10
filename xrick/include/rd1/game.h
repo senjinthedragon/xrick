@@ -55,6 +55,11 @@ extern void game_run(void);
 
 extern void game_toggleCheat(U8);
 
+/* Senjin's SDL3 port: true while the player has the game paused (the pause
+ * key), as opposed to merely being in the settings menu -- so the menu
+ * doesn't resume sound on close if the game's own pause is still held. */
+extern U8 game_isPaused(void);
+
 #endif
 
 /* eof */

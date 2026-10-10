@@ -14,9 +14,9 @@
  * sysvid.c still owns the 8bit-to-RGBA palette compositing and hands us
  * the finished frame as a plain RGBA8 buffer; this file owns everything
  * from there on: upload to the GPU, the upscale/CRT shader chain, bezel
- * compositing with screen curvature, and (for a future settings menu,
- * not wired up yet on this branch) an overlay-drawing API operating on
- * its own copy of that buffer.
+ * compositing with screen curvature, and the overlay-drawing API the
+ * settings menu (menu.c) draws itself with, operating on its own copy
+ * of that buffer.
  *
  * See xrick/src/shaders/gpu/ for the actual shaders.
  */
@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "sysvid_gl.h"
 #include "sysvid_gpu.h"
+#include "menu.h"
 #include "shaders_embedded.h"
 #include "bezels_embedded.h"
 #include "masks_embedded.h"
@@ -1705,9 +1706,12 @@ runChainAndPresent(void)
 /*
  * sysvid_gl_present
  *
- * copies the caller's finished RGBA frame into our own buffer (so the OSD,
- * and later a settings menu, can draw on top of it without touching
- * sysvid.c's own copy), then runs the chain.
+ * copies the caller's finished RGBA frame into our own buffer (so the OSD
+ * and the settings menu can draw on top of it without touching sysvid.c's
+ * own copy), then runs the chain. The menu is drawn here, not in upstream's
+ * shared sysvid.c, because it's only ever usable through this backend's own
+ * overlay API (sysvid_overlayRect/overlayText) -- sysvid_gl.c/WebGL has no
+ * equivalent, so the web build never links menu.c (see build.sh).
  */
 void
 sysvid_gl_present(const Uint8 *rgba)
@@ -1718,6 +1722,9 @@ sysvid_gl_present(const Uint8 *rgba)
 
 	if (sysvid_osdActive())
 		drawOSD();
+
+	if (menu_active())
+		menu_draw();
 
 	runChainAndPresent();
 }
