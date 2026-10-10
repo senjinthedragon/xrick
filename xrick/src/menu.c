@@ -549,10 +549,13 @@ activate(int it)
 		return;
 	case I_AUTOPLAY:
 		if (GAME2) {
-			/* rd2's end-of-run demo_active check is unaffected by ending the
-			   run (its own demo-stop call is gated and a no-op here), so
-			   setting it directly is fine. */
-			demo_active = TRUE;
+			/* not demo_active = TRUE directly here: rd2_game.c's END_OF_RUN
+			   unconditionally calls demo_end() right after this forced end,
+			   which would immediately clear it again before TITLE's
+			   rd2_demo_autostart() ever saw it (found 2026-10-10, AUTOPLAY
+			   silently never started a run). rd2_demo_rearm() now also marks
+			   the request so rd2_demo_resumeAutoplay() -- called right after
+			   that demo_end() -- restores demo_active for it. */
 			rd2_demo_rearm();
 			rd2_sys_forceEnd();
 		} else {

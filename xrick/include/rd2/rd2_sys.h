@@ -65,6 +65,8 @@ void rd2_demo_frame(void);                        /* frame head $10a54 */
 void rd2_demo_stop(void);                         /* end of run / back to the title */
 U8 rd2_demo_autostart(void);                      /* -demo: start the scripted game now (once) */
 void rd2_demo_rearm(void);                        /* let rd2_demo_autostart() fire again (menu.c) */
+void rd2_demo_resumeAutoplay(void);                /* rd2_game.c's END_OF_RUN: restore demo_active
+                                                        after demo_end() if AUTOPLAY asked for it */
 
 void rd2_1a546(U8 b);   /* ACIA handler, one received IKBD byte */
 void rd2_1a866(void);   /* TICK: runs in the audio thread, rd2_snd.c */

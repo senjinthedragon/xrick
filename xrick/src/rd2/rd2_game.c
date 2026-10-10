@@ -202,10 +202,15 @@ END_OF_RUN:                                     /* $10c00 */
 	/* host: capture before clearing it, and clear unconditionally here rather
 	   than through rd2_demo_stop() (gated on a script being loaded, which is
 	   false if this run ended before one was -- e.g. the menu's AUTOPLAY
-	   force-ending it right away -- and would leave demo_active on for
-	   rd2_demo_autostart() to fire all over again once this reaches TITLE). */
+	   force-ending it right away). rd2_demo_resumeAutoplay() then restores it
+	   if that's exactly what happened (AUTOPLAY's rd2_demo_rearm(), not a
+	   real demo naturally finishing) -- the demo_active=TRUE the menu set to
+	   drive this END_OF_RUN was otherwise wiped out here before
+	   rd2_demo_autostart() ever got a chance to see it TRUE at TITLE, so
+	   AUTOPLAY silently never started a run (found 2026-10-10). */
 	demo_wasActive = demo_active;
 	demo_end();
+	rd2_demo_resumeAutoplay();
 	rd2_sys_joyresync();                        /* host: keyboard for game over / name entry */
 #else
 	rd2_demo_stop();                            /* host: keyboard for game over / name entry */

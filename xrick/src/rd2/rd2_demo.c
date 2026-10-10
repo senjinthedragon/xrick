@@ -139,6 +139,8 @@ rd2_demo_frame(void)
    solved game (PLAN.md T47) starts by itself as a real game on map 1, whether the
    title timed out or fire was pressed */
 static U8 autostart_done;
+static U8 autoplay_pending; /* menu's AUTOPLAY asked to autostart on the NEXT trip
+                                through TITLE -- see rd2_demo_resumeAutoplay() */
 
 U8
 rd2_demo_autostart(void)
@@ -151,11 +153,33 @@ rd2_demo_autostart(void)
 
 /* lets rd2_demo_autostart() fire again -- it's normally a once-per-process
    latch for -demo's own autostart, but the menu's AUTOPLAY action (menu.c)
-   needs to re-arm it each time it's picked */
+   needs to re-arm it each time it's picked. Also marks that this is a
+   menu-requested autoplay, not a real demo naturally finishing, so
+   rd2_demo_resumeAutoplay() knows to restore demo_active after rd2_game.c's
+   END_OF_RUN clears it (see that function's comment -- without this,
+   AUTOPLAY silently never started: demo_active was cleared by the very
+   force-ended run it used to trigger a restart, before rd2_demo_autostart()
+   ever got to see it TRUE at TITLE. Found 2026-10-10.) */
 void
 rd2_demo_rearm(void)
 {
 	autostart_done = 0;
+	autoplay_pending = 1;
+}
+
+/* called from rd2_game.c's END_OF_RUN, right after demo_end() -- restores
+   demo_active if the run that just ended was force-ended by the menu's
+   AUTOPLAY (rd2_demo_rearm()) rather than a real demo script finishing on
+   its own, so rd2_demo_autostart() sees it TRUE once TITLE is reached. A
+   real demo ending naturally leaves this flag unset, so demo_active stays
+   cleared for that case exactly as before. */
+void
+rd2_demo_resumeAutoplay(void)
+{
+	if (autoplay_pending) {
+		autoplay_pending = 0;
+		demo_active = TRUE;
+	}
 }
 
 /* the run is over (END_OF_RUN, or ESC back to the title): the keyboard takes over for
@@ -177,6 +201,7 @@ void rd2_demo_frame(void) {}
 void rd2_demo_stop(void) {}
 U8 rd2_demo_autostart(void) { return 0; }
 void rd2_demo_rearm(void) {}
+void rd2_demo_resumeAutoplay(void) {}
 
 #endif /* ENABLE_DEMO */
 
