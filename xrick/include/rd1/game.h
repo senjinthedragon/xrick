@@ -67,6 +67,16 @@ extern U8 game_isPaused(void);
  * intro, game over, name entry). */
 extern void game_endRun(void);
 
+#ifdef ENABLE_DEMO
+/* Senjin's SDL3 port: arms demo_active for the *next* time MAIN_INTRO is
+ * entered, rather than setting it immediately -- menu.c's AUTOPLAY calls
+ * this instead of setting demo_active directly when ending a real run to
+ * start one, since FADEOUT__GAMEOVER (which game_endRun() leads to)
+ * unconditionally calls demo_end() as its first action, clearing
+ * demo_active before the title ever sees it. */
+extern void game_queueDemo(void);
+#endif
+
 #endif
 
 /* eof */

@@ -181,6 +181,16 @@ game_endRun(void)
 		game_state = FADEOUT__GAMEOVER;
 }
 
+#ifdef ENABLE_DEMO
+static U8 demo_pending;
+
+void
+game_queueDemo(void)
+{
+	demo_pending = TRUE;
+}
+#endif
+
 void game_toggleCheat(U8 nbr)
 {
 #ifdef ENABLE_CHEATS
@@ -454,6 +464,12 @@ static void game_cycle(void)
 
 		case MAIN_INTRO:
 
+#ifdef ENABLE_DEMO
+			if (demo_pending) {
+				demo_pending = FALSE;
+				demo_active = TRUE;
+			}
+#endif
 			switch (screen_introMain())
 			{
 				case SCREEN_RUNNING:
