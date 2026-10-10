@@ -557,6 +557,14 @@ sysvid_toggleFullscreen(void)
 
 	zoom = videoFlags & SDL_FULLSCREEN ? 1 : wmzoom;
 
+	/* leaving fullscreen: don't rely on SDL/the window manager to restore
+	   the pre-fullscreen window size on their own -- found 2026-10-10 not
+	   to happen reliably (KDE/KWin), landing back at 1x instead of whatever
+	   zoom (e.g. 2x/3x) the window was at before. Set it explicitly, same
+	   as sysvid_zoom() does for a normal zoom change. */
+	if (!(videoFlags & SDL_FULLSCREEN))
+		SDL_SetWindowSize(screen, fb_width * zoom, fb_height * zoom);
+
 	sysvid_setDisplayPalette();
 	sysvid_update(&SCREENRECT); /* repaint all */ /* FIXME */
 
