@@ -299,20 +299,30 @@ static void blitRotScale(U32 *dst, int dw, int dh, const U32 *src, int sw, int s
 	}
 }
 
-/* filled ellipse, flat colour -- the spotlight */
+/* filled ellipse, full brightness out to 55% of each radius then a smooth
+   falloff to black at the edge -- a soft-edged spotlight, not a flat disc */
 static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
 {
-	int y;
+	int x, y;
+	U8 cr = (U8)color, cg = (U8)(color >> 8), cb = (U8)(color >> 16);
+	const float core = 0.55f; /* fraction of the radius that stays full brightness */
 
 	for (y = -ry; y <= ry; y++)
 	{
-		float f = 1.0f - ((float)(y * y) / (float)(ry * ry));
-		int hw, x;
+		float fy = (float)y / (float)ry;
 
-		if (f < 0.0f) continue;
-		hw = (int)((float)rx * sqrtf(f));
-		for (x = -hw; x <= hw; x++)
-			putpx(fb, GS_W, GS_H, cx + x, cy + y, color);
+		for (x = -rx; x <= rx; x++)
+		{
+			float fx = (float)x / (float)rx;
+			float d = sqrtf(fx * fx + fy * fy);
+			float t, inten;
+
+			if (d > 1.0f) continue;
+			t = d < core ? 0.0f : (d - core) / (1.0f - core);
+			inten = 1.0f - t * t * (3.0f - 2.0f * t); /* smoothstep falloff */
+			putpx(fb, GS_W, GS_H, cx + x, cy + y,
+				RGBA((U8)((float)cr * inten), (U8)((float)cg * inten), (U8)((float)cb * inten), 0xFF));
+		}
 	}
 }
 
@@ -461,7 +471,7 @@ gameselect_done(void)
 
 	/* ---- draw ---- */
 	memset(frame, 0, sizeof(frame));
-	drawSpotlight(frame, SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY, RGBA(0x60, 0xA8, 0xE8, 0xFF));
+	drawSpotlight(frame, SPOT_CX, SPOT_CY, SPOT_RX, SPOT_RY, RGBA(0xD8, 0x6C, 0x00, 0xFF));
 
 	/* background disk first (behind), then front disk on top */
 	blitRotScale(frame, GS_W, GS_H, diskSprite[otherIdx], DISK_W, DISK_H,
