@@ -67,6 +67,7 @@ static const intSetting_t intSettings[] = {
     {"aspect", &sysarg_args_aspect, 0, 1},
     {"bezel", &sysarg_args_bezel, 0, 2},
     {"controls", &sysarg_args_controls, 0, 1},
+    {"store_highscores", &sysarg_args_storeHighscores, 0, 1},
     {"speed_period", &sysarg_args_period, 0, 100},
     {"pad_jump", &sysjoy_btn_jump, 0, SDL_GAMEPAD_BUTTON_COUNT - 1},
     {"pad_fire", &sysjoy_btn_fire, 0, SDL_GAMEPAD_BUTTON_COUNT - 1},

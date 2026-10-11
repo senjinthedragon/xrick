@@ -160,6 +160,7 @@ screen_getname(void)
 	game_hscores[i].score = env_score;
 	for (x = 0; x < 10; x++)
 	  game_hscores[i].name[x] = name[x];
+	game_hscoresSave();
 	seq = 99;
       }
       else {

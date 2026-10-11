@@ -105,6 +105,7 @@ typedef enum {
 	I_MUTE,
 	I_CONTROLS,
 	I_SPEED,
+	I_STORE_HSCORES,
 	I_SELECT_MAP,
 	I_TRAINER,
 	I_INVINCIBLE,
@@ -149,7 +150,7 @@ static const pagedef_t pages[PG_COUNT] = {
 #endif
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
-    {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
+    {"GAME", PG_MAIN, 4, {I_CONTROLS, I_SPEED, I_STORE_HSCORES, I_BACK}},
     {"CHEATS", PG_MAIN, 5, {I_TRAINER, I_INVINCIBLE, I_HIGHLIGHT, I_AUTOPLAY, I_BACK}},
     {"KEYBOARD CONTROLS", PG_MAIN, 10, {I_KEY_0 + 0, I_KEY_0 + 1, I_KEY_0 + 2, I_KEY_0 + 3, I_KEY_0 + 4, I_KEY_0 + 5, I_KEY_0 + 6, I_KEY_0 + 7, I_KEYS_RESET, I_BACK}},
     {"GAMEPAD CONTROLS", PG_MAIN, 8, {I_PAD_0 + 0, I_PAD_0 + 1, I_PAD_0 + 2, I_PAD_0 + 3, I_PAD_0 + 4, I_PAD_0 + 5, I_PAD_RESET, I_BACK}},
@@ -399,6 +400,9 @@ adjust(int it, int dir)
 	case I_CONTROLS:
 		sysarg_args_controls = sysarg_args_controls ? 0 : 1;
 		sysevt_resetInput();
+		break;
+	case I_STORE_HSCORES:
+		sysarg_args_storeHighscores = sysarg_args_storeHighscores ? 0 : 1;
 		break;
 	case I_SPEED: {
 		/* right = faster = shorter frame period; rd1 only, rd2's VBL loop is fixed 50 Hz */
@@ -1025,6 +1029,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_SPEED:
 		label = "GAME SPEED";
 		break;
+	case I_STORE_HSCORES:
+		label = "STORE HIGHSCORES";
+		break;
 	case I_SELECT_MAP:
 		label = "SELECT MAP";
 		break;
@@ -1137,6 +1144,9 @@ drawItem(int it, int xl, int xr, int y, int selected)
 			snprintf(buf, sizeof buf, "%d%%", GAME_SPEED_DEFAULT * 100 / gamePeriod());
 			choiceText(xr, y, buf);
 		}
+		break;
+	case I_STORE_HSCORES:
+		choiceText(xr, y, onOff[sysarg_args_storeHighscores ? 1 : 0]);
 		break;
 	case I_TRAINER:
 		choiceText(xr, y, onOff[cheatValue(1) ? 1 : 0]);

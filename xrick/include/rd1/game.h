@@ -43,6 +43,8 @@ typedef struct {
 } hscore_t;
 
 extern hscore_t game_hscores[8];  /* highest scores (hall of fame) */
+extern void game_hscoresLoad(void); /* STORE HIGHSCORES, see game.c */
+extern void game_hscoresSave(void);
 
 extern U8 game_dir;        /* direction (LEFT, RIGHT) */
 

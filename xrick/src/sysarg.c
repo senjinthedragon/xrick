@@ -58,6 +58,7 @@ int sysarg_args_crt = 0;
 int sysarg_args_bezel = 0;
 int sysarg_args_aspect = 0;  /* 0 = 4:3 corrected, 1 = square pixels */
 int sysarg_args_controls = 0;  /* controlsMode_t: 0 classic, 1 modern */
+int sysarg_args_storeHighscores = 0;  /* off by default -- menu's GAME page, Senjin 2026-10-12 */
 int sysarg_args_nosound = 0;
 int sysarg_args_vol = -1;  /* -vol: 0 (silence) .. SYSSND_MAXVOL; -1 = not given */
 int sysarg_args_game = 1;   /* -game: 1 = Rick Dangerous, 2 = Rick Dangerous 2 */

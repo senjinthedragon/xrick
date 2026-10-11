@@ -114,6 +114,8 @@ void rd2_1789a(void);  /* end-of-game tally, rd2_score.c */
 void rd2_17bda(void);  /* ending: sound 9 + scene 2 unless demo, rd2_flow.c */
 void rd2_17c06(void);  /* game over, rd2_flow.c */
 void rd2_17f22(void);  /* hall-of-fame entry, rd2_flow.c */
+void rd2_hofLoad(void); /* STORE HIGHSCORES, rd2_game.c */
+void rd2_hofSave(void);
 
 /* ---- entry point */
 void rd2_game_run(void);   /* boot $10000 + game_main $10992, replaces rd1's game_run() when -game 2 (P6) */

@@ -395,6 +395,7 @@ rd2_17f22(void)
 		rd2_wb(a1++, (U8)(d3b + 1));
 		if (--d2 == -1) break;
 	}
+	rd2_hofSave(); /* host: STORE HIGHSCORES, rd2_game.c */
 }
 
 /* ---- scenes ---- */

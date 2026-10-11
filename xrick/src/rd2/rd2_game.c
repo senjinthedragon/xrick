@@ -17,6 +17,12 @@
  * original, map 5 included (user decision 2026-09-24, port-rd2.md §7).
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <SDL3/SDL.h> /* SDL_GetPrefPath, for rd2_hofLoad/Save -- see settings.c's own filePath() */
+
 #include "sysarg.h"
 #include "rd2_mem.h"
 #include "rd2_sys.h"
@@ -30,6 +36,76 @@
    does for the game's own built-in attract demo (RD2_DEMO). */
 static U8 demo_wasActive;
 #endif
+
+#define RD2_HOF_BASE 0x17d0eu
+#define RD2_HOF_LEN (8 * 0x1eu) /* 8 entries x 0x1e bytes -- rd2_17f22, rd2_flow.c */
+
+static char *
+rd2_hofPath(void)
+{
+	char *dir = SDL_GetPrefPath("xrick", "xrick");
+	char *path;
+	size_t n;
+
+	if (!dir) return NULL;
+	n = strlen(dir) + strlen("hiscores_rd2.dat") + 1;
+	path = (char *)malloc(n);
+	if (path) snprintf(path, n, "%shiscores_rd2.dat", dir);
+	SDL_free(dir);
+	return path;
+}
+
+/*
+ * rd2_hofLoad / rd2_hofSave
+ *
+ * STORE HIGHSCORES (settings menu, GAME page; Senjin 2026-10-12), off by
+ * default -- see game_hscoresLoad/Save's own comment (rd1/game.c) for the
+ * rationale shared with RD1. RD2's hall of fame lives in emulated ST
+ * memory ($17d0e, 8 entries x $1e bytes -- rd2_17f22, rd2_flow.c); copied
+ * here as a raw byte range rather than decoded field by field, since
+ * nothing here needs to understand its internal layout, only preserve it
+ * exactly. Load is called once from rd2_boot() below; save from
+ * rd2_17f22() itself, right after it inserts a new entry.
+ */
+void
+rd2_hofLoad(void)
+{
+	char *path;
+	FILE *f;
+	U8 buf[RD2_HOF_LEN];
+	U32 i;
+
+	if (!sysarg_args_storeHighscores) return;
+	path = rd2_hofPath();
+	if (!path) return;
+	f = fopen(path, "rb");
+	free(path);
+	if (!f) return;
+	if (fread(buf, sizeof buf, 1, f) == 1)
+		for (i = 0; i < RD2_HOF_LEN; i++)
+			rd2_wb(RD2_HOF_BASE + i, buf[i]);
+	fclose(f);
+}
+
+void
+rd2_hofSave(void)
+{
+	char *path;
+	FILE *f;
+	U8 buf[RD2_HOF_LEN];
+	U32 i;
+
+	if (!sysarg_args_storeHighscores) return;
+	path = rd2_hofPath();
+	if (!path) return;
+	f = fopen(path, "wb");
+	free(path);
+	if (!f) return;
+	for (i = 0; i < RD2_HOF_LEN; i++)
+		buf[i] = rd2_rb(RD2_HOF_BASE + i);
+	fwrite(buf, sizeof buf, 1, f);
+	fclose(f);
+}
 
 /* boot $10000 (algo-flow.md §13). TOS save ($18f26), MFP/vector setup and the IKBD
    commands are hardware; their RAM writes are only read by the exit path. */
@@ -50,6 +126,7 @@ rd2_boot(void)
 	U8 hadLoop = rd2_snd_rw(0x1aa08) != 0;
 
 	rd2_mem_init();                 /* program at $f8b8; $53400-$7ffff zero ($18fbe) */
+	rd2_hofLoad();                  /* host: STORE HIGHSCORES, after mem_init zeroes it */
 	rd2_sys_init();
 	rd2_sys_setbase(0x07, 0x80);    /* $18ffc: Setscreen($78000, $78000, 0) */
 	rd2_ww(0x18ed8, 2);             /* $1901a */

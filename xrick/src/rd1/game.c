@@ -11,6 +11,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+
+#include <SDL3/SDL.h> /* SDL_GetPrefPath, for game_hscoresLoad/Save -- see settings.c's own filePath() */
 
 #include "system.h"
 #include "sysarg.h"
@@ -254,6 +257,86 @@ static void web_frame(void);
 
 
 /*
+ * game_hscoresPath
+ *
+ * settings.c's own filePath() is static to that file; this is the same
+ * SDL_GetPrefPath("xrick","xrick") directory, just a different filename.
+ * Caller frees the result.
+ */
+static char *
+game_hscoresPath(void)
+{
+	char *dir = SDL_GetPrefPath("xrick", "xrick");
+	char *path;
+	size_t n;
+
+	if (!dir) return NULL;
+	n = strlen(dir) + strlen("hiscores_rd1.dat") + 1;
+	path = (char *)malloc(n);
+	if (path) snprintf(path, n, "%shiscores_rd1.dat", dir);
+	SDL_free(dir);
+	return path;
+}
+
+/*
+ * game_hscoresLoad
+ *
+ * STORE HIGHSCORES (settings menu, GAME page; Senjin 2026-10-12), off by
+ * default: when on, overwrites the compiled-in default table (above) with
+ * whatever was last saved, so a win carries over to the next session
+ * instead of resetting every run as it always used to. Called once, at
+ * the very start of game_run() -- before this, game_hscores is the
+ * compiled-in default table scr_getname.c would otherwise always start
+ * from. A raw fixed-layout struct array, same build reading its own data
+ * back, so writing/reading it as one block (rather than field by field)
+ * is safe here -- no cross-platform sharing of this file is expected or
+ * needed.
+ */
+void
+game_hscoresLoad(void)
+{
+	char *path;
+	FILE *f;
+
+	if (!sysarg_args_storeHighscores) return;
+	path = game_hscoresPath();
+	if (!path) return;
+	f = fopen(path, "rb");
+	free(path);
+	if (!f) return;
+	{
+		hscore_t loaded[8];
+		if (fread(loaded, sizeof loaded, 1, f) == 1)
+			memcpy(game_hscores, loaded, sizeof loaded);
+	}
+	fclose(f);
+}
+
+/*
+ * game_hscoresSave
+ *
+ * called right after scr_getname.c inserts a new entry into game_hscores.
+ * A no-op (not even touching the file) while the setting is off, so
+ * turning it off doesn't also silently erase a file saved earlier --
+ * see STORE HIGHSCORES's own menu.c comment for that reasoning.
+ */
+void
+game_hscoresSave(void)
+{
+	char *path;
+	FILE *f;
+
+	if (!sysarg_args_storeHighscores) return;
+	path = game_hscoresPath();
+	if (!path) return;
+	f = fopen(path, "wb");
+	free(path);
+	if (!f) return;
+	fwrite(game_hscores, sizeof game_hscores, 1, f);
+	fclose(f);
+}
+
+/*
  * game_run
  *
  * main loop.
@@ -261,6 +344,7 @@ static void web_frame(void);
 void
 game_run(void)
 {
+	game_hscoresLoad();
 	loadData(); /* load cached data */
 
 	game_period = sysarg_args_period ? sysarg_args_period : GAME_PERIOD;
