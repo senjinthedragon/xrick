@@ -657,8 +657,12 @@ navigate(int dir_x, int dir_y, int select, int back)
  * A hit selects that row and activates it, same as pressing Enter/Space on it --
  * including activate()'s own fallback of adjust(it, +1) for choice/value rows (VOLUME,
  * UPSCALER, etc.), so tapping one of those cycles it forward by one step, the same as
- * the keyboard/gamepad confirm button already does. No-ops if the menu isn't open, in
- * CAP_KEY/CAP_PAD capture, or on the credits page (no rows there).
+ * the keyboard/gamepad confirm button already does. No-ops if the menu isn't open or
+ * in CAP_KEY/CAP_PAD capture. The credits page has no rows to hit-test (it's a plain
+ * scrolling text view, menu_draw() special-cases its own full-screen draw) -- any tap
+ * there just exits back, same as its own single I_BACK item already does on
+ * Backspace/Enter, since the overlay MENU button was otherwise the only way to leave
+ * it by touch (Senjin, 2026-10-12).
  */
 void
 menu_tapSelect(int fbX, int fbY)
@@ -666,8 +670,12 @@ menu_tapSelect(int fbX, int fbY)
 	const pagedef_t *pg;
 	int w, h, x, y, i;
 
-	if (!active || mode != NAV || page == PG_CREDITS)
+	if (!active || mode != NAV)
 		return;
+	if (page == PG_CREDITS) {
+		goBack();
+		return;
+	}
 
 	pg = curPageDef();
 	w = PANEL_W;
