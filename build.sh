@@ -156,7 +156,9 @@ CXXFLAGS="$INC -O2 -std=c++17 -sUSE_SDL=3"
 # -lidbfs.js: settings persistence (Phase 4) -- player.js's setupIDBFS() mounts IDBFS at
 # /libsdl (autoPersist: true) and syncs it from IndexedDB before calling Module.callMain(),
 # so settings.c's fopen("/libsdl/xrick/xrick/settings.ini") sees last visit's file.
-LDFLAGS="-O2 -sUSE_SDL=3 -sMAX_WEBGL_VERSION=2 -sINVOKE_RUN=0 -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS -sEXPORTED_FUNCTIONS=_main,_fflush -sALLOW_MEMORY_GROWTH=1 -lidbfs.js"
+# ccall + _sysvid_reassertSize: player.js calls this once, a moment after startup, to work
+# around a mobile canvas-stays-0x0 race (sysvid.c's own header comment on the function).
+LDFLAGS="-O2 -sUSE_SDL=3 -sMAX_WEBGL_VERSION=2 -sINVOKE_RUN=0 -sEXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS,ccall -sEXPORTED_FUNCTIONS=_main,_fflush,_sysvid_reassertSize -sALLOW_MEMORY_GROWTH=1 -lidbfs.js"
 
 cd "$SRCDIR"
 # src/sysvid_gpu.c (SDL_GPU, Linux/Windows native renderer) is excluded here: the web

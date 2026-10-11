@@ -326,22 +326,22 @@ function start() {
   setupIDBFS(function () {
     Module.callMain(args);
     resumeSdlAudio();
-    nudgeRepaint();
+    reassertCanvasSize();
   });
 }
 
 // Some mobile browsers (reported: Chrome on a Samsung Galaxy S23 Edge, 2026-10-12) leave
-// the WebGL canvas showing stale/blank pixels after callMain creates its context and starts
-// rendering here, inside the same tap that just hid #start -- audio runs fine, so the game
-// itself is not stuck, only the compositor's first paint of the canvas. Toggling fullscreen
-// incidentally "fixes" it, because that forces the browser to recompute layout and
-// recomposite; dispatching a couple of resize events does the same thing without needing
-// the user to find and tap the fullscreen button. Not reproducible in a desktop browser,
-// so this could use real-device confirmation.
-function nudgeRepaint() {
-  function fire() { window.dispatchEvent(new Event('resize')); }
-  requestAnimationFrame(fire);
-  setTimeout(fire, 300);
+// the canvas's actual width/height at 0 shortly after callMain creates it -- audio runs
+// fine, so the game itself isn't stuck, only the canvas's pixel buffer. Confirmed from the
+// browser side that toggling fullscreen fixes it; traced that to sysvid.c's
+// sysvid_toggleFullscreen() re-asserting the window size via SDL_SetWindowSize and forcing
+// a repaint when leaving fullscreen, rather than it being a generic "any event forces a
+// recompute" thing (a plain window resize event, tried first, did nothing -- SDL wasn't
+// listening for that one here). sysvid_reassertSize() (sysvid.c, __EMSCRIPTEN__ only) does
+// the same two calls directly, exported via build.sh's EXPORTED_FUNCTIONS so this can call
+// it without needing the player to find and tap the fullscreen button themselves.
+function reassertCanvasSize() {
+  try { Module.ccall('sysvid_reassertSize', null, [], []); } catch (e) { /* ignore */ }
 }
 
 canvas.addEventListener('webglcontextlost', function (e) {

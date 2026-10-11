@@ -30,6 +30,9 @@ extern void sysvid_update(rect_t*);
 extern void sysvid_updateRGBA(const U32 *rgba);
 extern void sysvid_zoom(S8);
 extern void sysvid_toggleFullscreen(void);
+#ifdef __EMSCRIPTEN__
+extern void sysvid_reassertSize(void); /* mobile web canvas-stays-0x0 workaround, sysvid.c */
+#endif
 extern void sysvid_setDisplayPalette(void);
 //extern void sysvid_setPalette(img_color_t*, U16);
 extern void sysvid_setPaletteFromRGB(U8* r, U8* g, U8* b, U16 n);

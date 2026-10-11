@@ -543,6 +543,32 @@ sysvid_zoom(S8 z)
 
 
 
+#ifdef __EMSCRIPTEN__
+/*
+ * sysvid_reassertSize
+ *
+ * Mobile web (reported: Chrome on a Samsung Galaxy S23 Edge, 2026-10-12): the canvas
+ * sometimes ends up with width/height 0 shortly after sysvid_gl_init() creates it --
+ * audio keeps running fine, so the game itself isn't stuck, only the canvas's actual
+ * pixel buffer. Confirmed from the browser side that toggling fullscreen is what fixes
+ * it, and sysvid_toggleFullscreen() above already shows why: leaving fullscreen
+ * re-asserts the window size via this exact SDL_SetWindowSize call and forces a full
+ * repaint, rather than trusting the browser to have kept the right size on its own.
+ * Doing the same thing once, a moment after startup, from player.js (via
+ * Module.ccall, see build.sh's EXPORTED_FUNCTIONS) fixes the same race without needing
+ * the player to find and tap the fullscreen button themselves.
+ */
+void
+sysvid_reassertSize(void)
+{
+	if (!screen)
+		return;
+	SDL_SetWindowSize(screen, fb_width * zoom, fb_height * zoom);
+	sysvid_setDisplayPalette();
+	sysvid_update(&SCREENRECT);
+}
+#endif
+
 /*
  * sysvid_toggleFullscreen
  *
