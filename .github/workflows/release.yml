@@ -1,0 +1,208 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  SDL_TAG: release-3.4.18
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config cmake ninja-build git \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libwayland-dev libxkbcommon-dev libdecor-0-dev \
+            libdrm-dev libgbm-dev libdbus-1-dev libudev-dev libibus-1.0-dev
+
+      # glslc (shaderc) is needed to compile src/shaders/gpu/*.vert|frag to SPIR-V for
+      # shaders_embedded.c's #embed. Try the distro package first (name/availability
+      # varies by Ubuntu release); fall back to LunarG's Vulkan SDK apt repo, which
+      # always includes it.
+      - name: Install glslc
+        run: |
+          sudo apt-get install -y glslc && exit 0
+          echo "glslc not packaged here, adding the LunarG Vulkan SDK repo"
+          CODENAME="$(lsb_release -cs)"
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc >/dev/null
+          sudo wget -qO "/etc/apt/sources.list.d/lunarg-vulkan-$CODENAME.list" "https://packages.lunarg.com/vulkan/lunarg-vulkan-$CODENAME.list"
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+          which glslc
+
+      # Built from source (not the distro package) so the version is pinned and known,
+      # rather than whatever Ubuntu happens to ship -- matters for a release binary.
+      - name: Build SDL3
+        run: |
+          git clone --branch "$SDL_TAG" --depth 1 https://github.com/libsdl-org/SDL.git /tmp/SDL
+          cmake -S /tmp/SDL -B /tmp/SDL/build -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install
+          cmake --build /tmp/SDL/build
+          cmake --install /tmp/SDL/build
+
+      - name: Build xrick
+        working-directory: xrick
+        run: |
+          export PKG_CONFIG_PATH="/tmp/sdl3-install/lib/pkgconfig:/tmp/sdl3-install/lib64/pkgconfig"
+          # $ORIGIN so the binary finds the bundled libSDL3.so next to it rather than
+          # needing SDL3 installed system-wide or LD_LIBRARY_PATH set. The \$$ before
+          # ORIGIN survives three layers of expansion (this shell, make's $$->$, and the
+          # subshell make spawns to run the recipe) as a literal $ORIGIN -- verified
+          # locally against an isolated directory with no system SDL3 before writing
+          # this workflow.
+          make -j"$(nproc)" LDFLAGS='-Wl,-rpath,\$$ORIGIN'
+          strip --strip-all ../build/wsl/xrick
+          file ../build/wsl/xrick
+
+      - name: Package
+        run: |
+          OUT=xrick-linux-x86_64
+          mkdir "$OUT"
+          cp build/wsl/xrick "$OUT/"
+          cp /tmp/sdl3-install/lib/libSDL3.so* "$OUT/" 2>/dev/null || cp /tmp/sdl3-install/lib64/libSDL3.so* "$OUT/"
+          zip -r "$OUT.zip" "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrick-linux-x86_64
+          path: xrick-linux-x86_64.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulkan SDK (for glslc)
+        shell: cmd
+        run: |
+          curl -L -o VulkanSDK.exe https://sdk.lunarg.com/sdk/download/latest/windows/VulkanSDK.exe
+          VulkanSDK.exe --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core
+          echo %VULKAN_SDK%
+
+      - name: Add glslc to PATH
+        shell: bash
+        run: |
+          VSDK=$(ls -d /c/VulkanSDK/*/Bin | sort -V | tail -1)
+          echo "$VSDK" >> "$GITHUB_PATH"
+
+      - name: vcpkg install
+        working-directory: xrick
+        shell: cmd
+        run: |
+          "%VCPKG_INSTALLATION_ROOT%\vcpkg.exe" install --triplet x64-windows
+
+      - name: Build (MSBuild, Release x64)
+        shell: cmd
+        run: |
+          call "%VCPKG_INSTALLATION_ROOT%\..\VsDevCmd.bat" || call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" || call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+          msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal
+
+      - name: Package
+        shell: bash
+        run: |
+          OUT=xrick-windows-x64
+          mkdir "$OUT"
+          cp xrick/bin/Release/xrick.exe "$OUT/"
+          cp xrick/bin/Release/SDL3.dll "$OUT/"
+          7z a "$OUT.zip" "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrick-windows-x64
+          path: xrick-windows-x64.zip
+
+  build-macos:
+    # Best-effort: neither of us can run or test macOS. This job mirrors the Linux
+    # job's approach (SDL3 from source, Makefile, rpath-relative bundling) but is not
+    # verified to actually work.
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: brew install pkg-config shaderc ninja cmake
+
+      - name: Build SDL3
+        run: |
+          git clone --branch "$SDL_TAG" --depth 1 https://github.com/libsdl-org/SDL.git /tmp/SDL
+          cmake -S /tmp/SDL -B /tmp/SDL/build -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install
+          cmake --build /tmp/SDL/build
+          cmake --install /tmp/SDL/build
+
+      - name: Build xrick
+        working-directory: xrick
+        run: |
+          export PKG_CONFIG_PATH="/tmp/sdl3-install/lib/pkgconfig"
+          make -j"$(sysctl -n hw.ncpu)" LDFLAGS='-Wl,-rpath,@executable_path'
+          strip -S ../build/wsl/xrick
+          file ../build/wsl/xrick
+
+      - name: Package
+        run: |
+          OUT=xrick-macos
+          mkdir "$OUT"
+          cp build/wsl/xrick "$OUT/"
+          cp /tmp/sdl3-install/lib/libSDL3*.dylib "$OUT/"
+          install_name_tool -change "$(otool -L "$OUT/xrick" | grep libSDL3 | awk '{print $1}')" "@rpath/$(basename "$OUT"/libSDL3*.dylib)" "$OUT/xrick"
+          zip -r "$OUT.zip" "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrick-macos
+          path: xrick-macos.zip
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Build web
+        run: EMSDK_DIR="$EMSDK" ./build.sh web
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy-pages:
+    needs: build-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create/update release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes/${{ github.ref_name }}.md
+          files: artifacts/*/*.zip
