@@ -196,6 +196,23 @@ jobs:
         with:
           path: build/web
 
+      # actions/upload-pages-artifact above packs its own tarball for the Pages deploy
+      # job specifically -- not something a person can usefully download and unzip, so
+      # this is a second, plain zip of the same build/web/ for the release's own assets
+      # (Senjin's request 2026-10-12: make the web build downloadable, not just playable
+      # live via Pages).
+      - name: Package web
+        run: |
+          OUT=xrick-web
+          mkdir "$OUT"
+          cp build/web/index.html build/web/player.js build/web/style.css build/web/xrick.js build/web/xrick.wasm "$OUT/"
+          zip -r "$OUT.zip" "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrick-web
+          path: xrick-web.zip
+
   deploy-pages:
     needs: build-web
     # Pages tracks the branch, not the release tag -- and the github-pages
@@ -212,7 +229,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   release:
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, build-web]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
