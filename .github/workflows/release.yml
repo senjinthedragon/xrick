@@ -105,7 +105,10 @@ jobs:
       - name: Add glslc to PATH
         shell: bash
         run: |
-          VSDK=$(ls -d /c/VulkanSDK/*/Bin | sort -V | tail -1)
+          # cygpath -w: the later MSBuild step runs under cmd.exe, which can't resolve
+          # a POSIX-style /c/... path (found by running this job for the first time --
+          # glslc wasn't found despite this step claiming to add it to PATH).
+          VSDK=$(cygpath -w "$(ls -d /c/VulkanSDK/*/Bin | sort -V | tail -1)")
           echo "$VSDK" >> "$GITHUB_PATH"
 
       - name: vcpkg install
