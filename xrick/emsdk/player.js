@@ -326,7 +326,22 @@ function start() {
   setupIDBFS(function () {
     Module.callMain(args);
     resumeSdlAudio();
+    nudgeRepaint();
   });
+}
+
+// Some mobile browsers (reported: Chrome on a Samsung Galaxy S23 Edge, 2026-10-12) leave
+// the WebGL canvas showing stale/blank pixels after callMain creates its context and starts
+// rendering here, inside the same tap that just hid #start -- audio runs fine, so the game
+// itself is not stuck, only the compositor's first paint of the canvas. Toggling fullscreen
+// incidentally "fixes" it, because that forces the browser to recompute layout and
+// recomposite; dispatching a couple of resize events does the same thing without needing
+// the user to find and tap the fullscreen button. Not reproducible in a desktop browser,
+// so this could use real-device confirmation.
+function nudgeRepaint() {
+  function fire() { window.dispatchEvent(new Event('resize')); }
+  requestAnimationFrame(fire);
+  setTimeout(fire, 300);
 }
 
 canvas.addEventListener('webglcontextlost', function (e) {
