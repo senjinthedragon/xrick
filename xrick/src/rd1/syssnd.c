@@ -293,6 +293,15 @@ syssnd_silence(void)
 	if (!machine)
 		return;
 	SDL_LockMutex(sndlock);
+	/* SILENCE alone (found 2026-10-11) wasn't enough to stop the death sample
+	   getting immediately overridden again -- RD1's own init sequence always
+	   pairs these two (see syssnd_init()), presumably because SILENCE alone is
+	   just an instant mute, not a stop: the song sequencer driving the attract
+	   tune keeps running underneath and can resume writing to the chip on the
+	   very next 50Hz tick, overwriting whatever the one-shot sample just did.
+	   RESET actually reinitializes the chip/sequencer state, so it's the one
+	   that needs to run right before a sample that must not be interrupted. */
+	atari_machine_jsr(machine, SNDH_FN_RESET, 0);
 	atari_machine_jsr(machine, SNDH_FN_SILENCE, 0);
 	SDL_UnlockMutex(sndlock);
 }
