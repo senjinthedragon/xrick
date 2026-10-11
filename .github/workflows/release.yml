@@ -44,6 +44,16 @@ jobs:
           sudo apt-get install -y vulkan-sdk
           which glslc
 
+      # 4 source files use #embed (C23), which needs GCC 15+ or Clang 19+ -- Ubuntu's
+      # own gcc here is 13 ("cc: error: unrecognized command-line option '-std=gnu23'",
+      # found by running this job for the first time). Installing a specific recent
+      # clang via the official LLVM script rather than hoping the distro gcc catches up.
+      - name: Install clang 19
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 19
+
       # Built from source (not the distro package) so the version is pinned and known,
       # rather than whatever Ubuntu happens to ship -- matters for a release binary.
       - name: Build SDL3
@@ -63,7 +73,7 @@ jobs:
           # subshell make spawns to run the recipe) as a literal $ORIGIN -- verified
           # locally against an isolated directory with no system SDL3 before writing
           # this workflow.
-          make -j"$(nproc)" LDFLAGS='-Wl,-rpath,\$$ORIGIN'
+          make -j"$(nproc)" CC=clang-19 CXX=clang++-19 LDFLAGS='-Wl,-rpath,\$$ORIGIN'
           strip --strip-all ../build/wsl/xrick
           file ../build/wsl/xrick
 
@@ -104,11 +114,13 @@ jobs:
         run: |
           "%VCPKG_INSTALLATION_ROOT%\vcpkg.exe" install --triplet x64-windows
 
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Build (MSBuild, Release x64)
         shell: cmd
-        run: |
-          call "%VCPKG_INSTALLATION_ROOT%\..\VsDevCmd.bat" || call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" || call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
-          msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal
+        run: msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal
 
       - name: Package
         shell: bash
