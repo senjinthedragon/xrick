@@ -183,6 +183,28 @@ function bindCarouselTouch(canvas) {
   canvas.addEventListener('touchcancel', function () { touch = null; }, { passive: false });
 }
 
+// settings-menu touch support: forwards every canvas tap's position, converted from CSS
+// pixels to the game's own 320x200 framebuffer space, to menu_tapSelect() (menu.c), which
+// no-ops whenever the menu isn't actually open -- so this can just always run, during the
+// carousel or real gameplay alike, with no window.xrickCarouselActive-style flag needed.
+// The framebuffer<->CSS mapping accounts for fullscreen's letterboxing (object-fit:
+// contain, style.css): outside fullscreen the canvas's CSS box already matches 320:200
+// exactly (no explicit height, so it scales with width), so scale/offX/offY come out as a
+// plain 1:1 mapping there regardless.
+function bindMenuTap(canvas) {
+  var FB_W = 320, FB_H = 200;
+  canvas.addEventListener('touchend', function (e) {
+    var t = e.changedTouches[0];
+    var r = canvas.getBoundingClientRect();
+    var scale = Math.min(r.width / FB_W, r.height / FB_H);
+    var offX = r.left + (r.width - FB_W * scale) / 2;
+    var offY = r.top + (r.height - FB_H * scale) / 2;
+    var fbX = Math.round((t.clientX - offX) / scale);
+    var fbY = Math.round((t.clientY - offY) / scale);
+    try { Module.ccall('menu_tapSelect', null, ['number', 'number'], [fbX, fbY]); } catch (err) { /* not ready yet */ }
+  }, { passive: true });
+}
+
 var runtimeReady = false; // set once xrick.wasm is loaded: the game can start
 
 findAll(cfg.buttons).forEach(bindButton);
@@ -190,6 +212,7 @@ findAll(cfg.buttons).forEach(bindButton);
 var padEl = find(cfg.pad);
 if (padEl) bindPad(padEl);
 bindCarouselTouch(canvas);
+bindMenuTap(canvas);
 window.addEventListener('touchstart', function once() {
   document.body.classList.add('touch');
   window.removeEventListener('touchstart', once);

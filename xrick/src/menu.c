@@ -642,6 +642,48 @@ navigate(int dir_x, int dir_y, int select, int back)
 	if (back) goBack();
 }
 
+#ifdef __EMSCRIPTEN__
+/*
+ * menu_tapSelect
+ *
+ * Mobile web touch support (Senjin, 2026-10-12): hit-tests a tap, in framebuffer
+ * pixels (same space menu_draw() renders in -- player.js converts from CSS pixels
+ * before calling this), against the current page's rows, reusing the exact geometry
+ * menu_draw() computes so this can never drift out of sync with what's actually drawn.
+ * A hit selects that row and activates it, same as pressing Enter/Space on it --
+ * including activate()'s own fallback of adjust(it, +1) for choice/value rows (VOLUME,
+ * UPSCALER, etc.), so tapping one of those cycles it forward by one step, the same as
+ * the keyboard/gamepad confirm button already does. No-ops if the menu isn't open, in
+ * CAP_KEY/CAP_PAD capture, or on the credits page (no rows there).
+ */
+void
+menu_tapSelect(int fbX, int fbY)
+{
+	const pagedef_t *pg;
+	int w, h, x, y, i;
+
+	if (!active || mode != NAV || page == PG_CREDITS)
+		return;
+
+	pg = curPageDef();
+	w = PANEL_W;
+	h = HDR_H + pg->count * ROW_H + 6 + FTR_H;
+	x = (FB_WIDTH - w) / 2;
+	y = (FB_HEIGHT - h) / 2;
+
+	for (i = 0; i < pg->count; i++) {
+		int ry = y + HDR_H + i * ROW_H;
+		if (fbY < ry - 2 || fbY >= ry - 2 + ROW_H - 1)
+			continue;
+		if (fbX < x + 3 || fbX >= x + w - 3)
+			continue;
+		cursor[page] = (U8)i;
+		activate(pg->items[i]);
+		return;
+	}
+}
+#endif
+
 static void
 onKey(int sc, int repeat)
 {

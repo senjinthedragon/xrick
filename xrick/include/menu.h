@@ -26,6 +26,12 @@ extern U8 menu_handleEvent(const SDL_Event *);
    should quit the program directly, not open the settings menu */
 extern void menu_setEnabled(U8);
 
+#ifdef __EMSCRIPTEN__
+/* mobile web touch support: fbX/fbY are framebuffer pixels (320x200), same space
+   menu_draw() renders in -- player.js converts from CSS pixels first. See menu.c. */
+extern void menu_tapSelect(int fbX, int fbY);
+#endif
+
 #endif /* _MENU_H */
 
 /* eof */
