@@ -37,6 +37,18 @@
     <div id="pad" title="move"></div>
     <button id="fire" data-code="Space" data-key=" ">FIRE</button>
   </div>
+  <!-- touch-only: none of this is discoverable just by looking at the screen (tap zones,
+       the carousel gesture, the punch/stun combo), so it's spelled out here rather than
+       left to the README. Shown only once a touch is seen (body.touch, same class #touch
+       below already keys off) -- Senjin's point 2026-10-12: don't assume this is obvious. -->
+  <div id="helpTouch">
+    Touch: on the diskette carousel, tap near an arrow (or swipe) to switch games, tap the
+    middle to launch. In game, the screen is 9 tap zones (3 columns, rows 1/5-3/5-1/5):
+    top-left jump, top-right down, mid-left/right move, bottom-left shoot, bottom-center
+    fire, bottom-right bomb. Punch/stun (RD2) isn't its own zone: hold bottom-center together
+    with mid-left or mid-right, same as the original game's fire+direction combo. Tap any
+    settings-menu row to use it; tap anywhere to leave the credits page.
+  </div>
   <div id="help">
     Keys: arrows (or Z X O K) to move, Space to fire, P pause, E end game, Tab opens the
     settings menu (video, audio, controls, cheats, autoplay, quit -- settings are saved
