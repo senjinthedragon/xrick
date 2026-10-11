@@ -123,7 +123,7 @@ jobs:
 
       - name: Build (MSBuild, Release x64)
         shell: cmd
-        run: msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal
+        run: msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:normal
 
       - name: Package
         shell: bash
