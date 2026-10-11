@@ -534,14 +534,18 @@ static void drawSpotlight(U32 *fb, int cx, int cy, int rx, int ry, U32 color)
 	}
 }
 
-/* a simple filled triangle, for the left/right hint arrows */
-static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 color)
+/* a simple filled triangle, for the left/right hint arrows. halfH is the vertical
+   half-height (rows -halfH..+halfH); maxW is the width at the center row (row 0),
+   tapering linearly to a point at row = +-halfH -- independent so the arrow can be
+   stretched wider or taller without changing its proportions the other way. */
+static void drawArrow(U32 *fb, int cx, int cy, int halfH, int maxW, int pointRight, U32 color)
 {
 	int row;
 
-	for (row = -size; row <= size; row++)
+	for (row = -halfH; row <= halfH; row++)
 	{
-		int w = size - (row < 0 ? -row : row);
+		int absRow = row < 0 ? -row : row;
+		int w = halfH > 0 ? (int)((float)maxW * (float)(halfH - absRow) / (float)halfH) : maxW;
 		int x;
 
 		for (x = 0; x <= w; x++)
@@ -916,8 +920,10 @@ gameselect_done(void)
 	blitRotScale(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
 		frontCx, frontCy, frontAngle, frontScale, frontBright, frontAlpha);
 
-	drawArrow(frame, SPOT_CX - 150, DISK_CY, 7, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
-	drawArrow(frame, SPOT_CX + 150, DISK_CY, 7, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
+	/* twice as wide (maxW 7->14), 3x as tall (halfH 7->21) -- user decision 2026-10-12,
+	   easier to see/tap on mobile */
+	drawArrow(frame, SPOT_CX - 150, DISK_CY, 21, 14, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
+	drawArrow(frame, SPOT_CX + 150, DISK_CY, 21, 14, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
 
 	if (titleAlpha > 0.0f)
 	{
