@@ -1,13 +1,20 @@
 /*
  * Part of the SDL3 port of xrick, by Senjin the Dragon.
  *
- * See audio_lofi.h. Three cheap stages, in order: bass rolloff (subtract a
+ * See audio_lofi.h. Four cheap stages, in order: bass rolloff (subtract a
  * slow one-pole lowpass from the signal), treble rolloff (a faster one-pole
- * lowpass), then a short, quiet 3-tap comb reverb mixed in at a low wet
+ * lowpass), a touch of soft saturation (a cheap amp/speaker's own distortion
+ * character), then a short, quiet 3-tap comb reverb mixed in at a low wet
  * level. The comb delay lengths are plain, mutually prime-ish sample counts
  * (not round millisecond numbers) so their echoes don't reinforce each other
  * into an audible, ringing pitch -- the same reason classic Freeverb-style
  * reverbs pick odd delay lengths rather than round ones.
+ *
+ * Tuned firmer than a first pass (2026-10-11, Senjin): the source material
+ * is a thin YM2149 chiptune, not a modern bassy mix, so a gentle filter
+ * alone had barely anything to roll off and the effect read as too subtle.
+ * The saturation stage is what actually fixed that -- it's audible on any
+ * source, bass-heavy or not.
  */
 
 #include <string.h> /* memset */
@@ -17,11 +24,26 @@
 #define FREQ 44100.0f
 #define PI2 6.28318530718f
 
-#define HP_CUTOFF_HZ 220.0f   /* below this: rolled off, standing in for a speaker too small to reproduce it */
-#define LP_CUTOFF_HZ 4200.0f  /* above this: rolled off, standing in for a cheap, non-hi-fi driver */
-#define COMB_FEEDBACK 0.30f
+#define HP_CUTOFF_HZ 340.0f   /* below this: rolled off, standing in for a speaker too small to reproduce it */
+#define LP_CUTOFF_HZ 3000.0f  /* above this: rolled off, standing in for a cheap, non-hi-fi driver */
+#define SAT_DRIVE 2.2f        /* >1 = more saturation; cheap amp/speaker crunch, audible even on a
+                                  source (chiptune) with nothing in particular to roll off */
+#define COMB_FEEDBACK 0.35f
 #define COMB_DAMP_COEFF 0.25f /* one-pole lowpass inside each comb's feedback -- higher = darker tail */
-#define WET_MIX 0.16f         /* kept low on purpose: a hint of room/cabinet, not an audible echo */
+#define WET_MIX 0.26f         /* a hint of room/cabinet, not an audible echo -- the source is right
+                                  in front of you on a desk, not across a hall */
+
+/* cheap cubic soft clip: fixed at the +-1 endpoints (no overall gain change at full
+   scale) while compressing/adding odd-harmonic warmth in between -- the "about to
+   distort" character of a small, cheap amp pushed a bit, not a clean brick-wall clip */
+static float
+softClip(float x)
+{
+	float n = x / 32768.0f * SAT_DRIVE;
+	if (n > 1.0f) n = 1.0f;
+	if (n < -1.0f) n = -1.0f;
+	return (1.5f * n - 0.5f * n * n * n) * 32768.0f;
+}
 
 static const int combLen[LOFI_NUM_COMBS] = { 750, 1013, 1277 };
 
@@ -56,7 +78,7 @@ lofi_process(lofi_t *lf, S16 in, U8 enabled)
 
 	/* treble rolloff */
 	lf->lpState += (LP_CUTOFF_HZ * PI2 / FREQ) * (hpOut - lf->lpState);
-	toneOut = lf->lpState;
+	toneOut = softClip(lf->lpState);
 
 	/* short, quiet comb reverb */
 	wet = 0.0f;
