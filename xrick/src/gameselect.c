@@ -920,10 +920,11 @@ gameselect_done(void)
 	blitRotScale(frame, GS_W, GS_H, diskSprite[current], DISK_W, DISK_H,
 		frontCx, frontCy, frontAngle, frontScale, frontBright, frontAlpha);
 
-	/* twice as wide (maxW 7->14), 3x as tall (halfH 7->21) -- user decision 2026-10-12,
-	   easier to see/tap on mobile */
-	drawArrow(frame, SPOT_CX - 150, DISK_CY, 21, 14, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
-	drawArrow(frame, SPOT_CX + 150, DISK_CY, 21, 14, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
+	/* 3x as tall (halfH 7->21); width went 7->14 first, then clipped off the mobile
+	   screen at that width, so pulled back to 2/3 of that -- 9 (14*2/3) -- instead.
+	   User decisions 2026-10-12. */
+	drawArrow(frame, SPOT_CX - 150, DISK_CY, 21, 9, FALSE, RGBA(0xE0, 0x30, 0x30, 0xFF));
+	drawArrow(frame, SPOT_CX + 150, DISK_CY, 21, 9, TRUE, RGBA(0xE0, 0x30, 0x30, 0xFF));
 
 	if (titleAlpha > 0.0f)
 	{
