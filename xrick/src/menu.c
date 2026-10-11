@@ -45,7 +45,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #else
-#include <unistd.h> /* execvp, for I_SWITCH_GAME */
+#include <unistd.h> /* execvp, for I_QUIT_TO_MENU */
 #include <errno.h>
 #endif
 
@@ -87,7 +87,7 @@ typedef enum {
 	I_GOTO_CHEATS,
 	I_GOTO_KEYS,
 	I_GOTO_PAD,
-	I_SWITCH_GAME,
+	I_QUIT_TO_MENU,
 	I_CREDITS,
 	I_QUIT,
 	I_BACK,
@@ -133,7 +133,7 @@ typedef struct {
 } pagedef_t;
 
 static const pagedef_t pages[PG_COUNT] = {
-    {"SETTINGS", PG_MAIN, 10, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_GOTO_CHEATS, I_SWITCH_GAME, I_CREDITS, I_QUIT}},
+    {"SETTINGS", PG_MAIN, 10, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_GOTO_CHEATS, I_CREDITS, I_QUIT_TO_MENU, I_QUIT}},
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
     {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
@@ -485,29 +485,29 @@ activate(int it)
 	case I_GOTO_PAD:
 		gotoPage(PG_PAD);
 		return;
-	case I_SWITCH_GAME:
-		/* no confirmation -- unlike quitting, switching games loses nothing, so
-		   straight to the other game's own title/attract sequence (as if
-		   launched with -game N on the command line) */
+	case I_QUIT_TO_MENU:
+		/* no confirmation -- same reasoning the old direct-to-the-other-game
+		   switch had (nothing is lost), just landing on the carousel instead
+		   of jumping straight to the other game: with only two Ricks ever
+		   made, the carousel IS the only way to change games, and it has its
+		   own atmosphere (title music, the confirm scream) worth letting
+		   players see again rather than skip past (Senjin, 2026-10-11) */
 #ifdef __EMSCRIPTEN__
-		/* can't re-exec on the web -- reload with ?game=N instead. buildArgs()
-		   (player.js) picks that up and skips building its own map/game dropdown
-		   (it only appears when the URL has no -game/-map/-submap/-demo), landing
-		   straight on that game once the player taps to start again */
-		EM_ASM({ location.href = location.pathname + '?game=' + $0; }, GAME2 ? 1 : 2);
+		/* can't re-exec on the web -- reload with no query args instead.
+		   buildArgs() (player.js) only skips its carousel-equivalent landing
+		   when the URL has -game/-map/-submap/-demo, so a bare reload lands
+		   back on the carousel exactly like a fresh visit would */
+		EM_ASM({ location.href = location.pathname; });
 #else
 		{
-			char gameArg[2] = { (char)('0' + (GAME2 ? 1 : 2)), '\0' };
-			char *args[4];
+			char *args[2];
 			args[0] = sysarg_argv0;
-			args[1] = "-game";
-			args[2] = gameArg;
-			args[3] = NULL;
+			args[1] = NULL;
 			sys_shutdown();
 			execvp(sysarg_argv0, args);
 			/* execvp only returns on failure -- nothing sensible left to do but
 			   carry on with the current game rather than vanish silently */
-			sys_printf("xrick/menu: could not restart (%s) -- switch game cancelled\n", strerror(errno));
+			sys_printf("xrick/menu: could not restart (%s) -- quit to menu cancelled\n", strerror(errno));
 			sysvid_init(FB_WIDTH, FB_HEIGHT);
 			goBack();
 		}
@@ -899,8 +899,8 @@ drawItem(int it, int xl, int xr, int y, int selected)
 	case I_GOTO_PAD:
 		label = "GAMEPAD CONTROLS";
 		break;
-	case I_SWITCH_GAME:
-		label = GAME2 ? "SWITCH TO RICK DANGEROUS" : "SWITCH TO RICK DANGEROUS 2";
+	case I_QUIT_TO_MENU:
+		label = "QUIT TO MENU";
 		break;
 	case I_CREDITS:
 		label = "CREDITS";
