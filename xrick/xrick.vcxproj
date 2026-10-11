@@ -86,7 +86,7 @@
            2026-09-10). The Linux/Makefile build never hits this since SDL_main.h's
            renaming is Windows/WinRT/iOS/Android-only. -->
       <!-- 2.0.0: WIN32 was missing here, so system.h's own __WIN32__ convention was dead
-           on this project the whole time -- silently disabled xrick.c's AttachConsole
+           on this project the whole time: silently disabled xrick.c's AttachConsole
            console-reattach code, and would have broken menu.c's new MSVC execvp shim. -->
       <PreprocessorDefinitions>WIN32;_MBCS;_CRT_SECURE_NO_WARNINGS;SDL_MAIN_HANDLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -227,7 +227,7 @@ for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag 
     <ClCompile Include="src\system.c" />
     <ClCompile Include="src\sysvid.c" />
     <!-- 2.0.0: this fork's native desktop renderer is SDL_GPU (sysvid_gpu.c), not
-         upstream's OpenGL (sysvid_gl.c) -- both define the same sysvid_gl_* symbols
+         upstream's OpenGL (sysvid_gl.c): both define the same sysvid_gl_* symbols
          sysvid.c calls (see sysvid_gpu.c's own header comment), so including both
          would be a duplicate-symbol link error, matching the Makefile's exclusion
          of sysvid_gl.c for the same reason. The web/Emscripten build keeps using
@@ -239,7 +239,7 @@ for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag 
     <ClCompile Include="src\settings.c" />
     <ClCompile Include="src\gameselect.c" />
     <ClCompile Include="src\stb_image_impl.c" />
-    <!-- #embed (C23) -- only these four need the newer dialect, matching the
+    <!-- #embed (C23): only these four need the newer dialect, matching the
          Makefile's -std=gnu23 override for the same files. -->
     <ClCompile Include="src\gameselect_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
