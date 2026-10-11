@@ -137,7 +137,16 @@ typedef struct {
 } pagedef_t;
 
 static const pagedef_t pages[PG_COUNT] = {
+#ifdef __EMSCRIPTEN__
+    /* no QUIT GAME on the web build: there's no process to exit to, so all it did was
+       tear the canvas down, leaving the touch controls and help text sitting over an
+       empty page -- the same broken-looking state as the mobile canvas-0x0 bug this
+       fork just fixed, just deliberate instead of a bug. QUIT TO MENU (the carousel)
+       is still the right way to "leave" a run here. Senjin's decision 2026-10-12. */
+    {"SETTINGS", PG_MAIN, 9, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_GOTO_CHEATS, I_CREDITS, I_QUIT_TO_MENU}},
+#else
     {"SETTINGS", PG_MAIN, 10, {I_RESUME, I_GOTO_VIDEO, I_GOTO_AUDIO, I_GOTO_GAME, I_GOTO_KEYS, I_GOTO_PAD, I_GOTO_CHEATS, I_CREDITS, I_QUIT_TO_MENU, I_QUIT}},
+#endif
     {"VIDEO", PG_MAIN, 7, {I_FULLSCREEN, I_ZOOM, I_ASPECT, I_UPSCALE, I_CRT, I_BEZEL, I_BACK}},
     {"AUDIO", PG_MAIN, 3, {I_VOLUME, I_MUTE, I_BACK}},
     {"GAME", PG_MAIN, 3, {I_CONTROLS, I_SPEED, I_BACK}},
