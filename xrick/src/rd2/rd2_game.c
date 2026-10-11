@@ -185,12 +185,30 @@ FRAME:
 	}
 
 MAPDONE:                                        /* $10ad4 */
+	/* host: both branches below used to fall into NEXT (-> LOAD -> rd2_123ca()),
+	   which tries to load "map 5" -- never a real level on the original disk,
+	   its file descriptor's checksum never satisfies the loader, so the
+	   original game's own loader hangs forever with the border set to bright
+	   red trying to load it ($11fb8 -- a genuine, documented bug in the
+	   shipped 1990 game, not something this port introduced; see rd2_load.c's
+	   own header comment). $10afc's own MAP_PLAYING==5 branch below is where
+	   that (never actually reachable) successful load would have ended up
+	   anyway, so both go straight there instead -- same destination, same
+	   extra life for finishing the level (rd2_17782(), as NEXT would have
+	   granted), just without the broken detour through the loader. Senjin's
+	   decision 2026-10-12: patch this so finishing the game actually ends it,
+	   rather than preserve the authentic hang. */
 	if (rd2_rw(RD2_MAP_PLAYING) == 4) {
-		if (rd2_rw(RD2_PICKER_ROWS) == 5)
-			goto NEXT;
+		if (rd2_rw(RD2_PICKER_ROWS) == 5) {
+			rd2_17782();
+			rd2_ww(RD2_MAP_PLAYING, 5);
+			goto ENDING;
+		}
 		if (rd2_rw(RD2_PICKER_CHOICE) == 1) {
 			rd2_ww(RD2_PICKER_ROWS, 5);         /* $10af2 */
-			goto NEXT;
+			rd2_17782();
+			rd2_ww(RD2_MAP_PLAYING, 5);
+			goto ENDING;
 		}
 		rd2_17bf4();                            /* $10b12 */
 		goto END_OF_RUN;
@@ -201,7 +219,9 @@ MAPDONE:                                        /* $10ad4 */
 		rd2_17bf4();
 		goto END_OF_RUN;
 	}
-NEXT:                                           /* $10b1a */
+	/* $10b1a: worlds 1-3 finishing fall through here -- world 4 no longer
+	   does (see the comment above), so nothing gotos this by name any more;
+	   left unlabeled to avoid an unused-label warning. */
 	rd2_ww(RD2_MAP_PLAYING, (U16)(rd2_rw(RD2_MAP_PLAYING) + 1));
 	rd2_17782();
 	goto LOAD;
