@@ -3,7 +3,7 @@
 #
 #   desktop  MSBuild xrick/xrick.vcxproj, Release x64 -> build/win/ (xrick.exe, SDL3.dll;
 #            objects in build/win/obj/) (kb/build.md §2; SDL3 from vcpkg, manifest mode)
-#   web      emscripten, RD1 and RD2 (ASYNCIFY, see the link step) -> build/web/ (index.html, player.js,
+#   web      emscripten, RD1 and RD2 (ASYNCIFY, see the link step) -> build/web/ (index.html, player.js, style.css,
 #            xrick.js, xrick.wasm; kb/build.md §4, wasm.md). Mirrors xrick/Makefile:
 #            same sources, include paths and PLATFORM switch, SDL3 from emscripten's
 #            own port (-sUSE_SDL=3). Needs only emsdk, not MSBuild/vcpkg -- this is the
@@ -28,7 +28,7 @@
 #             (web only; on Linux/macOS, e.g. CI, this is wherever emsdk was installed)
 #   python    EMSDK_PYTHON, default the one bundled in EMSDK_DIR (plain `python` can be
 #             the Windows Store alias, which breaks emsdk_env.sh) (web only)
-#   page      xrick/emsdk/index.html and player.js (the web page sources) (web only)
+#   page      xrick/emsdk/index.html, player.js and style.css (the web page sources) (web only)
 # PLATFORM (ST default, or PC) selects the web build's game behaviour, as in the
 # Makefile; the desktop project always builds PLATFORM_ST (kb/build.md §3).
 #
@@ -80,7 +80,7 @@ fi
 
 if [ -n "$DO_WEB" ]; then
   # the web page sources (xrick/emsdk/)
-  for p in index.html player.js; do
+  for p in index.html player.js style.css; do
     [ -f "$PAGE/$p" ] || fail "web page source missing: $PAGE/$p"
   done
 
@@ -233,11 +233,11 @@ echo "linking (pass 2)..."
 em++ $OBJS -o "$WEB/xrick.js" $LDFLAGS $ASYNC "-sASYNCIFY_ONLY=[$ONLY]"
 rm -f "$WEB/obj/advise.js" "$WEB/obj/advise.wasm"
 
-cp "$PAGE/index.html" "$PAGE/player.js" "$WEB/"
+cp "$PAGE/index.html" "$PAGE/player.js" "$PAGE/style.css" "$WEB/"
 
 if [ -n "$GZ" ]; then
   rm -rf "$WEB/gz" && mkdir -p "$WEB/gz"
-  for f in index.html player.js xrick.js xrick.wasm; do gzip -c -9 "$WEB/$f" > "$WEB/gz/$f"; done
+  for f in index.html player.js style.css xrick.js xrick.wasm; do gzip -c -9 "$WEB/$f" > "$WEB/gz/$f"; done
   echo "gz/: serve with Content-Encoding: gzip (and application/wasm for xrick.wasm)"
 fi
 ls -la "$WEB/xrick.js" "$WEB/xrick.wasm"
