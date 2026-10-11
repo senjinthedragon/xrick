@@ -174,6 +174,7 @@ static const char *const controlNames[] = {"CLASSIC", "MODERN"};
 
 static U8 active = FALSE;
 static U8 enabled = TRUE; /* gameselect.c turns this off: Escape there should just quit, not open the menu */
+static int demoStopScancode = -1; /* see menu_handleEvent()'s key-down/key-up pair */
 static U8 page = PG_MAIN;
 static U8 cursor[PG_COUNT];
 static enum { NAV,
@@ -304,7 +305,7 @@ padConflict(int i)
 static int
 keyReserved(int sc)
 {
-	return sc <= 0 || sc > 255 || sc == SDL_SCANCODE_ESCAPE ||
+	return sc <= 0 || sc > 255 || sc == SDL_SCANCODE_ESCAPE || sc == SDL_SCANCODE_TAB ||
 	       (sc >= SDL_SCANCODE_F1 && sc <= SDL_SCANCODE_F12);
 }
 
@@ -637,7 +638,7 @@ onKey(int sc, int repeat)
 {
 	if (mode == CAP_KEY) {
 		if (repeat) return;
-		if (sc == SDL_SCANCODE_ESCAPE) {
+		if (sc == SDL_SCANCODE_TAB || sc == SDL_SCANCODE_ESCAPE) {
 			mode = NAV;
 		} else if (!keyReserved(sc)) {
 			*keyVar[capIndex] = (U8)sc;
@@ -647,11 +648,12 @@ onKey(int sc, int repeat)
 		return;
 	}
 	if (mode == CAP_PAD) {
-		if (sc == SDL_SCANCODE_ESCAPE) mode = NAV;
+		if (sc == SDL_SCANCODE_TAB || sc == SDL_SCANCODE_ESCAPE) mode = NAV;
 		return;
 	}
 
 	switch (sc) {
+	case SDL_SCANCODE_TAB:
 	case SDL_SCANCODE_ESCAPE:
 		closeMenu();
 		break;
@@ -786,23 +788,50 @@ menu_handleEvent(const SDL_Event *ev)
 		return FALSE;
 
 	if (!active) {
-		if (ev->type == SDL_EVENT_KEY_DOWN && !ev->key.repeat && ev->key.scancode == SDL_SCANCODE_ESCAPE) {
-			openMenuOrStopDemo();
-			return TRUE;
+		/*
+		 * The menu's own hotkey is TAB, not Escape (2026-10-11): on the web
+		 * build, Escape is also the browser's native fullscreen-exit key, so
+		 * pressing it dropped straight out of fullscreen instead of opening
+		 * the menu or stopping a demo. TAB has no such conflict.
+		 *
+		 * While a demo (AUTOPLAY or -demo) is running, ANY key stops it
+		 * instead -- opening the menu on top of a running demo would just
+		 * pause the autoplay rather than exit it, and requiring the one
+		 * specific TAB key to stop a demo someone wants to interrupt right
+		 * now is needless friction (user decision 2026-10-11). The scancode
+		 * that stopped it is remembered so its matching key-up (below) can
+		 * be swallowed, same reasoning as the old Escape-only version: see
+		 * openMenuOrStopDemo()'s own header comment for the full case.
+		 */
+		if (ev->type == SDL_EVENT_KEY_DOWN && !ev->key.repeat) {
+			if (demo_active) {
+				demoStopScancode = ev->key.scancode;
+				openMenuOrStopDemo();
+				return TRUE;
+			}
+			if (ev->key.scancode == SDL_SCANCODE_TAB) {
+				openMenuOrStopDemo();
+				return TRUE;
+			}
 		}
 		/*
-		 * Escape's matching key-up: normally irrelevant here, since opening
-		 * the menu above already makes `active` true before this arrives,
-		 * so it's caught by the switch below instead. But openMenuOrStopDemo()
-		 * can choose to stop a demo and deliberately NOT open the menu, in
-		 * which case this key-up would otherwise fall through all the way to
-		 * sysevt.c's main switch -- where Escape is also syskbd_xtra's
-		 * default binding, setting control_last = CONTROL_EXIT and ending
-		 * the game on the very next CTRL_ACTION check. Always consumed here
-		 * instead, paired with the key-down above.
+		 * The stopping key's matching key-up: normally irrelevant here,
+		 * since opening the menu above already makes `active` true before
+		 * this arrives, so it's caught by the switch below instead. But
+		 * openMenuOrStopDemo() can choose to stop a demo and deliberately
+		 * NOT open the menu, in which case this key-up would otherwise fall
+		 * through all the way to sysevt.c's main switch -- where, if the key
+		 * happens to be syskbd_xtra's own binding, it would set
+		 * control_last = CONTROL_EXIT and end the game on the very next
+		 * CTRL_ACTION check. Always consumed here instead, paired with the
+		 * key-down above (TAB's own key-up needs the same treatment, for the
+		 * open-menu path).
 		 */
-		if (ev->type == SDL_EVENT_KEY_UP && ev->key.scancode == SDL_SCANCODE_ESCAPE)
+		if (ev->type == SDL_EVENT_KEY_UP &&
+		    (ev->key.scancode == SDL_SCANCODE_TAB || ev->key.scancode == demoStopScancode)) {
+			demoStopScancode = -1;
 			return TRUE;
+		}
 #ifdef ENABLE_JOYSTICK
 		if (ev->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && sysjoy_isActive(ev->gbutton.which) &&
 		    ev->gbutton.button == sysjoy_btn_menu) {
@@ -1158,7 +1187,7 @@ drawCredits(void)
 		cum += creditsLineHeight(i);
 	}
 
-	textRight(FB_WIDTH - 4, FB_HEIGHT - 10, "ESC CLOSE", grey);
+	textRight(FB_WIDTH - 4, FB_HEIGHT - 10, "TAB CLOSE", grey);
 }
 
 void
@@ -1196,11 +1225,11 @@ menu_draw(void)
 	}
 
 	if (mode == CAP_KEY)
-		hint = "PRESS THE NEW KEY  ESC CANCEL";
+		hint = "PRESS THE NEW KEY  TAB CANCEL";
 	else if (mode == CAP_PAD)
-		hint = "PRESS THE NEW BUTTON  ESC CANCEL";
+		hint = "PRESS THE NEW BUTTON  TAB CANCEL";
 	else
-		hint = "L/R CHANGE  ENTER SELECT  ESC CLOSE";
+		hint = "L/R CHANGE  ENTER SELECT  TAB CLOSE";
 	textRight(x + w - 8, y + h - FTR_H + 3, hint, grey);
 }
 

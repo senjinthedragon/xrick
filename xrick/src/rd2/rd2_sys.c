@@ -116,7 +116,8 @@ extern U8 sysevt_quit;
    is only that (sysevt.c tests those first), P is the pause binding, and the ST's S ($1f, debug
    sound-id remap [$1a5ce]) is syskbd_sndset, since S is a direction key (user decision 2026-10-04;
    syskbd_sndset's own default scancode moved off F10 to TAB once F10/F11/F12 became the renderer's
-   upscale/CRT/bezel cycle hotkeys, user decision 2026-10-10).
+   upscale/CRT/bezel cycle hotkeys, user decision 2026-10-10; moved again off TAB to backtick/grave
+   once TAB became the settings menu's hotkey, user decision 2026-10-11).
    The fire key (Space) is therefore not also sent as the keyboard's $39: see port-rd2.md §7. */
 static U8
 st_code(U16 sdl)

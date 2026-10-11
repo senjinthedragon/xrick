@@ -36,8 +36,11 @@ U8 syskbd_bomb = SDL_SCANCODE_X;
 /* rd2 only: the ST's S key ($1f), debug sound-id remap [$1a5ce]. Not F10
  * (the original choice, made before F10/F11/F12 became the renderer's
  * upscale/CRT/bezel cycle hotkeys, user decision 2026-10-10) to avoid
- * colliding with those. */
-U8 syskbd_sndset = SDL_SCANCODE_TAB;
+ * colliding with those, and not an F key at all any more once TAB became
+ * the settings menu's hotkey (2026-10-11): deliberately an obscure key
+ * (backtick/grave), not one someone trying the F keys might hit by
+ * accident and get confused by (user decision 2026-10-11). */
+U8 syskbd_sndset = SDL_SCANCODE_GRAVE;
 
 /*
  * Senjin's SDL3 port: resets the menu's remappable keys (left/right/up/down/
