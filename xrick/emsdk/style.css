@@ -17,12 +17,15 @@ main { display: flex; flex-direction: column; align-items: center; padding: 12px
 #start { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
          background: rgba(0,0,0,.75); cursor: pointer; font-size: 18px; text-align: center; }
 #start[hidden] { display: none; }
-/* the only way to leave fullscreen: the normal #fullscreen button (in the row below) lives
-   outside #screen, so it isn't reachable once #screen is the fullscreen element -- see
-   player.js's comment on this same button pair */
-#fsExit { position: absolute; right: 12px; bottom: 12px; display: none; font-size: 22px;
+/* the only way to leave fullscreen (#fsExit) or open the settings menu (#menuOverlay)
+   once fullscreen: the normal MENU/#fullscreen buttons (in the row below) live outside
+   #screen, so neither is reachable once #screen is the fullscreen element */
+#fsExit, #menuOverlay { position: absolute; bottom: 12px; display: none; font-size: 22px;
           line-height: 1; padding: 8px 12px; opacity: .85; z-index: 10; }
-#screen:fullscreen #fsExit, #screen:-webkit-full-screen #fsExit { display: block; }
+#fsExit { right: 12px; }
+#menuOverlay { left: 12px; }
+#screen:fullscreen #fsExit, #screen:-webkit-full-screen #fsExit,
+#screen:fullscreen #menuOverlay, #screen:-webkit-full-screen #menuOverlay { display: block; }
 #status { color: var(--dim); min-height: 1.4em; text-align: center; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 button { background: var(--btn); color: var(--fg); border: 1px solid #555; border-radius: 4px;

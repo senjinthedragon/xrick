@@ -16,7 +16,10 @@
     <canvas id="canvas" width="640" height="400" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
     <div id="start">loading…</div>
     <!-- only visible while #screen is the fullscreen element (style.css) -- the normal
-         #fullscreen button below lives outside it and isn't reachable once fullscreen -->
+         MENU/#fullscreen buttons below live outside it and aren't reachable once
+         fullscreen. data-code/data-key: the same generic bindButton() picks these up,
+         same as the row of buttons below -- no separate wiring needed. -->
+    <button id="menuOverlay" data-code="Tab" data-key="Tab" title="settings menu">☰</button>
     <button id="fsExit" title="exit fullscreen">⤢</button>
   </div>
   <div id="status"></div>
