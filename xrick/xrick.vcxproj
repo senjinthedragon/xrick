@@ -156,7 +156,6 @@ for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag 
     <ClInclude Include="include\sysvid_gl.h" />
     <ClInclude Include="include\sysvid_gpu.h" />
     <ClInclude Include="include\sysvid_overlay.h" />
-    <ClInclude Include="include\splash.h" />
     <ClInclude Include="include\audio_lofi.h" />
     <ClInclude Include="include\gameselect.h" />
     <ClInclude Include="include\gameselect_embedded.h" />
@@ -253,7 +252,6 @@ for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag 
     <ClCompile Include="src\shaders_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
-    <ClCompile Include="src\splash.c" />
     <ClCompile Include="src\xrick.c" />
     <ClCompile Include="src\rd1\dat_demo.c" />
     <ClCompile Include="src\rd1\dat_ents.c" />
