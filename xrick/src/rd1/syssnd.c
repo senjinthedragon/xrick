@@ -30,6 +30,7 @@
 #include "debug.h"
 #include "dat_sndh_engine.h"
 #include "audio_engine/AtariMachineC.h"
+#include "audio_lofi.h"
 
 static U8 isAudioActive = FALSE;
 
@@ -37,6 +38,8 @@ static AtariMachineHandle *machine = NULL;
 static U32 samplesPerTick;	/* host samples per 50 Hz engine tick */
 static U32 tickCountdown;
 static float fadeGain = 1.0f;	/* gameselect.c's carousel crossfade, see syssnd_setFadeGain */
+static lofi_t lofi;		/* gameselect.c's carousel-only speaker coloring, see syssnd_setLofi */
+static U8 lofiOn = FALSE;
 
 static U8 sndUVol = SYSSND_MAXVOL;	/* user-selected volume */
 static U8 sndMute = FALSE;		/* mute flag */
@@ -101,6 +104,7 @@ syssnd_callback(UNUSED(void *userdata), SDL_AudioStream *stream, int additional_
 			else {
 				S32 s = atari_machine_next_sample(machine);
 				buf[i] = (S16)(((float)s * fadeGain * (float)sndUVol) / (float)SYSSND_MAXVOL);
+				buf[i] = lofi_process(&lofi, buf[i], lofiOn);
 			}
 		}
 		SDL_UnlockMutex(sndlock);
@@ -187,6 +191,7 @@ syssnd_init(void)
 	if (samplesPerTick == 0)
 		samplesPerTick = 1;
 	tickCountdown = samplesPerTick;
+	lofi_reset(&lofi);
 
 	isAudioActive = TRUE;
 	/* SDL3 split SDL2's SDL_PauseAudioDevice(dev, bool) into two functions. */
@@ -278,6 +283,19 @@ syssnd_setFadeGain(float g)
 	if (g > 1.0f) g = 1.0f;
 	SDL_LockMutex(sndlock);
 	fadeGain = g;
+	SDL_UnlockMutex(sndlock);
+}
+
+/* gameselect.c: on for its own carousel engine (the "small CRT speaker"
+   coloring, see audio_lofi.h), off again the instant it hands off to the
+   real game -- gameplay audio must stay exactly as it is today. */
+void
+syssnd_setLofi(U8 on)
+{
+	SDL_LockMutex(sndlock);
+	if (on && !lofiOn)
+		lofi_reset(&lofi); /* clean start, no stale filter history audible as a click */
+	lofiOn = on ? TRUE : FALSE;
 	SDL_UnlockMutex(sndlock);
 }
 

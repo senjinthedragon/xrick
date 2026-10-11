@@ -224,10 +224,12 @@ static void audioStart(int idx)
 	if (idx == 1) {
 		if (!rd2_snd_isActive()) rd2_snd_init();
 		rd2_snd_setFadeGain(0.0f);
+		rd2_snd_setLofi(TRUE); /* "small CRT speaker" coloring -- off again at handoff */
 		rd2_1a6aa(3, 0); /* RD2's own title/attract tune, same cue rd2_flow.c uses */
 	} else {
 		if (!syssnd_isActive()) syssnd_init();
 		syssnd_setFadeGain(0.0f);
+		syssnd_setLofi(TRUE); /* "small CRT speaker" coloring -- off again at handoff */
 		sounds_setMusic(SND_TRACK_ATTRACT, 1); /* RD1's title tune, d1=1 loops */
 	}
 }
@@ -674,6 +676,11 @@ gameselect_done(void)
 		confirmHold += (1000.0f / CONFIRM_HOLD_MS) * ((float)GAMESELECT_FRAME_MS / 1000.0f);
 		if (confirmHold < 1.0f)
 			return FALSE;
+
+		/* the carousel's own "small CRT speaker" coloring ends here -- real
+		   gameplay audio must sound exactly as it does today, uncolored */
+		if (audioIdx == 1) rd2_snd_setLofi(FALSE);
+		else if (audioIdx == 0) syssnd_setLofi(FALSE);
 
 		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
 		return TRUE;
