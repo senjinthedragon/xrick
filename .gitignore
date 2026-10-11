@@ -11,3 +11,5 @@ x64/
 __pycache__/
 # all build output, never sources: build.sh (build/win, build/web), the WSL Makefile (build/wsl)
 /build/
+# MSVC-only: tools/gen_embed.py's output, standing in for #embed (see xrick.vcxproj)
+/xrick/generated/
