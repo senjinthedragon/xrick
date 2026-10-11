@@ -86,6 +86,7 @@ static U8 oldFire, oldLeft, oldRight, oldEnter; /* edge-detect: act once per pre
    timed to happen in the silent middle of the crossfade below. */
 static int audioIdx = -1;       /* 0 = RD1, 1 = RD2; -1 = no engine started yet */
 static U8 audioSwapped;         /* one-shot per carousel swap: has the engine switched yet */
+static float screamGraceMs;     /* see SCREAM_GRACE_MS */
 
 #define RGBA(r, g, b, a) ((U32)(U8)(r) | ((U32)(U8)(g) << 8) | ((U32)(U8)(b) << 16) | ((U32)(U8)(a) << 24))
 
@@ -245,13 +246,15 @@ static void audioSetFade(int idx, float gain)
 
 /* the real death "scream" -- WAV_DIE (track 19, d1=0) in RD1, play_sound id 0x0a in
    RD2 -- played once on confirm, over whichever engine is already running rather
-   than a third, separate asset. Both are plain sound effects on their engine's own
-   dedicated SFX voice, so they layer over the music instead of interrupting it,
-   same as a real in-game death does. */
+   than a third, separate asset. Silences the current track first: the real game
+   itself never seems to play music and an effect/sample together (Senjin,
+   2026-10-11) -- RD2 in particular didn't play the scream at all otherwise, most
+   likely because play_sound shares the engine's state with the looping music
+   track and simply has nowhere to put a second voice while the song owns it. */
 static void audioPlayScream(int idx)
 {
-	if (idx == 1) rd2_1a6aa(0x0a, 0);
-	else if (idx == 0) syssnd_play(WAV_DIE);
+	if (idx == 1) { rd2_1a5d0(); rd2_1a6aa(0x0a, 0); }
+	else if (idx == 0) { syssnd_silence(); syssnd_play(WAV_DIE); }
 }
 #else
 static void audioStart(int idx) { (void)idx; }
@@ -281,6 +284,7 @@ gameselect_start(void)
 	confirmed = FALSE;
 	confirmZoom = 0.0f;
 	confirmHold = 0.0f;
+	screamGraceMs = 0.0f;
 	oldFire = oldLeft = oldRight = oldEnter = FALSE;
 
 	/* this screen has no pause/settings of its own: Escape should quit the
@@ -580,6 +584,17 @@ static void drawArrow(U32 *fb, int cx, int cy, int size, int pointRight, U32 col
                               Needs to clear the disk's own diagonal-tilt protrusion (its
                               corner sticks down further than its half-height alone once
                               tilted), not just its flat resting edge. */
+#define SCREAM_GRACE_MS 400.0f /* after audioPlayScream(), briefly suspends the music-chain
+                                   poll below: triggering an SFX (id 0x0a) may itself make
+                                   [$1aa08] read 0 for a moment, same as the loop's own
+                                   natural restart gap does -- without this, the poll would
+                                   immediately "rechain" by replaying the loop (id 0) right
+                                   on top of the scream, cutting it off before it's audible
+                                   (reported 2026-10-11: scream didn't play at all). Safe to
+                                   skip the poll for this long: it's well inside both
+                                   CONFIRM_ZOOM_MS+CONFIRM_HOLD_MS, and the loop track itself
+                                   is long enough that its own restart gap landing in this
+                                   same short window is very unlikely. */
 
 /*
  * gameselect_done
@@ -611,7 +626,9 @@ gameselect_done(void)
 	   nothing polling, rd2_178dc() would find it 0 once the real game started
 	   and replay the sting after all -- found 2026-10-11, confirmed still
 	   happening even though the loop was, in isolation, chaining correctly. */
-	if (audioIdx == 1 && rd2_snd_rw(0x1aa08) == 0)
+	if (screamGraceMs > 0.0f)
+		screamGraceMs -= (float)GAMESELECT_FRAME_MS;
+	else if (audioIdx == 1 && rd2_snd_rw(0x1aa08) == 0)
 		rd2_1a6aa(0, 1);
 
 	if (confirmed)
@@ -867,6 +884,8 @@ gameselect_done(void)
 			over the music rather than stopping it, same as it does in-game. audioIdx
 			already matches current/sysarg_args_game above, and is left running for
 			xrick.c's sys_initSound() to hand off into the real game unchanged. */
+		screamGraceMs = SCREAM_GRACE_MS; /* see its own comment -- keeps the poll
+			above from immediately re-triggering the loop on top of this */
 	}
 	oldFire = fire;
 	oldEnter = enter;

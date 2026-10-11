@@ -281,6 +281,22 @@ syssnd_setFadeGain(float g)
 	SDL_UnlockMutex(sndlock);
 }
 
+/* gameselect.c's carousel: silences whatever's currently playing without touching
+   the audio device/callback itself (unlike syssnd_pause()'s clear=TRUE, which also
+   stops the callback from running at all) -- the real game never seems to play
+   music and an effect/sample at the same time (Senjin, 2026-10-11), so the carousel
+   stops its own looping attract music before playing the confirm scream over it,
+   same as the real engine apparently never needs to lay the two together. */
+void
+syssnd_silence(void)
+{
+	if (!machine)
+		return;
+	SDL_LockMutex(sndlock);
+	atari_machine_jsr(machine, SNDH_FN_SILENCE, 0);
+	SDL_UnlockMutex(sndlock);
+}
+
 /*
  * Play a track through the live engine, exactly as the original game does:
  * play_music() itself arbitrates the 3 shared PSG voices (audio-sndh.md S2) -- there
