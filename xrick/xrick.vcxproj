@@ -242,15 +242,19 @@ for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag 
          Makefile's -std=gnu23 override for the same files. -->
     <ClCompile Include="src\gameselect_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalOptions>/Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="src\bezels_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalOptions>/Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="src\masks_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalOptions>/Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="src\shaders_embedded.c">
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <AdditionalOptions>/Zc:preprocessor %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="src\xrick.c" />
     <ClCompile Include="src\rd1\dat_demo.c" />
