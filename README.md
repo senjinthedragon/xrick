@@ -29,19 +29,36 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 
 ## Credits
 
-* **Rick Dangerous I & II**, originally created by Core Design, published by Firebird ;
-* reverse-engineered and ported by Stephane Gay (bigorno / ZpqrtBnk) ;
-* this fork -- SDL_GPU renderer, settings menu, gamepad remapping, game-select carousel -- by Senjin the Dragon ;
-* Atari audio emulation by Arnaud Carre (Leonard / Oxygene) ;
-* 68000 CPU emulation: Musashi, by Karl Stenerud ;
-* CRT shaders: Timothy Lottes, EasyMode, TroggleMonkey, Themaister ;
-* upscaling: AMD FidelityFX (FSR1) ;
-* bezels: Duimon, the Mega Bezel project ;
-* diskette art: sheikh_tuhin, Openclipart (public domain) ;
-* SDL3 ; Emscripten.
+- **xrick** by [bigorno](https://github.com/zpqrtbnk/xrick) (Stéphane Gay) - the original reverse-engineered RD1, plus RD2, the real Atari audio engine, the AI solver / attract-mode demos, and the web player
+- **This fork's SDL_GPU renderer, settings menu, gamepad remapping, modern controls, and game-select carousel** by [Senjin the Dragon](https://github.com/senjinthedragon)
+
+This fork also builds on the work of others:
+
+- **crt-royale** shader by [TroggleMonkey](https://github.com/libretro/slang-shaders/blob/master/crt/shaders/crt-royale/README.TXT) (GPL), via [libretro/slang-shaders](https://github.com/libretro/slang-shaders)
+- **crt-easymode** shader by EasyMode (GPL), via libretro/slang-shaders
+- **crt-lottes** shader by Timothy Lottes and the **sharp-bilinear** upscaler by Themaister (both public domain), via libretro/slang-shaders
+- **FSR1** (FidelityFX Super Resolution 1.0) by AMD (MIT), via the RetroArch/libretro slang port (Unlicense)
+- **Commodore 1084S** and **Atari SC1224** bezel images by [Duimon](https://github.com/Duimon/Duimon-Mega-Bezel) (CC BY-NC-ND 4.0), used unmodified
+- **AtariAudio**, the Atari ST audio emulation this fork's RD2 port runs its real sound-driver code on, by Arnaud Carré (Leonard / Oxygene) (MIT)
+- **Musashi**, the 68000 CPU emulator the same audio engine runs on, by Karl Stenerud (MIT)
+- **The diskette art** on the game-select screen, by sheikh_tuhin via Openclipart (public domain / CC0)
+- **stb_image.h** by [Sean Barrett](https://github.com/nothings/stb) (public domain)
 
 ## License
 
-**xrick**'s own code is published under the MIT License. As for the artwork, and the gameplay itself, the situation is murky. The original author has discussed it with Simon Phipps in the past, and his Rick Dangerous page now has a paragraph about "who owns the rights to Rick now" and the answer is... it is hard to tell.
+The code written for this fork is released under the **GNU General Public License, version 3 or (at your
+option) any later version** - see [LICENSE](LICENSE). This matches the licences of the CRT shaders it includes
+(crt-royale is GPL v2 or later, crt-easymode is GPL) and the "in the spirit of the GNU GPL" wording xrick's
+author used.
 
-The bundled third-party components listed under Credits above -- the audio and CPU emulation, the CRT shaders, the upscaler, the bezels, and the diskette art -- are each under their own license from their respective projects ; see those projects for full terms.
+A few things are covered by their own terms instead:
+
+- **bigorno's original xrick code** keeps its original notice in each file.
+- **Third-party code and shaders** keep the licences noted in the [Credits](#credits) above and in their file headers.
+- **The bezel images** (Duimon) are CC BY-NC-ND 4.0 and are not covered by the GPL.
+- **The diskette art** (sheikh_tuhin) is public domain / CC0 and is not covered by the GPL either, though
+  nothing stops it being treated as such.
+- **The original game's graphics and sound** belong to their respective owners (Core Design / Firebird) and are
+  not covered by any licence here. As for who exactly holds those rights today, the situation is murky - the
+  original author has discussed it with Simon Phipps in the past, and his Rick Dangerous page now has a
+  paragraph about "who owns the rights to Rick now," and the answer is... it is hard to tell.
