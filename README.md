@@ -18,7 +18,8 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 * an SDL_GPU renderer with CRT shaders (EasyMode, Lottes, Royale), FSR1 upscaling, and CRT-monitor bezels ;
 * a settings menu covering video, audio, controls and per-game cheats, with full gamepad remapping ;
 * a diskette carousel for picking between the two games in place of a splash screen, with each game's own real title music, a floor reflection, and a death-scream sting on confirm ;
-* modern, optional control schemes (dedicated shoot/bomb keys) alongside the original layouts.
+* modern, optional control schemes (dedicated shoot/bomb keys) alongside the original layouts ;
+* full touch support on the web build - the diskette carousel, the settings menu, and gameplay itself (a 9-zone on-screen control scheme, multi-touch) are all playable on a phone with no keyboard or gamepad.
 
 ## See Also
 
