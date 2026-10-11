@@ -295,45 +295,58 @@ if (saveBtn && new URLSearchParams(window.location.search).has('trace')) {
 // ---- fullscreen -----------------------------------------------------------------------------
 // Module.requestFullscreen (set up by SDL3's Emscripten video backend once the window exists,
 // i.e. after callMain -- see SDL_emscriptenvideo.c) goes through SDL_SetWindowFullscreen, so
-// SDL's own canvas-resize tracking stays correct; canvas.requestFullscreen() is the fallback
+// SDL's own canvas-resize tracking stays correct; screenDiv.requestFullscreen() is the fallback
 // before the game has started (or if that hook is for some reason missing). Either way this
-// only works called directly from a user gesture (the button's own click), which is exactly
+// only works called directly from a user gesture (a button's own click), which is exactly
 // why this exists instead of relying on the in-game settings menu's FULLSCREEN toggle: that
 // one goes through SDL's event queue, a frame after the real keypress, which browsers don't
 // treat as "direct enough" to grant fullscreen from.
-var fsBtn = find(cfg.fullscreen);
-if (fsBtn) {
-  if (!document.fullscreenEnabled) {
-    fsBtn.hidden = true;
-    fsBtn.style.display = 'none';
-  } else {
-    fsBtn.addEventListener('click', function () {
-      function fail(label, e) {
-        console.error('xrick: fullscreen (' + label + ') failed:', e);
-        setStatus('fullscreen failed: ' + (e && e.message ? e.message : e));
-      }
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(function (e) { fail('exit', e); });
-        return;
-      }
-      // prefer the plain browser API: it works whether or not the game has started yet,
-      // and does not depend on SDL's own window/event-loop state at all. Module.requestFullscreen
-      // (SDL3's own hook, once the game has created its window) is tried only as a fallback,
-      // since going through SDL_SetWindowFullscreen's extra layers is more that can go wrong.
-      try {
-        var p = canvas.requestFullscreen();
-        if (p && p.catch) p.catch(function (e) {
-          fail('canvas', e);
-          if (Module.requestFullscreen) {
-            try { Module.requestFullscreen(false, true); } catch (e2) { fail('Module', e2); }
-          }
-        });
-      } catch (e) {
-        fail('canvas-sync', e);
+//
+// The fullscreen TARGET is #screen (canvas's wrapping div), not the canvas itself: only the
+// fullscreen element's own descendants render while fullscreen, and a <canvas> can't have
+// real rendered children -- so an on-canvas exit button would just never be visible. #screen
+// can have one, which is exactly what #fsExit below is: an overlay, hidden except while
+// #screen is the fullscreen element (style.css), bottom-right over the game, with nothing
+// else to tap to leave fullscreen otherwise (reported 2026-10-12: entering worked, leaving
+// did not, since the original #fullscreen button lives outside the canvas in the normal
+// button row and the same reasoning hid IT once fullscreen).
+var screenDiv = find('#screen');
+
+function toggleFullscreen() {
+  function fail(label, e) {
+    console.error('xrick: fullscreen (' + label + ') failed:', e);
+    setStatus('fullscreen failed: ' + (e && e.message ? e.message : e));
+  }
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(function (e) { fail('exit', e); });
+    return;
+  }
+  // prefer the plain browser API: it works whether or not the game has started yet, and
+  // does not depend on SDL's own window/event-loop state at all. Module.requestFullscreen
+  // (SDL3's own hook, once the game has created its window) is tried only as a fallback,
+  // since going through SDL_SetWindowFullscreen's extra layers is more that can go wrong.
+  try {
+    var p = screenDiv.requestFullscreen();
+    if (p && p.catch) p.catch(function (e) {
+      fail('screen', e);
+      if (Module.requestFullscreen) {
+        try { Module.requestFullscreen(false, true); } catch (e2) { fail('Module', e2); }
       }
     });
+  } catch (e) {
+    fail('screen-sync', e);
   }
 }
+
+[find(cfg.fullscreen), find('#fsExit')].forEach(function (btn) {
+  if (!btn) return;
+  if (!document.fullscreenEnabled) {
+    btn.hidden = true;
+    btn.style.display = 'none';
+    return;
+  }
+  btn.addEventListener('click', toggleFullscreen);
+});
 
 // ---- emscripten Module ---------------------------------------------------------------------
 // the command line is built once, from the URL, before the start tap -- given to callMain

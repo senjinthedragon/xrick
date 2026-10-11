@@ -7,11 +7,22 @@ main { display: flex; flex-direction: column; align-items: center; padding: 12px
 #canvas { display: block; border: 0; padding: 0; outline: none; background: #000;
           image-rendering: pixelated; max-width: 100vw; }
 /* the plain requestFullscreen() path (player.js) doesn't go through SDL, so nothing
-   else resizes the canvas's CSS box to fill the screen -- do that here instead */
-#canvas:fullscreen { width: 100vw; height: 100vh; max-width: 100vw; object-fit: contain; }
+   else resizes the canvas's CSS box to fill the screen -- do that here instead. The
+   fullscreen target is #screen, not the canvas itself (player.js's own comment on
+   screenDiv.requestFullscreen() says why), so these key off #screen:fullscreen. */
+#screen:fullscreen, #screen:-webkit-full-screen { width: 100vw; height: 100vh;
+         display: flex; align-items: center; justify-content: center; background: #000; }
+#screen:fullscreen canvas, #screen:-webkit-full-screen canvas { width: 100vw; height: 100vh;
+         max-width: 100vw; object-fit: contain; }
 #start { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
          background: rgba(0,0,0,.75); cursor: pointer; font-size: 18px; text-align: center; }
 #start[hidden] { display: none; }
+/* the only way to leave fullscreen: the normal #fullscreen button (in the row below) lives
+   outside #screen, so it isn't reachable once #screen is the fullscreen element -- see
+   player.js's comment on this same button pair */
+#fsExit { position: absolute; right: 12px; bottom: 12px; display: none; font-size: 22px;
+          line-height: 1; padding: 8px 12px; opacity: .85; z-index: 10; }
+#screen:fullscreen #fsExit, #screen:-webkit-full-screen #fsExit { display: block; }
 #status { color: var(--dim); min-height: 1.4em; text-align: center; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 button { background: var(--btn); color: var(--fg); border: 1px solid #555; border-radius: 4px;

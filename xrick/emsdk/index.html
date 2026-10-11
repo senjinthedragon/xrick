@@ -15,6 +15,9 @@
   <div id="screen">
     <canvas id="canvas" width="640" height="400" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
     <div id="start">loading…</div>
+    <!-- only visible while #screen is the fullscreen element (style.css) -- the normal
+         #fullscreen button below lives outside it and isn't reachable once fullscreen -->
+    <button id="fsExit" title="exit fullscreen">⤢</button>
   </div>
   <div id="status"></div>
   <div class="row" id="buttons">
