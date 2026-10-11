@@ -20,6 +20,12 @@ extern void sysevt_wait(void);
 /* Senjin's SDL3 port: forget every held input (see sysevt.c) */
 extern void sysevt_resetInput(void);
 
+#ifdef __EMSCRIPTEN__
+/* mobile web on-screen gameplay touch zones: zoneMask is the OR of (1 << zone) for every
+   currently-held zone (1-9, numpad-numbered, 2/5 unused). See sysevt.c. */
+extern void touch_setZones(int zoneMask);
+#endif
+
 #endif /* _SYSEVT_H */
 
 /* eof */

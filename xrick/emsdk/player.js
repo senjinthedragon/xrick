@@ -205,6 +205,79 @@ function bindMenuTap(canvas) {
   }, { passive: true });
 }
 
+// mobile web gameplay touch zones: a 3x3 grid over the canvas's own CSS box, which
+// already spans the full device screen in fullscreen (style.css's #screen:fullscreen
+// canvas rule) -- object-fit:contain only affects painting, not the box's own size or
+// hit-testing area, so this already reaches beside the letterboxed gameplay area on a
+// widescreen phone, not just on top of it. Numpad-numbered 1 (top-left) .. 9
+// (bottom-right); columns equal width, rows 1/5 - 3/5 - 1/5 top to bottom; 2 and 5
+// unused. Supports multiple simultaneous touches (e.g. holding a direction while also
+// tapping jump) by tracking each touch's own zone and recomputing the combined mask on
+// every change. Only active during real gameplay, not the carousel or with the settings
+// menu open -- checked at the start of each new touch. See touch_setZones()'s own
+// header comment (sysevt.c) for why zone 8 ("punch") is deliberately just plain FIRE
+// rather than its own special case.
+function bindGameplayZones(canvas) {
+  var touches = {}; // touch identifier -> zone number
+  var mask = 0;
+
+  function zoneFor(clientX, clientY) {
+    var r = canvas.getBoundingClientRect();
+    var relX = (clientX - r.left) / r.width, relY = (clientY - r.top) / r.height;
+    if (relX < 0 || relX >= 1 || relY < 0 || relY >= 1) return 0;
+    var col = relX < 1 / 3 ? 0 : relX < 2 / 3 ? 1 : 2;
+    var row = relY < 0.2 ? 0 : relY < 0.8 ? 1 : 2;
+    return row * 3 + col + 1;
+  }
+
+  function recompute() {
+    var m = 0;
+    for (var id in touches) m |= (1 << touches[id]);
+    if (m === mask) return;
+    mask = m;
+    try { Module.ccall('touch_setZones', null, ['number'], [mask]); } catch (e) { /* not ready yet */ }
+  }
+
+  function gameplayActive() {
+    if (window.xrickCarouselActive) return false;
+    try { return !Module.ccall('menu_active', 'number', [], []); } catch (e) { return false; }
+  }
+
+  canvas.addEventListener('touchstart', function (e) {
+    if (!gameplayActive()) return;
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      var z = zoneFor(t.clientX, t.clientY);
+      if (z) touches[t.identifier] = z;
+    }
+    recompute();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', function (e) {
+    var any = false;
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (!(t.identifier in touches)) continue;
+      any = true;
+      var z = zoneFor(t.clientX, t.clientY);
+      if (z) touches[t.identifier] = z; else delete touches[t.identifier];
+    }
+    if (any) { e.preventDefault(); recompute(); }
+  }, { passive: false });
+
+  function release(e) {
+    var any = false;
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var id = e.changedTouches[i].identifier;
+      if (id in touches) { delete touches[id]; any = true; }
+    }
+    if (any) { e.preventDefault(); recompute(); }
+  }
+  canvas.addEventListener('touchend', release, { passive: false });
+  canvas.addEventListener('touchcancel', release, { passive: false });
+}
+
 var runtimeReady = false; // set once xrick.wasm is loaded: the game can start
 
 findAll(cfg.buttons).forEach(bindButton);
@@ -213,6 +286,7 @@ var padEl = find(cfg.pad);
 if (padEl) bindPad(padEl);
 bindCarouselTouch(canvas);
 bindMenuTap(canvas);
+bindGameplayZones(canvas);
 window.addEventListener('touchstart', function once() {
   document.body.classList.add('touch');
   window.removeEventListener('touchstart', once);

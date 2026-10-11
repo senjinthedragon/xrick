@@ -78,6 +78,47 @@ setBomb(int down)
 	control_last = CONTROL_FIRE;
 }
 
+#ifdef __EMSCRIPTEN__
+/*
+ * touch_setZones
+ *
+ * Mobile web on-screen gameplay touch zones (Senjin, 2026-10-12): a 3x3 grid over the
+ * canvas, numpad-numbered 1 (top-left) .. 9 (bottom-right), zones 2/5 unused. player.js
+ * tracks every currently-held zone (supports multiple simultaneous touches) and calls
+ * this with the OR of (1 << zone) for each. The whole movement/fire state is recomputed
+ * from scratch every call, rather than incrementally SETBIT/CLRBIT per zone change, so
+ * two zones that happen to share a control bit (zone 1 "jump" and zone 7 "shoot"'s own
+ * FIRE+UP combo both touch UP) can never get left stuck set if only one of the two
+ * actually releases.
+ *
+ * Zone 8 ("punch" in Senjin's spec) is deliberately just plain FIRE: the original
+ * game's real punch/stun move is FIRE held together with LEFT or RIGHT (RD2 only --
+ * RD1's e_rick.c has no equivalent combo at all), which holding zone 8 together with
+ * zone 4 or 6 (multi-touch) already reproduces exactly, with no special-casing needed
+ * here.
+ */
+void
+touch_setZones(int zoneMask)
+{
+	U8 fire = (zoneMask & ((1 << 7) | (1 << 8) | (1 << 9))) != 0;
+	U8 up = (zoneMask & ((1 << 1) | (1 << 7))) != 0;   /* zone 1 jump, or zone 7's FIRE+UP */
+	U8 down = (zoneMask & ((1 << 3) | (1 << 9))) != 0; /* zone 3 down, or zone 9's FIRE+DOWN */
+	U8 left = (zoneMask & (1 << 4)) != 0;
+	U8 right = (zoneMask & (1 << 6)) != 0;
+
+	if (up) SETBIT(control_status, CONTROL_UP); else CLRBIT(control_status, CONTROL_UP);
+	if (down) SETBIT(control_status, CONTROL_DOWN); else CLRBIT(control_status, CONTROL_DOWN);
+	if (left) SETBIT(control_status, CONTROL_LEFT); else CLRBIT(control_status, CONTROL_LEFT);
+	if (right) SETBIT(control_status, CONTROL_RIGHT); else CLRBIT(control_status, CONTROL_RIGHT);
+	if (fire) {
+		SETBIT(control_status, CONTROL_FIRE);
+	} else {
+		CLRBIT(control_status, CONTROL_FIRE);
+		e_rick_resetShootDebounce();
+	}
+}
+#endif
+
 #ifdef ENABLE_JOYSTICK
 #define PAD_DEADZONE 12000
 
