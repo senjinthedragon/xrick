@@ -85,7 +85,10 @@
            main symbol to link against (found via LNK2001 on the first native build,
            2026-09-10). The Linux/Makefile build never hits this since SDL_main.h's
            renaming is Windows/WinRT/iOS/Android-only. -->
-      <PreprocessorDefinitions>_MBCS;_CRT_SECURE_NO_WARNINGS;SDL_MAIN_HANDLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- 2.0.0: WIN32 was missing here, so system.h's own __WIN32__ convention was dead
+           on this project the whole time -- silently disabled xrick.c's AttachConsole
+           console-reattach code, and would have broken menu.c's new MSVC execvp shim. -->
+      <PreprocessorDefinitions>WIN32;_MBCS;_CRT_SECURE_NO_WARNINGS;SDL_MAIN_HANDLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>vcpkg_installed\$(VcpkgTriplet)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -99,6 +102,17 @@
     <PostBuildEvent>
       <Command>copy /Y "$(ProjectDir)vcpkg_installed\$(VcpkgTriplet)\bin\SDL3.dll" "$(OutDir)" &gt;nul</Command>
     </PostBuildEvent>
+    <!-- 2.0.0: this project was never updated for the fork's SDL_GPU renderer work and
+         built only upstream's plain-OpenGL RD1+RD2 tree (no menu/carousel/bezels/CRT).
+         shaders_embedded.c's #embed directives (see that file) need these .spv files
+         to exist before it compiles, mirroring the Makefile's $(SHADER_BUILD) step;
+         assumes glslc (shaderc) is on PATH, same assumption the Makefile makes via
+         its GLSLC variable. -->
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\build\shaders" mkdir "$(ProjectDir)..\build\shaders"
+for %%f in ("$(ProjectDir)src\shaders\gpu\*.vert") do glslc -fshader-stage=vert "%%f" -o "$(ProjectDir)..\build\shaders\%%~nxf.spv"
+for %%f in ("$(ProjectDir)src\shaders\gpu\*.frag") do glslc -fshader-stage=frag "%%f" -o "$(ProjectDir)..\build\shaders\%%~nxf.spv"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -140,7 +154,17 @@
     <ClInclude Include="include\system.h" />
     <ClInclude Include="include\sysvid.h" />
     <ClInclude Include="include\sysvid_gl.h" />
+    <ClInclude Include="include\sysvid_gpu.h" />
+    <ClInclude Include="include\sysvid_overlay.h" />
     <ClInclude Include="include\splash.h" />
+    <ClInclude Include="include\audio_lofi.h" />
+    <ClInclude Include="include\gameselect.h" />
+    <ClInclude Include="include\gameselect_embedded.h" />
+    <ClInclude Include="include\menu.h" />
+    <ClInclude Include="include\settings.h" />
+    <ClInclude Include="include\bezels_embedded.h" />
+    <ClInclude Include="include\masks_embedded.h" />
+    <ClInclude Include="include\shaders_embedded.h" />
     <ClInclude Include="include\rd1\dat_sndh_engine.h" />
     <ClInclude Include="include\rd1\devtools.h" />
     <ClInclude Include="include\rd1\draw.h" />
@@ -202,7 +226,33 @@
     <ClCompile Include="src\syskbd.c" />
     <ClCompile Include="src\system.c" />
     <ClCompile Include="src\sysvid.c" />
-    <ClCompile Include="src\sysvid_gl.c" />
+    <!-- 2.0.0: this fork's native desktop renderer is SDL_GPU (sysvid_gpu.c), not
+         upstream's OpenGL (sysvid_gl.c) -- both define the same sysvid_gl_* symbols
+         sysvid.c calls (see sysvid_gpu.c's own header comment), so including both
+         would be a duplicate-symbol link error, matching the Makefile's exclusion
+         of sysvid_gl.c for the same reason. The web/Emscripten build keeps using
+         sysvid_gl.c/WebGL instead (build.sh), since SDL_GPU has no WebGPU backend yet. -->
+    <ClCompile Include="src\sysvid_gpu.c" />
+    <ClCompile Include="src\sysvid_overlay.c" />
+    <ClCompile Include="src\audio_lofi.c" />
+    <ClCompile Include="src\menu.c" />
+    <ClCompile Include="src\settings.c" />
+    <ClCompile Include="src\gameselect.c" />
+    <ClCompile Include="src\stb_image_impl.c" />
+    <!-- #embed (C23) -- only these four need the newer dialect, matching the
+         Makefile's -std=gnu23 override for the same files. -->
+    <ClCompile Include="src\gameselect_embedded.c">
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+    </ClCompile>
+    <ClCompile Include="src\bezels_embedded.c">
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+    </ClCompile>
+    <ClCompile Include="src\masks_embedded.c">
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+    </ClCompile>
+    <ClCompile Include="src\shaders_embedded.c">
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+    </ClCompile>
     <ClCompile Include="src\splash.c" />
     <ClCompile Include="src\xrick.c" />
     <ClCompile Include="src\rd1\dat_demo.c" />

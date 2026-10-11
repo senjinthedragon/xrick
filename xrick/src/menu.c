@@ -44,6 +44,10 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#elif defined(__WIN32__)
+#include <process.h> /* _execvp, MSVC's equivalent of execvp -- see relaunchRD1/activate */
+#include <errno.h>
+#define execvp _execvp
 #else
 #include <unistd.h> /* execvp, for I_QUIT_TO_MENU */
 #include <errno.h>
