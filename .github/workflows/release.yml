@@ -198,6 +198,11 @@ jobs:
 
   deploy-pages:
     needs: build-web
+    # Pages tracks the branch, not the release tag -- and the github-pages
+    # environment's own protection rules reject tag refs outright anyway
+    # ("Tag v2.0.0 is not allowed to deploy to github-pages", found on the
+    # first real tag-triggered run). Deploy on branch pushes/dispatch only.
+    if: "!startsWith(github.ref, 'refs/tags/')"
     runs-on: ubuntu-latest
     environment:
       name: github-pages
