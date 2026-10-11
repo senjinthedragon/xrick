@@ -163,13 +163,18 @@ cd "$SRCDIR"
 # build keeps using sysvid_gl.c/WebGL (SDL_GPU has no WebGPU backend yet) -- both
 # define the same sysvid_gl_* symbols sysvid.c calls, so including both would be a
 # straight duplicate-symbol link error, not just dead code.
+# src/shaders_embedded.c is excluded for the same reason sysvid_gpu.c is: its #embed'd
+# SPIR-V (compiled by the Makefile via glslc) is only ever read by sysvid_gpu.c -- it
+# has no WebGL use and no .spv files exist for this build to #embed in the first place
+# (found 2026-10-11: the web build never excluded it, so it failed outright the first
+# time CI actually ran this path, rather than silently building dead code).
 # src/menu.c and src/settings.c (the settings menu, Phase 3) now build for the web too
 # (Phase 4): sysvid_gl.c implements sysvid_overlayRect/overlayText/the upscale-CRT-bezel
 # getter-setter API itself (see its own header comment), using the same shared
 # src/sysvid_overlay.c menu.c always drew through -- the #ifndef __EMSCRIPTEN__ guards
 # that used to make the menu dead code on the web build are gone (game.c, rd2_sys.c,
 # sysevt.c).
-CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c')
+CSRC=$(ls src/*.c src/rd1/*.c src/rd2/*.c | grep -v -E 'src/rd1/dat_(pics|sprites|tiles)PC\.c|src/sysvid_gpu\.c|src/shaders_embedded\.c')
 CXXSRC=$(ls src/audio_engine/*.cpp src/audio_engine/external/Musashi/*.cpp)
 
 mkdir -p "$WEB/obj"
