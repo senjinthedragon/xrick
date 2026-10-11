@@ -130,12 +130,66 @@ function bindPad(pad) {
   pad.addEventListener('touchcancel', stop, { passive: false });
 }
 
+// carousel touch gestures: tap near an edge (or swipe) to switch games, tap the middle
+// to launch the active one. Only acts while window.xrickCarouselActive is true -- set/
+// cleared from gameselect.c (EMSCRIPTEN-only), so the same gesture during real gameplay
+// doesn't fight the #pad/#fire touch controls below the canvas (e.g. an accidental tap
+// on the canvas moving Rick off a ledge). Dispatches ArrowLeft/ArrowRight/Enter, same as
+// bindPad above and gameselect.c's own SDL_SCANCODE_RETURN confirm check -- none of
+// those are remappable, so this can't be broken by a key remap elsewhere in the menu.
+function bindCarouselTouch(canvas) {
+  var SWIPE_PX = 40;    // minimum horizontal travel to count as a swipe, not a tap
+  var TAP_PX = 15;      // maximum travel still considered a tap (not a drag that went nowhere)
+  var EDGE_FRAC = 0.22; // left/right this fraction of the canvas width counts as "near an arrow"
+  var touch = null;
+
+  function tap(code) {
+    sendKey(true, code, code);
+    setTimeout(function () { sendKey(false, code, code); }, 80); // long enough to span a frame
+  }
+
+  canvas.addEventListener('touchstart', function (e) {
+    if (!window.xrickCarouselActive) return;
+    e.preventDefault();
+    var t = e.changedTouches[0];
+    touch = { x: t.clientX, y: t.clientY };
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', function (e) {
+    if (window.xrickCarouselActive) e.preventDefault(); // don't let the swipe scroll the page
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function (e) {
+    if (!window.xrickCarouselActive || !touch) return;
+    e.preventDefault();
+    var t = e.changedTouches[0];
+    var dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    touch = null;
+
+    if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
+      // left-to-right swipe (dx > 0) = LEFT; right-to-left (dx < 0) = RIGHT
+      tap(dx > 0 ? 'ArrowLeft' : 'ArrowRight');
+      return;
+    }
+    if (Math.abs(dx) > TAP_PX || Math.abs(dy) > TAP_PX) return; // a drag, not a tap or a swipe
+
+    var r = canvas.getBoundingClientRect();
+    var frac = (t.clientX - r.left) / r.width;
+    if (frac < EDGE_FRAC) tap('ArrowLeft');
+    else if (frac > 1 - EDGE_FRAC) tap('ArrowRight');
+    else tap('Enter');
+  }, { passive: false });
+
+  canvas.addEventListener('touchcancel', function () { touch = null; }, { passive: false });
+}
+
 var runtimeReady = false; // set once xrick.wasm is loaded: the game can start
 
 findAll(cfg.buttons).forEach(bindButton);
 
 var padEl = find(cfg.pad);
 if (padEl) bindPad(padEl);
+bindCarouselTouch(canvas);
 window.addEventListener('touchstart', function once() {
   document.body.classList.add('touch');
   window.removeEventListener('touchstart', once);

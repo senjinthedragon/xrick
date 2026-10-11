@@ -293,6 +293,15 @@ gameselect_start(void)
 	   program outright, not pop up the in-game menu (see gameselect_done) */
 	menu_setEnabled(FALSE);
 
+#ifdef __EMSCRIPTEN__
+	/* player.js's canvas touch gestures (tap an arrow/swipe to switch, tap the
+	   middle to launch) only make sense here -- the same tap during real gameplay
+	   would fight the #pad/#fire touch controls (e.g. an accidental tap on the
+	   canvas moving Rick off a ledge). Cleared again in gameselect_done()'s real
+	   exit point. */
+	EM_ASM({ window.xrickCarouselActive = true; });
+#endif
+
 	audioSwapped = FALSE;
 	audioIdx = current;
 	audioStart(audioIdx);
@@ -687,6 +696,9 @@ gameselect_done(void)
 		else if (audioIdx == 0) syssnd_setLofi(FALSE);
 
 		menu_setEnabled(TRUE); /* re-enable it for the game that's about to start */
+#ifdef __EMSCRIPTEN__
+		EM_ASM({ window.xrickCarouselActive = false; }); /* see gameselect_start() */
+#endif
 		return TRUE;
 	}
 
