@@ -132,6 +132,7 @@ python "$(ProjectDir)tools\gen_embed.py" "$(ProjectDir)generated\gameselect_embe
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,6 +146,14 @@ python "$(ProjectDir)tools\gen_embed.py" "$(ProjectDir)generated\gameselect_embe
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <!-- static CRT: the default (dynamic, /MD) needs the VC++ Redistributable
+           installed on the player's machine -- fine on a dev box (Visual Studio
+           puts it there), not on a clean Windows install, which is exactly why
+           this went unnoticed until actually tested in a real VM (2026-10-12):
+           "VCRUNTIME140.dll was not found." SDL3 stays a separate .dll either
+           way (vcpkg's x64-windows triplet), so this only affects our own
+           compiled code, not a CRT-mismatch link against it. -->
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
