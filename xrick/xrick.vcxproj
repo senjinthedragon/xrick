@@ -158,12 +158,12 @@ python "$(ProjectDir)tools\gen_embed.py" "$(ProjectDir)generated\gameselect_embe
     <Link>
       <!-- Windows (GUI) subsystem + mainCRTStartup: xrick.c's setConsole() only ever
            calls AttachConsole() to reuse an EXISTING parent console (when launched
-           from a terminal) -- it never creates one. The actual console window
+           from a terminal), it never creates one. The actual console window
            players were seeing (reported 2026-10-12, "I don't like") came from the
            Console subsystem itself: Windows always auto-creates a new console for
            a Console-subsystem exe that has no parent one, i.e. every normal
            double-click from Explorer. SDL_MAIN_HANDLED (above) means the real
-           entry point is xrick.c's own main(), not WinMain -- EntryPointSymbol
+           entry point is xrick.c's own main(), not WinMain, so EntryPointSymbol
            tells the linker to use the console CRT startup stub that calls main()
            even though the declared subsystem is Windows, so no WinMain is needed. -->
       <SubSystem>Windows</SubSystem>
