@@ -83,6 +83,11 @@ jobs:
           mkdir "$OUT"
           cp build/wsl/xrick "$OUT/"
           cp /tmp/sdl3-install/lib/libSDL3.so* "$OUT/" 2>/dev/null || cp /tmp/sdl3-install/lib64/libSDL3.so* "$OUT/"
+          # a raw Linux binary can't carry an embedded icon the way .exe/.app can --
+          # this .desktop + icon is the freedesktop.org equivalent, opt-in since it
+          # needs the user to fill in where they actually extracted this to (see
+          # xrick/linux/README.txt)
+          cp xrick/linux/xrick.desktop xrick/linux/README.txt xrick/icons/xrickST.png "$OUT/"
           zip -r "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4
@@ -169,10 +174,24 @@ jobs:
       - name: Package
         run: |
           OUT=xrick-macos
-          mkdir "$OUT"
-          cp build/wsl/xrick "$OUT/"
-          cp /tmp/sdl3-install/lib/libSDL3*.dylib "$OUT/"
-          install_name_tool -change "$(otool -L "$OUT/xrick" | grep libSDL3 | awk '{print $1}')" "@rpath/$(basename "$OUT"/libSDL3*.dylib)" "$OUT/xrick"
+          APP="$OUT/xrick.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp build/wsl/xrick "$APP/Contents/MacOS/"
+          # the dylib stays alongside the binary in Contents/MacOS, not Resources --
+          # the build's own rpath (set above, @executable_path) resolves relative to
+          # wherever the executable itself is, so this has to be the same directory.
+          cp /tmp/sdl3-install/lib/libSDL3*.dylib "$APP/Contents/MacOS/"
+          install_name_tool -change "$(otool -L "$APP/Contents/MacOS/xrick" | grep libSDL3 | awk '{print $1}')" \
+            "@rpath/$(basename "$APP/Contents/MacOS"/libSDL3*.dylib)" "$APP/Contents/MacOS/xrick"
+          # a bare binary has nowhere to carry an icon or any of the Windows .exe-style
+          # file info (company/version/copyright) -- a real .app bundle is what both of
+          # those need on macOS. iconutil is Apple's own tool (only available here, on
+          # the macos-latest runner), built from the pre-generated iconset in the repo
+          # (xrick/icons/xrick.iconset -- nearest-neighbor upscaled from the original
+          # 32x32 xrickST.ico, kept crisp rather than blurry to match the rest of the
+          # project's pixel-art look).
+          iconutil -c icns xrick/icons/xrick.iconset -o "$APP/Contents/Resources/xrick.icns"
+          sed "s/__VERSION__/${GITHUB_REF_NAME#v}/g" xrick/macos/Info.plist > "$APP/Contents/Info.plist"
           zip -r "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4
@@ -205,7 +224,7 @@ jobs:
         run: |
           OUT=xrick-web
           mkdir "$OUT"
-          cp build/web/index.html build/web/player.js build/web/style.css build/web/xrick.js build/web/xrick.wasm "$OUT/"
+          cp build/web/index.html build/web/player.js build/web/style.css build/web/favicon.ico build/web/xrick.js build/web/xrick.wasm "$OUT/"
           zip -r "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4

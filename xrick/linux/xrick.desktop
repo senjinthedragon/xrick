@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=xrick
+Comment=Rick Dangerous I & II
+Exec=/path/to/xrick
+Icon=/path/to/xrickST.png
+Categories=Game;ActionGame;
+Terminal=false
