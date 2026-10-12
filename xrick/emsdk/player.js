@@ -67,6 +67,10 @@ function find(selector) { return selector ? document.querySelector(selector) : n
 function findAll(selector) { return selector ? Array.prototype.slice.call(document.querySelectorAll(selector)) : []; }
 
 var canvas = document.getElementById('canvas');
+// was an inline oncontextmenu="" attribute on the canvas -- a strict CSP's script-src-attr
+// (no 'unsafe-hashes') blocks inline event handler attributes same as it blocks inline
+// scripts, so this moved here to actually take effect under that kind of CSP.
+canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 var startBox = find(cfg.start);
 var statusBox = find(cfg.status);
 var lastLines = [];
@@ -445,6 +449,36 @@ function toggleFullscreen() {
   btn.addEventListener('click', toggleFullscreen);
 });
 
+// screenDiv.requestFullscreen() above (deliberately, see its own comment) never touches
+// SDL, so the renderer never got told to resize for the browser's real fullscreen
+// dimensions -- it just stretched the small windowed-size canvas via CSS, which looks
+// soft/blurry and defeats the point of the CRT shaders and bezel. Listening here instead
+// of inline in toggleFullscreen() also covers the Escape-key / browser-UI exit paths,
+// not just our own button. Resizing after the fact, once already in real fullscreen,
+// isn't gesture-gated the way requesting fullscreen itself is, so this is safe to do
+// from an event handler. Guarded with try/catch like reassertCanvasSize(): this can fire
+// before the game (and therefore sysvid_setBrowserSize) exists yet.
+function syncBrowserFullscreenSize() {
+  var w = Math.round(window.innerWidth * (window.devicePixelRatio || 1));
+  var h = Math.round(window.innerHeight * (window.devicePixelRatio || 1));
+  try { Module.ccall('sysvid_setBrowserSize', null, ['number', 'number'], [w, h]); } catch (e) { /* not ready yet */ }
+}
+screenDiv.addEventListener('fullscreenchange', function () {
+  if (document.fullscreenElement === screenDiv) {
+    syncBrowserFullscreenSize();
+  } else {
+    reassertCanvasSize();
+  }
+});
+// fullscreenchange only fires on entering/leaving, not while staying fullscreen across
+// a mobile orientation change -- reported 2026-10-12: rotating from portrait fullscreen
+// to landscape left the renderer still sized for the old (now-wrong) dimensions, far too
+// small to tap. window's resize fires on every orientation change regardless of
+// fullscreen state, so it's gated here to only matter while actually fullscreen.
+window.addEventListener('resize', function () {
+  if (document.fullscreenElement === screenDiv) syncBrowserFullscreenSize();
+});
+
 // ---- emscripten Module ---------------------------------------------------------------------
 // the command line is built once, from the URL, before the start tap -- given to callMain
 // only (not Module.arguments)
@@ -487,10 +521,23 @@ function start() {
   canvas.style.display = 'block'; // pages may keep the canvas hidden until now
   canvas.focus();
   window.xrickStartArgs = args; // for checking what the game was started with
+  // SDL3's Emscripten video backend syncs the browser's real fullscreen state to its own
+  // window flags during SDL_CreateWindow (inside callMain) -- since the window isn't
+  // created with the fullscreen flag, it calls the browser's real exitFullscreen() to
+  // match, even if we got there via our own screenDiv.requestFullscreen() (a path SDL
+  // doesn't know about). document.exitFullscreen() needs no user gesture, so SDL's call
+  // always succeeds; re-requesting it right after does need one, but the gap here is a
+  // local IndexedDB round-trip (setupIDBFS), well inside a user gesture's transient-
+  // activation window, so it reliably still counts (reported 2026-10-12: starting the
+  // game while already fullscreen silently dropped back to windowed).
+  var wasFullscreen = !!document.fullscreenElement;
   setupIDBFS(function () {
     Module.callMain(args);
     resumeSdlAudio();
     reassertCanvasSize();
+    if (wasFullscreen && !document.fullscreenElement) {
+      screenDiv.requestFullscreen().catch(function () { /* best effort; known not to recover in Firefox -- see comment above */ });
+    }
   });
 }
 

@@ -12,8 +12,15 @@
 </head>
 <body>
 <main>
+  <div class="ember ember-1"></div>
+  <div class="ember ember-2"></div>
+  <div class="ember ember-3"></div>
+  <div class="ember ember-4"></div>
+  <div class="ember ember-5"></div>
+  <h1 id="title">XRICK</h1>
+  <div id="tagline">rick dangerous I &amp; II</div>
   <div id="screen">
-    <canvas id="canvas" width="640" height="400" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    <canvas id="canvas" width="640" height="400" tabindex="-1"></canvas>
     <div id="start">loading…</div>
     <!-- only visible while #screen is the fullscreen element (style.css) -- the normal
          MENU/#fullscreen buttons below live outside it and aren't reachable once
@@ -23,13 +30,14 @@
     <button id="fsExit" title="exit fullscreen">⤢</button>
   </div>
   <div id="status"></div>
+  <div class="divider"></div>
   <div class="row" id="buttons">
-    <button data-code="Tab" data-key="Tab" title="settings menu">MENU</button>
-    <button data-code="F4"  data-key="F4">M</button>
-    <button data-code="F5"  data-key="F5">S−</button>
-    <button data-code="F6"  data-key="F6">S+</button>
-    <button data-code="KeyP" data-key="p">P</button>
-    <button data-code="KeyE" data-key="e">E</button>
+    <button data-code="Tab" data-key="Tab" title="settings menu">☰ MENU</button>
+    <button data-code="F4"  data-key="F4" title="mute">MUTE</button>
+    <button data-code="F5"  data-key="F5" title="volume down">&minus;</button>
+    <button data-code="F6"  data-key="F6" title="volume up">+</button>
+    <button data-code="KeyP" data-key="p" title="pause">⏸</button>
+    <button data-code="KeyE" data-key="e" title="end game">⏹</button>
     <button id="fullscreen" title="fullscreen">⛶</button>
     <button id="savetrace" hidden>download trace</button>
   </div>
@@ -49,20 +57,18 @@
     with mid-left or mid-right, same as the original game's fire+direction combo. Tap any
     settings-menu row to use it; tap anywhere to leave the credits page.
   </div>
+  <div class="divider"></div>
   <div id="help">
-    Keys: arrows (or Z X O K) to move, Space to fire, P pause, E end game, Tab opens the
-    settings menu (video, audio, controls, cheats, autoplay, quit -- settings are saved
-    in the browser; not Escape, since that's the browser's own fullscreen-exit key).
-    F4 mute, F5/F6 volume, F10/F11/F12 cycle upscaler/CRT shader/bezel.
-    A connected gamepad works too (remap it from the menu).
-    With no game chosen via the URL options below, you'll land on a carousel to pick Rick
-    Dangerous or Rick Dangerous II; switching games, picking a world, or warping to a room
-    are all settings-menu options from there, same as the native build.
-    URL options: <code>?demo</code> attract demo, <code>?speed=N</code>, <code>?zoom=N</code>,
-    <code>?keys=L-R-U-D-F</code>, <code>?nosound</code>, and the menu's own
-    <code>?game=</code>/<code>?map=</code>/<code>?submap=</code> (for a direct link, skipping
-    the carousel).
+    <p>Arrows (or Z X O K) to move, Space to fire, P to pause, E to end the current game,
+    Tab for the settings menu (video, audio, controls, cheats, autoplay).</p>
+    <p>F4 mute &middot; F5/F6 volume &middot; F10/F11/F12 cycle upscaler/CRT shader/bezel
+    &middot; a connected gamepad works too (remap it from the menu).</p>
+    <p>No game picked yet? Choose Rick Dangerous or Rick Dangerous II from the diskette
+    carousel &mdash; picking a world or warping to a room are menu options too.</p>
   </div>
+  <div id="credit"><a href="https://www.rick-dangerous.org/">xrick</a> &bull;
+    <a href="https://github.com/zpqrtbnk/xrick">bigorno</a> &amp;
+    <a href="https://github.com/senjinthedragon">Senjin the Dragon</a> &bull; GPLv3</div>
 </main>
 <script src="player.js"></script>
 <script src="xrick.js" async></script>

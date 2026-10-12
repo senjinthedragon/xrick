@@ -567,6 +567,34 @@ sysvid_reassertSize(void)
 	sysvid_setDisplayPalette();
 	sysvid_update(&SCREENRECT);
 }
+
+/*
+ * sysvid_setBrowserSize
+ *
+ * The web page's own FULLSCREEN button (player.js) only ever calls the plain
+ * screenDiv.requestFullscreen() browser API directly, never sysvid_toggleFullscreen()
+ * below -- a real user gesture is required to grant browser fullscreen, and going
+ * through SDL's event queue first (a frame after the keypress/click) isn't "direct
+ * enough" for browsers to honour that from (same reasoning sysvid_toggleFullscreen's
+ * own comment gives for the settings menu's FULLSCREEN item not being usable for this).
+ * That means this renderer never got told to resize for the browser's real fullscreen
+ * dimensions, so going fullscreen on the web just stretched the small windowed-size
+ * canvas via CSS -- soft/blurry, defeating the whole point of the CRT shaders and
+ * bezel (reported 2026-10-12: "used to look nice and sharp in fullscreen", referring
+ * to the in-game menu's own SDL-backed FULLSCREEN toggle, a different code path).
+ * Called from player.js's 'fullscreenchange' handler, after the fact -- once already
+ * in real browser fullscreen, resizing isn't gesture-gated, so this is safe to call
+ * from an event handler rather than needing the original click/tap itself.
+ */
+void
+sysvid_setBrowserSize(int w, int h)
+{
+	if (!screen || w <= 0 || h <= 0)
+		return;
+	SDL_SetWindowSize(screen, w, h);
+	sysvid_setDisplayPalette();
+	sysvid_update(&SCREENRECT);
+}
 #endif
 
 /*
