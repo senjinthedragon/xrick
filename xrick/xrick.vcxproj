@@ -147,7 +147,7 @@ python "$(ProjectDir)tools\gen_embed.py" "$(ProjectDir)generated\gameselect_embe
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <!-- static CRT: the default (dynamic, /MD) needs the VC++ Redistributable
-           installed on the player's machine -- fine on a dev box (Visual Studio
+           installed on the player's machine, fine on a dev box (Visual Studio
            puts it there), not on a clean Windows install, which is exactly why
            this went unnoticed until actually tested in a real VM (2026-10-12):
            "VCRUNTIME140.dll was not found." SDL3 stays a separate .dll either
