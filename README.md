@@ -33,7 +33,7 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 ## See Also
 
 * The project's home page at [rick-dangerous.org](https://www.rick-dangerous.org/) ;
-* Play online at [rick-dangerous.org/player](https://www.rick-dangerous.org/player) ;
+* Play online at [senjinthedragon.github.io/xrick](https://senjinthedragon.github.io/xrick/) ;
 * The complete Rick Dangerous code knowledge base in its [own repository](https://github.com/zpqrtbnk/xrick-kb) ;
 * This fork, at [senjinthedragon/xrick](https://github.com/senjinthedragon/xrick).
 
