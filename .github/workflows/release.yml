@@ -149,6 +149,18 @@ jobs:
           REDIST="$(cygpath -u "$VCToolsRedistDir")x64"
           cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140.dll "$OUT/"
           cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140_1.dll "$OUT/" 2>/dev/null || true
+          # vcruntime140.dll itself needs several api-ms-win-crt-*.dll forwarder stubs,
+          # normally satisfied by Windows 10/11's own built-in API-set redirection with
+          # no physical files needed -- except apparently not reliably in Senjin's VM
+          # (reported 2026-10-12: same "VCRUNTIME140.dll was not found" error even with
+          # that file genuinely sitting right next to xrick.exe, confirmed by exit code
+          # 0xC0000135/STATUS_DLL_NOT_FOUND from a direct PowerShell run, not a stale
+          # shortcut to an older build). Bundling the actual Universal CRT redistributable
+          # files (same ones Microsoft's own UCRT Redistributable package installs) removes
+          # the dependency on that OS-level mechanism working, whatever's unusual about it
+          # here.
+          UCRT="$(cygpath -u "$UniversalCRTSdkDir")Redist/ucrt/DLLs/x64"
+          cp "$UCRT"/*.dll "$OUT/"
           7z a "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4
