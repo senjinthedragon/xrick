@@ -11,6 +11,13 @@ Both games run on a real emulated Atari ST 68000 + YM2149, playing back the orig
 
 **This repository contains the source code for xrick.**
 
+<table>
+<tr>
+<td><img src="screenshots/rd1-gameplay.png" alt="Rick Dangerous gameplay, CRT shader and 1084S bezel"></td>
+<td><img src="screenshots/carousel.png" alt="The diskette carousel for picking between the two games"></td>
+</tr>
+</table>
+
 ## This Fork
 
 This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on top of [zpqrtbnk/xrick](https://github.com/zpqrtbnk/xrick)'s decompilation, RD2 port, real audio engine, AI solver / attract-mode demos, and web player. On top of that foundation, this fork adds:
@@ -20,6 +27,8 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 * a diskette carousel for picking between the two games in place of a splash screen, with each game's own real title music, a floor reflection, and a death-scream sting on confirm ;
 * modern, optional control schemes (dedicated shoot/bomb keys) alongside the original layouts ;
 * full touch support on the web build - the diskette carousel, the settings menu, and gameplay itself (a 9-zone on-screen control scheme, multi-touch) are all playable on a phone with no keyboard or gamepad.
+
+<p align="center"><img src="screenshots/rd2-settings-menu.png" alt="Rick Dangerous II with the settings menu open" width="500"></p>
 
 ## See Also
 
