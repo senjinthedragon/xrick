@@ -137,6 +137,18 @@ jobs:
           mkdir "$OUT"
           cp xrick/bin/Release/xrick.exe "$OUT/"
           cp xrick/bin/Release/SDL3.dll "$OUT/"
+          # xrick.exe itself is statically linked (no CRT dependency of its own -- see
+          # xrick.vcxproj's RuntimeLibrary comment), but SDL3.dll is vcpkg's own
+          # dynamic-triplet build and still needs VCRUNTIME140[_1].dll, which a clean
+          # Windows install doesn't have without the VC++ Redistributable (reported
+          # 2026-10-12, in a real Windows 11 VM, even after the exe-side fix: the
+          # missing DLL was always SDL3.dll's dependency, not xrick.exe's own).
+          # These are Microsoft's own redistributable files, meant for exactly this
+          # xcopy-style deployment (not something vcpkg or our own build produces),
+          # found via VCToolsRedistDir (set by ilammy/msvc-dev-cmd's vcvarsall.bat).
+          REDIST="$(cygpath -u "$VCToolsRedistDir")x64"
+          cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140.dll "$OUT/"
+          cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140_1.dll "$OUT/" 2>/dev/null || true
           7z a "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4
