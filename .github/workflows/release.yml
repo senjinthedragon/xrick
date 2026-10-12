@@ -130,6 +130,20 @@ jobs:
         shell: cmd
         run: msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=x64 -nologo -v:normal
 
+      - name: Download the VC++ Redistributable installer
+        shell: bash
+        # Tried bundling loose VCRUNTIME140[_1].dll + the full Universal CRT
+        # redistributable set instead of this (2026-10-12), to avoid needing an
+        # installer at all -- confirmed, in a real Windows 11 VM, that this did
+        # NOT fix "VCRUNTIME140.dll was not found" even with every file genuinely
+        # present (exit code 0xC0000135/STATUS_DLL_NOT_FOUND). Installing the
+        # real Redistributable did fix it, even with every one of those bundled
+        # files then deleted -- so a real install is what's actually needed here,
+        # same as plenty of other Windows games. This is Microsoft's own official
+        # permanent redirect link (https://aka.ms/vs/17/release/vc_redist.x64.exe),
+        # not a third-party mirror.
+        run: curl -L -o vc_redist.x64.exe https://aka.ms/vs/17/release/vc_redist.x64.exe
+
       - name: Package
         shell: bash
         run: |
@@ -137,30 +151,8 @@ jobs:
           mkdir "$OUT"
           cp xrick/bin/Release/xrick.exe "$OUT/"
           cp xrick/bin/Release/SDL3.dll "$OUT/"
-          # xrick.exe itself is statically linked (no CRT dependency of its own -- see
-          # xrick.vcxproj's RuntimeLibrary comment), but SDL3.dll is vcpkg's own
-          # dynamic-triplet build and still needs VCRUNTIME140[_1].dll, which a clean
-          # Windows install doesn't have without the VC++ Redistributable (reported
-          # 2026-10-12, in a real Windows 11 VM, even after the exe-side fix: the
-          # missing DLL was always SDL3.dll's dependency, not xrick.exe's own).
-          # These are Microsoft's own redistributable files, meant for exactly this
-          # xcopy-style deployment (not something vcpkg or our own build produces),
-          # found via VCToolsRedistDir (set by ilammy/msvc-dev-cmd's vcvarsall.bat).
-          REDIST="$(cygpath -u "$VCToolsRedistDir")x64"
-          cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140.dll "$OUT/"
-          cp "$REDIST"/Microsoft.VC*.CRT/vcruntime140_1.dll "$OUT/" 2>/dev/null || true
-          # vcruntime140.dll itself needs several api-ms-win-crt-*.dll forwarder stubs,
-          # normally satisfied by Windows 10/11's own built-in API-set redirection with
-          # no physical files needed -- except apparently not reliably in Senjin's VM
-          # (reported 2026-10-12: same "VCRUNTIME140.dll was not found" error even with
-          # that file genuinely sitting right next to xrick.exe, confirmed by exit code
-          # 0xC0000135/STATUS_DLL_NOT_FOUND from a direct PowerShell run, not a stale
-          # shortcut to an older build). Bundling the actual Universal CRT redistributable
-          # files (same ones Microsoft's own UCRT Redistributable package installs) removes
-          # the dependency on that OS-level mechanism working, whatever's unusual about it
-          # here.
-          UCRT="$(cygpath -u "$UniversalCRTSdkDir")Redist/ucrt/DLLs/x64"
-          cp "$UCRT"/*.dll "$OUT/"
+          cp vc_redist.x64.exe "$OUT/"
+          cp xrick/windows/README.txt "$OUT/"
           7z a "$OUT.zip" "$OUT"
 
       - uses: actions/upload-artifact@v4
