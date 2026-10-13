@@ -39,7 +39,7 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 
 ## Credits
 
-- **Rick Dangerous I & II**, the original games this whole project exists because of, by Core Design (published by Firebird) - thank you to Simon Phipps, Terry Lloyd, Robert Toone, Stuart Gregg, Ben Daglish, and David 'Ken' Pridmore
+- **Rick Dangerous I & II**, the original games this whole project exists because of, by Core Design (published by Firebird) - thank you to Simon Phipps, Terry Lloyd, Robert Toone, Bob 'Goth' Churchill, Stuart 'Dangerstu' Gregg, and David 'Ken' Pridmore
 - **xrick** by [bigorno](https://github.com/zpqrtbnk/xrick) (Stéphane Gay) - the original reverse-engineered RD1, plus RD2, the real Atari audio engine, the AI solver / attract-mode demos, and the web player
 - **This fork's SDL_GPU renderer, settings menu, gamepad remapping, modern controls, and game-select carousel** by [Senjin the Dragon](https://github.com/senjinthedragon)
 
