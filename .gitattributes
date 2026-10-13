@@ -3,3 +3,8 @@
 build.sh text eol=lf
 xrick/src/shaders/embed.sh text eol=lf
 xrick/src/splash/embed.sh text eol=lf
+
+# ships inside the Windows release zip -- CRLF for compatibility with older
+# plain-text viewers, not just modern Notepad (which has handled bare LF since
+# Windows 10 1809)
+xrick/windows/README.txt text eol=crlf
