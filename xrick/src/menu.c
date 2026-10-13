@@ -1197,6 +1197,8 @@ static const creditLine_t creditLines[] = {
 	{"THANK YOU TO THE ORIGINAL TEAM", yellow},
 	{"Simon Phipps", white},
 	{"Terry Lloyd", white},
+	{"Robert Toone", white},
+	{"Stuart Gregg", white},
 	{"Ben Daglish", white},
 	{"David 'Ken' Pridmore", white},
 	{"", NULL},
