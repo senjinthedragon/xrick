@@ -160,6 +160,67 @@ jobs:
           name: xrick-windows-x64
           path: xrick-windows-x64.zip
 
+  build-windows-arm64:
+    # Best-effort, like build-macos: no ARM64 Windows machine to test on. Cross-compiled
+    # from a normal x64 runner (no windows-11-arm runner needed) -- the v143 toolset
+    # natively supports targeting ARM64 from an x64 host, and vcpkg's arm64-windows
+    # triplet cross-compiles SDL3 the same way. glslc still runs as an ordinary x64
+    # build-time tool either way (it only ever produces architecture-independent
+    # SPIR-V bytecode, never something linked into the binary).
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulkan SDK (for glslc)
+        shell: cmd
+        run: |
+          curl -L -o VulkanSDK.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan_sdk.exe
+          VulkanSDK.exe --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.core
+          echo %VULKAN_SDK%
+
+      - name: Add glslc to PATH
+        shell: bash
+        run: |
+          VSDK=$(cygpath -w "$(ls -d /c/VulkanSDK/*/Bin | sort -V | tail -1)")
+          echo "$VSDK" >> "$GITHUB_PATH"
+
+      - name: vcpkg install
+        working-directory: xrick
+        shell: cmd
+        run: |
+          "%VCPKG_INSTALLATION_ROOT%\vcpkg.exe" install --triplet arm64-windows
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - name: Build (MSBuild, Release ARM64)
+        shell: cmd
+        run: msbuild xrick\xrick.vcxproj -t:Build -p:Configuration=Release -p:Platform=ARM64 -nologo -v:normal
+
+      - name: Download the VC++ Redistributable installer
+        shell: bash
+        run: curl -L -o vc_redist.arm64.exe https://aka.ms/vs/17/release/vc_redist.arm64.exe
+
+      - name: Package
+        shell: bash
+        # windows/README.txt names vc_redist.x64.exe specifically (it's written for the
+        # x64 package) -- swapped to arm64 here since that's the actual file bundled.
+        run: |
+          OUT=xrick-windows-arm64
+          mkdir "$OUT"
+          cp xrick/bin/Release/xrick.exe "$OUT/"
+          cp xrick/bin/Release/SDL3.dll "$OUT/"
+          cp vc_redist.arm64.exe "$OUT/"
+          sed 's/vc_redist\.x64\.exe/vc_redist.arm64.exe/' xrick/windows/README.txt > "$OUT/README.txt"
+          7z a "$OUT.zip" "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xrick-windows-arm64
+          path: xrick-windows-arm64.zip
+
   build-macos:
     # Best-effort: neither of us can run or test macOS. This job mirrors the Linux
     # job's approach (SDL3 from source, Makefile, rpath-relative bundling) but is not
@@ -248,6 +309,30 @@ jobs:
           sed "s/__VERSION__/${GITHUB_REF_NAME#v}/g" xrick/macos/Info.plist > "$APP/Contents/Info.plist"
           zip -r "$OUT.zip" "$OUT"
 
+      # The only arm64 testing possible without real hardware: macos-latest is itself
+      # Apple Silicon, so running the (universal) binary directly here exercises its
+      # arm64 slice -- the Tahoe VM we otherwise test this build in is x86_64-only.
+      # SDL_VIDEODRIVER/AUDIODRIVER=dummy since there's no real display/audio device on
+      # the runner; this only catches load-time failures (missing dylib, bad rpath,
+      # a codesign/Gatekeeper problem that would stop it launching at all), not
+      # rendering or audio bugs -- those still need a real Mac.
+      - name: Smoke-test the arm64 slice
+        run: |
+          BIN="xrick-macos/xrick.app/Contents/MacOS/xrick"
+          file "$BIN"
+          SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy arch -arm64 "$BIN" &
+          PID=$!
+          sleep 3
+          if kill -0 $PID 2>/dev/null; then
+            echo "still running after 3s -- arm64 slice loaded and started fine"
+            kill $PID
+            wait $PID 2>/dev/null
+          else
+            wait $PID
+            echo "##[error]xrick exited on its own within 3s (exit $?) -- arm64 slice likely failed to load or start"
+            exit 1
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: xrick-macos
@@ -302,7 +387,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   release:
-    needs: [build-linux, build-windows, build-macos, build-web]
+    needs: [build-linux, build-windows, build-windows-arm64, build-macos, build-web]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
