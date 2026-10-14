@@ -34,14 +34,16 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 
 * The project's home page at [rick-dangerous.org](https://www.rick-dangerous.org/) ;
 * Play online at [senjinthedragon.github.io/xrick](https://senjinthedragon.github.io/xrick/) ;
+* Also on itch.io: [senjinthedragon.itch.io/rick-dangerous](https://senjinthedragon.itch.io/rick-dangerous) ;
 * The complete Rick Dangerous code knowledge base in its [own repository](https://github.com/zpqrtbnk/xrick-kb) ;
 * This fork, at [senjinthedragon/xrick](https://github.com/senjinthedragon/xrick).
 
 ## Downloads
 
-Binaries for Linux, Windows, macOS, and the web are on the [Releases](https://github.com/senjinthedragon/xrick/releases) page.
+Binaries for Linux, Windows, macOS, and the web are on the [Releases](https://github.com/senjinthedragon/xrick/releases) page, or on [itch.io](https://senjinthedragon.itch.io/rick-dangerous) (same builds, plus play-in-browser). Linux and Windows x64 are built and tested by us; Windows ARM64 and macOS are built by CI but not verified on real hardware, so treat them as best-effort.
 
-* **macOS**: the app isn't signed/notarized, so Gatekeeper will refuse to open it normally. Right-click (or Control-click) `xrick.app` and choose "Open", then confirm "Open Anyway" in the dialog that follows - only needed once per download.
+* **Windows**: pick the x64 build unless you're on a Windows-on-ARM PC (Surface Pro X/11 and similar), where the ARM64 build runs natively instead of under emulation.
+* **macOS**: one universal build covers both Intel and Apple Silicon Macs. The app isn't signed/notarized, so Gatekeeper will refuse to open it normally. Right-click (or Control-click) `xrick.app` and choose "Open", then confirm "Open Anyway" in the dialog that follows - only needed once per download.
 
 ## Credits
 
