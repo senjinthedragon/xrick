@@ -28,6 +28,7 @@ extern void sysvid_update(rect_t*);
    to convert) -- skips straight to presenting it through the same shader/bezel chain
    gameplay uses, instead of converting from the 8-bit frame buffer first */
 extern void sysvid_updateRGBA(const U32 *rgba);
+extern struct SDL_Window *sysvid_getWindow(void); /* the game window, whichever backend made it */
 extern void sysvid_zoom(S8);
 extern void sysvid_toggleFullscreen(void);
 #ifdef __EMSCRIPTEN__

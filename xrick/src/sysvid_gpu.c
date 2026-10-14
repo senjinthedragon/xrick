@@ -30,6 +30,7 @@
 #include "system.h"
 #include "sysarg.h"
 #include "debug.h"
+#include "sysvid.h"
 #include "sysvid_gl.h"
 #include "sysvid_gpu.h"
 #include "menu.h"
@@ -1546,6 +1547,11 @@ sysvid_gl_present(const Uint8 *rgba)
 void
 sysvid_cycleUpscale(void)
 {
+	if (!gpuDevice) { /* plain SDL_Renderer fallback (e.g. no SPIR-V on macOS): nothing to switch */
+		sysvid_showOSD("NO GPU SHADERS");
+		return;
+	}
+
 	upscaleMode = (upscaleMode + 1) % UPSCALE_COUNT;
 
 	sysvid_showOSD(upscaleMode == UPSCALE_NONE ? "UPSCALING: NONE" : upscaleMode == UPSCALE_FSR1 ? "UPSCALING: FSR1"
@@ -1557,6 +1563,11 @@ sysvid_cycleUpscale(void)
 void
 sysvid_cycleCrt(void)
 {
+	if (!gpuDevice) { /* plain SDL_Renderer fallback (e.g. no SPIR-V on macOS): nothing to switch */
+		sysvid_showOSD("NO GPU SHADERS");
+		return;
+	}
+
 	do {
 		crtMode = (crtMode + 1) % CRT_COUNT;
 	} while (crtMode == CRT_ROYALE && gpuPhosphorMaskTexture == NULL);
@@ -1572,6 +1583,11 @@ void
 sysvid_cycleBezel(void)
 {
 	bezelMode_t next = bezelMode;
+
+	if (!gpuDevice) { /* plain SDL_Renderer fallback (e.g. no SPIR-V on macOS): nothing to switch */
+		sysvid_showOSD("NO GPU SHADERS");
+		return;
+	}
 
 	do {
 		next = (next + 1) % BEZEL_COUNT;
@@ -1593,16 +1609,19 @@ sysvid_cycleBezel(void)
 U8
 sysvid_isFullscreen(void)
 {
-	return screen && (SDL_GetWindowFlags(screen) & SDL_WINDOW_FULLSCREEN) ? TRUE : FALSE;
+	SDL_Window *win = sysvid_getWindow(); /* not `screen`: gone if the renderer fallback took over */
+
+	return win && (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN) ? TRUE : FALSE;
 }
 
 U8
 sysvid_getWindowZoom(void)
 {
+	SDL_Window *win = sysvid_getWindow();
 	int w = 0, h = 0;
 
-	if (!screen || fb_width == 0) return 1;
-	SDL_GetWindowSize(screen, &w, &h);
+	if (!win || fb_width == 0) return 1;
+	SDL_GetWindowSize(win, &w, &h);
 	return (U8)SDL_max(1, w / fb_width);
 }
 
@@ -1615,6 +1634,7 @@ sysvid_getUpscale(void)
 void
 sysvid_setUpscale(int v)
 {
+	if (!gpuDevice) return; /* keep the saved choice for when a GPU is there */
 	if (v >= 0 && v < UPSCALE_COUNT) upscaleMode = (upscaleMode_t)v;
 	runChainAndPresent();
 }
@@ -1628,6 +1648,7 @@ sysvid_getCrt(void)
 void
 sysvid_setCrt(int v)
 {
+	if (!gpuDevice) return; /* keep the saved choice for when a GPU is there */
 	if (v >= 0 && v < CRT_COUNT && !(v == CRT_ROYALE && gpuPhosphorMaskTexture == NULL))
 		crtMode = (crtMode_t)v;
 	runChainAndPresent();
@@ -1642,6 +1663,7 @@ sysvid_getBezel(void)
 void
 sysvid_setBezel(int v)
 {
+	if (!gpuDevice) return; /* keep the saved choice for when a GPU is there */
 	if (v >= 0 && v < BEZEL_COUNT && (v == BEZEL_NONE || bezels[v].texture != NULL))
 		bezelMode = (bezelMode_t)v;
 	runChainAndPresent();

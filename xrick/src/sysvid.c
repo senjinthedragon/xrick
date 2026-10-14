@@ -31,6 +31,8 @@
 #include "fb.h"
 #include "img.h"
 #include "sysvid_gl.h"
+#include "sysvid_overlay.h"
+#include "menu.h"
 
 
 #ifdef __MSVC__
@@ -302,6 +304,10 @@ IFDEBUG_VIDEO(
 	// itself came out transparent on Chrome/macOS.
 	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
 
+	/* the settings menu and OSD draw into an RGBA frame; this path composes one in
+	   `pixels` while either is up (see sysvid_update) */
+	sysvid_overlay_init(pixels, fb_width, fb_height);
+
 	SDL_UpdateTexture(texture, NULL, pixels, fb_width * sizeof(U32));
 	SDL_RenderClear(renderer);
 	SDL_RenderTexture(renderer, texture, NULL, NULL);
@@ -394,6 +400,36 @@ sysvid_update(rect_t *rects)
 	}
 #endif
 
+	/* settings menu / OSD: the dirty-rect upload below only knows the game frame,
+	   so while either is up (and once more after, to wipe it off the texture)
+	   compose the whole frame in `pixels`, draw them on top, and upload that */
+	{
+		static U8 overlay_shown = 0;
+		U8 overlay = sysvid_osdActive() || menu_active();
+
+		if (overlay || overlay_shown)
+		{
+			U8 *srcx = (U8 *)&fb;
+			U8 *dstx = (U8 *)pixels;
+
+			for (int i = 0; i < fb_width * fb_height; i++)
+			{
+				*dstx++ = pald[*srcx].r;
+				*dstx++ = pald[*srcx].g;
+				*dstx++ = pald[*srcx].b;
+				*dstx++ = pald[*srcx].a;
+				srcx++;
+			}
+			if (sysvid_osdActive())
+				sysvid_drawOSD();
+			if (menu_active())
+				menu_draw();
+			sysvid_updateRGBA(pixels);
+			overlay_shown = overlay;
+			return;
+		}
+	}
+
 	n = 0;
 	rect = rects;
 	while (rect)
@@ -466,6 +502,12 @@ sysvid_update(rect_t *rects)
  * SYSVID_HEIGHT) -- same assumption sysvid_update's own use_gl branch makes about
  * `pixels`, since that's the only size sysvid_init ever allocates it at.
  */
+SDL_Window *
+sysvid_getWindow(void)
+{
+	return screen;
+}
+
 void
 sysvid_updateRGBA(const U32 *rgba)
 {
