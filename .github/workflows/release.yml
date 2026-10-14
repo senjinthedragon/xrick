@@ -430,6 +430,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           push() {
             local artifact="$1" channel="$2"
+            mkdir -p "unpacked/$artifact"
             unzip -o "artifacts/$artifact/$artifact.zip" -d "unpacked/$artifact"
             butler push "unpacked/$artifact/$artifact" "$ITCH_TARGET:$channel" --userversion "$VERSION"
           }
