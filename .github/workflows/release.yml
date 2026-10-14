@@ -415,7 +415,7 @@ jobs:
         with:
           path: artifacts
 
-      - uses: jdno/setup-butler@v2
+      - uses: jdno/setup-butler@v2.0.0
 
       # Each artifact is the same zip the GitHub release gets, containing one
       # top-level folder (xrick-linux-x86_64/, xrick-windows-x64/, etc.) -- unzipped
