@@ -37,6 +37,12 @@ This is [Senjin the Dragon](https://github.com/senjinthedragon)'s fork, built on
 * The complete Rick Dangerous code knowledge base in its [own repository](https://github.com/zpqrtbnk/xrick-kb) ;
 * This fork, at [senjinthedragon/xrick](https://github.com/senjinthedragon/xrick).
 
+## Downloads
+
+Binaries for Linux, Windows, macOS, and the web are on the [Releases](https://github.com/senjinthedragon/xrick/releases) page.
+
+* **macOS**: the app isn't signed/notarized, so Gatekeeper will refuse to open it normally. Right-click (or Control-click) `xrick.app` and choose "Open", then confirm "Open Anyway" in the dialog that follows - only needed once per download.
+
 ## Credits
 
 - **Rick Dangerous I & II**, the original games this whole project exists because of, by Core Design (published by Firebird). Thank you to the original team:
