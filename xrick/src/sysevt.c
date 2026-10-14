@@ -242,6 +242,19 @@ sysevt_resetInput(void)
 /*
  * Process an event
  */
+/* macOS gotcha (reported 2026-10-14, first real macOS testing): every F-key
+ * needs the physical fn key held by default (media keys take the bare
+ * press), and F11 specifically is unconditionally reserved by the OS for
+ * "Show Desktop" regardless of fn -- so it never reaches this handler at
+ * all. The settings menu (Tab) already reaches every one of these as a
+ * fallback, but Option+<number> alternates below give Mac players the same
+ * quick single-keypress access everyone else has, without needing fn. */
+#ifdef __APPLE__
+#define MAC_ALT(sc) (key == (sc) && (event.key.mod & SDL_KMOD_ALT) != 0)
+#else
+#define MAC_ALT(sc) 0
+#endif
+
 static void
 processEvent()
 {
@@ -299,41 +312,48 @@ processEvent()
 		else if (sysarg_args_controls == CONTROLS_MODERN && key == syskbd_bomb) {
 			setBomb(1);
 		}
-		else if (key == SDL_SCANCODE_F1) {
+		else if (key == SDL_SCANCODE_F1 || MAC_ALT(SDL_SCANCODE_1)) {
 			sysvid_toggleFullscreen();
 		}
-		else if (key == SDL_SCANCODE_F2) {
+		else if (key == SDL_SCANCODE_F2 || MAC_ALT(SDL_SCANCODE_2)) {
 			sysvid_zoom(-1);
 		}
-		else if (key == SDL_SCANCODE_F3) {
+		else if (key == SDL_SCANCODE_F3 || MAC_ALT(SDL_SCANCODE_3)) {
 			sysvid_zoom(+1);
 		}
 #ifdef ENABLE_SOUND
 		/* F4-F6: each game has its own sound engine. Cheats moved off F7-F9
 		   and into the settings menu's CHEATS page (menu.c), which also has
 		   AUTOPLAY -- no key binds them directly any more. */
-		else if (key == SDL_SCANCODE_F4) {
+		else if (key == SDL_SCANCODE_F4 || MAC_ALT(SDL_SCANCODE_4)) {
 			if (sysarg_args_game == 2) rd2_snd_toggleMute(); else syssnd_toggleMute();
 		}
-		else if (key == SDL_SCANCODE_F5) {
+		else if (key == SDL_SCANCODE_F5 || MAC_ALT(SDL_SCANCODE_5)) {
 			if (sysarg_args_game == 2) rd2_snd_vol(-1); else syssnd_vol(-1);
 		}
-		else if (key == SDL_SCANCODE_F6) {
+		else if (key == SDL_SCANCODE_F6 || MAC_ALT(SDL_SCANCODE_6)) {
 			if (sysarg_args_game == 2) rd2_snd_vol(+1); else syssnd_vol(+1);
 		}
 #endif
 		/* upscale/CRT/bezel cycling: both backends implement these now (sysvid_gpu.c
-		   natively, sysvid_gl.c's getter/setter-backed versions on the web build) */
-		else if (key == SDL_SCANCODE_F10) {
+		   natively, sysvid_gl.c's getter/setter-backed versions on the web build).
+		   Mac alternates continue the number row past 6 (7/8/9) rather than reusing
+		   0/-/=, since those aren't as reliably a plain, unshifted keypress across
+		   keyboard layouts. */
+		else if (key == SDL_SCANCODE_F10 || MAC_ALT(SDL_SCANCODE_7)) {
 			sysvid_cycleUpscale();
 		}
-		else if (key == SDL_SCANCODE_F11) {
+		else if (key == SDL_SCANCODE_F11 || MAC_ALT(SDL_SCANCODE_8)) {
 			sysvid_cycleCrt();
 		}
-		else if (key == SDL_SCANCODE_F12) {
+		else if (key == SDL_SCANCODE_F12 || MAC_ALT(SDL_SCANCODE_9)) {
 			sysvid_cycleBezel();
 		}
-		if ((key >= SDL_SCANCODE_F1 && key <= SDL_SCANCODE_F6) || (key >= SDL_SCANCODE_F10 && key <= SDL_SCANCODE_F12))
+		if ((key >= SDL_SCANCODE_F1 && key <= SDL_SCANCODE_F6) || (key >= SDL_SCANCODE_F10 && key <= SDL_SCANCODE_F12)
+#ifdef __APPLE__
+		    || ((event.key.mod & SDL_KMOD_ALT) && key >= SDL_SCANCODE_1 && key <= SDL_SCANCODE_9)
+#endif
+		   )
 			settings_save();
 		break;
 	case SDL_EVENT_KEY_UP:
