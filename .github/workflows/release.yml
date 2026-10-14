@@ -166,6 +166,11 @@ jobs:
     # verified to actually work.
     runs-on: macos-latest
     continue-on-error: true
+    env:
+      # macos-latest is an Apple Silicon runner and would otherwise build arm64-only
+      # binaries targeting its own macOS version -- unusable on Intel Macs and older
+      # systems. 11.0 (Big Sur) is the first release that runs on both architectures.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
       - uses: actions/checkout@v4
 
@@ -175,7 +180,8 @@ jobs:
       - name: Build SDL3
         run: |
           git clone --branch "$SDL_TAG" --depth 1 https://github.com/libsdl-org/SDL.git /tmp/SDL
-          cmake -S /tmp/SDL -B /tmp/SDL/build -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install
+          cmake -S /tmp/SDL -B /tmp/SDL/build -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/sdl3-install \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           cmake --build /tmp/SDL/build
           cmake --install /tmp/SDL/build
 
@@ -183,7 +189,10 @@ jobs:
         working-directory: xrick
         run: |
           export PKG_CONFIG_PATH="/tmp/sdl3-install/lib/pkgconfig"
-          make -j"$(sysctl -n hw.ncpu)" LDFLAGS='-Wl,-rpath,@executable_path'
+          # universal binary; passed via the environment, not as make arguments, so the
+          # Makefile's own CFLAGS += (include paths, SDL flags) still get appended
+          CFLAGS='-arch arm64 -arch x86_64' CXXFLAGS='-arch arm64 -arch x86_64' LDFLAGS='-arch arm64 -arch x86_64 -Wl,-rpath,@executable_path' \
+            make -j"$(sysctl -n hw.ncpu)"
           strip -S ../build/wsl/xrick
           file ../build/wsl/xrick
 
