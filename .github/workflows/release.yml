@@ -203,7 +203,10 @@ jobs:
           git checkout "$SHADERCROSS_SHA"
           git submodule update --init --depth 1 \
             external/SPIRV-Cross external/SPIRV-Headers external/SPIRV-Tools external/DirectXShaderCompiler
+          # needs SDL3 itself (find_package) -- reuse the one the previous step just built,
+          # rather than fetching/building a second copy.
           cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/tmp/sdl3-install \
             -DSDLSHADERCROSS_VENDORED=ON -DSDLSHADERCROSS_DXC=OFF \
             -DSDLSHADERCROSS_CLI=ON -DSDLSHADERCROSS_STATIC=ON
           cmake --build build
