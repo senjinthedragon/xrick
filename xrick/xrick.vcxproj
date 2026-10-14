@@ -61,16 +61,21 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <!-- No PlatformToolset pinned here (unlike the x64 configs above): the ARM64 cross
+       build tools for a specific VS version aren't always installed alongside the x64
+       ones on a given CI image (found 2026-10-14: windows-latest had moved to a VS
+       2026 image that still carries the v143 x64 tools for compat, but not the v143
+       ARM64 ones, so a hardcoded v143 here failed with MSB8020 while the x64 configs
+       built fine). Leaving PlatformToolset unset lets MSBuild pick whatever's actually
+       installed, which matters more for ARM64 than pinning exact toolset parity does. -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>

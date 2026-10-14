@@ -326,10 +326,10 @@ jobs:
           if kill -0 $PID 2>/dev/null; then
             echo "still running after 3s -- arm64 slice loaded and started fine"
             kill $PID
-            wait $PID 2>/dev/null
+            wait $PID 2>/dev/null || true
           else
-            wait $PID
-            echo "##[error]xrick exited on its own within 3s (exit $?) -- arm64 slice likely failed to load or start"
+            wait $PID || true
+            echo "##[error]xrick exited on its own within 3s -- arm64 slice likely failed to load or start"
             exit 1
           fi
 
