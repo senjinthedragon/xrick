@@ -69,6 +69,19 @@ SHADER_BUILD := ../build/shaders
 SHADER_SRCS  := $(wildcard $(SHADER_DIR)/*.vert $(SHADER_DIR)/*.frag)
 SHADER_SPVS  := $(patsubst $(SHADER_DIR)/%,$(SHADER_BUILD)/%.spv,$(SHADER_SRCS))
 
+# Metal (MSL) shaders for macOS, transpiled from the same SPIR-V by SDL_shadercross
+# (release.yml's build-macos job builds it from source and passes SHADERCROSS=its
+# path + XRICK_MSL_SHADERS=1). Off by default -- Linux/Windows builds don't need MSL
+# and shouldn't require shadercross to be installed just to build.
+SHADERCROSS ?= shadercross
+XRICK_MSL_SHADERS ?= 0
+ifeq ($(XRICK_MSL_SHADERS),1)
+SHADER_MSLS := $(patsubst $(SHADER_DIR)/%,$(SHADER_BUILD)/%.msl,$(SHADER_SRCS))
+CFLAGS += -DXRICK_MSL_SHADERS=1
+else
+SHADER_MSLS :=
+endif
+
 # All build output goes under the repo's build/ (git-ignored, never sources; build.sh
 # uses build/win and build/web): the binary is build/wsl/xrick, objects in
 # build/wsl/obj/, the `make warn` log build/wsl/warn.log. PLATFORM=ST and PLATFORM=PC
@@ -93,7 +106,8 @@ $(BIN): $(OBJ)
 # C23 compiler -- only this one file needs that dialect, so it's a target-specific
 # override rather than a blanket -std= for every C file.
 $(OUTDIR)/obj/src/shaders_embedded.o: $(SHADER_SPVS)
-$(OUTDIR)/obj/src/shaders_embedded.o $(OUTDIR)/obj/src/bezels_embedded.o $(OUTDIR)/obj/src/masks_embedded.o $(OUTDIR)/obj/src/gameselect_embedded.o: CFLAGS += -std=gnu23
+$(OUTDIR)/obj/src/shaders_embedded_msl.o: $(SHADER_MSLS)
+$(OUTDIR)/obj/src/shaders_embedded.o $(OUTDIR)/obj/src/shaders_embedded_msl.o $(OUTDIR)/obj/src/bezels_embedded.o $(OUTDIR)/obj/src/masks_embedded.o $(OUTDIR)/obj/src/gameselect_embedded.o: CFLAGS += -std=gnu23
 
 $(OUTDIR)/obj/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -110,6 +124,12 @@ $(SHADER_BUILD)/%.vert.spv: $(SHADER_DIR)/%.vert
 $(SHADER_BUILD)/%.frag.spv: $(SHADER_DIR)/%.frag
 	@mkdir -p $(dir $@)
 	$(GLSLC) -fshader-stage=frag $< -o $@
+
+# source/destination/stage are all inferred from the filename by shadercross itself
+# (.spv -> SPIR-V source, .vert/.frag -> stage, .msl -> MSL destination).
+$(SHADER_BUILD)/%.msl: $(SHADER_BUILD)/%.spv
+	@mkdir -p $(dir $@)
+	$(SHADERCROSS) $< -o $@
 
 # R0.1 evidence: warnings over the logic surface, without linking.
 warn:

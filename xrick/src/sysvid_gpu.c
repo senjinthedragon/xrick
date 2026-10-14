@@ -35,6 +35,7 @@
 #include "sysvid_gpu.h"
 #include "menu.h"
 #include "shaders_embedded.h"
+#include "shaders_embedded_msl.h"
 #include "bezels_embedded.h"
 #include "masks_embedded.h"
 #include "thirdparty/stb_image.h"
@@ -743,6 +744,44 @@ loadRoyaleMask(void)
 
 
 /*
+ * sysvid_gpu_createShader
+ *
+ * picks MSL over SPIR-V when the device actually backs onto Metal and an MSL
+ * version of this shader was embedded (non-NULL only on macOS -- see
+ * shaders_embedded_msl.h), else falls back to the SPIR-V everyone else uses.
+ * Metal's entrypoint is always "main0": SPIRV-Cross renames the function
+ * (Metal reserves the name "main"), and SDL_shadercross doesn't rename it
+ * back.
+ */
+static SDL_GPUShader *
+sysvid_gpu_createShader(SDL_GPUDevice *device, SDL_GPUShaderFormat supportedFormats,
+    const unsigned char *spirv, unsigned long spirvLen,
+    const unsigned char *msl, unsigned long mslLen,
+    SDL_GPUShaderStage stage, Uint32 numSamplers, Uint32 numUniformBuffers)
+{
+	SDL_GPUShaderCreateInfo info;
+
+	memset(&info, 0, sizeof(info));
+	info.stage = stage;
+	info.num_samplers = numSamplers;
+	info.num_uniform_buffers = numUniformBuffers;
+
+	if ((supportedFormats & SDL_GPU_SHADERFORMAT_MSL) && msl != NULL) {
+		info.code = msl;
+		info.code_size = mslLen;
+		info.entrypoint = "main0";
+		info.format = SDL_GPU_SHADERFORMAT_MSL;
+	} else {
+		info.code = spirv;
+		info.code_size = spirvLen;
+		info.entrypoint = "main";
+		info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+	}
+
+	return SDL_CreateGPUShader(device, &info);
+}
+
+/*
  * sysvid_gl_init
  *
  * creates the window and GPU device, and builds the whole shader/pipeline
@@ -754,7 +793,6 @@ loadRoyaleMask(void)
 SDL_Window *
 sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFlags flags, int fb_w, int fb_h)
 {
-	SDL_GPUShaderCreateInfo shInfo;
 	SDL_GPUTextureCreateInfo texInfo;
 	SDL_GPUTransferBufferCreateInfo tbInfo;
 	SDL_GPUSamplerCreateInfo sampInfo;
@@ -778,7 +816,7 @@ sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFlags flags, i
 		return NULL;
 	}
 
-	gpuDevice = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+	gpuDevice = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL, false, NULL);
 	if (!gpuDevice) {
 		IFDEBUG_VIDEO(sys_printf("xrick/video: no SDL_GPU device (%s)\n", SDL_GetError());)
 		SDL_DestroyWindow(screen);
@@ -799,171 +837,97 @@ sysvid_gl_init(const char *title, int win_w, int win_h, SDL_WindowFlags flags, i
 	}
 
 	/* shaders -- one shared vertex shader (fullscreen triangle), one
-	 * fragment shader per available look/pass */
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_passthrough_vert_spv;
-	shInfo.code_size = shader_passthrough_vert_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_VERTEX;
-	gpuVertShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+	 * fragment shader per available look/pass. Each is embedded as both
+	 * SPIR-V and (macOS only) MSL; sysvid_gpu_createShader picks whichever
+	 * the device actually backs onto. */
+	{
+		SDL_GPUShaderFormat gpuShaderFormats = SDL_GetGPUShaderFormats(gpuDevice);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_passthrough_frag_spv;
-	shInfo.code_size = shader_passthrough_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	gpuPassthroughFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuVertShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_passthrough_vert_spv, shader_passthrough_vert_spv_len,
+			shader_passthrough_vert_msl, shader_passthrough_vert_msl_len,
+			SDL_GPU_SHADERSTAGE_VERTEX, 0, 0);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_easymode_frag_spv;
-	shInfo.code_size = shader_crt_easymode_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuCrtEasymodeFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuPassthroughFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_passthrough_frag_spv, shader_passthrough_frag_spv_len,
+			shader_passthrough_frag_msl, shader_passthrough_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_easymode_post_frag_spv;
-	shInfo.code_size = shader_crt_easymode_post_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuCrtEasymodePostFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuCrtEasymodeFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_easymode_frag_spv, shader_crt_easymode_frag_spv_len,
+			shader_crt_easymode_frag_msl, shader_crt_easymode_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_sharp_bilinear_frag_spv;
-	shInfo.code_size = shader_sharp_bilinear_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuSharpFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuCrtEasymodePostFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_easymode_post_frag_spv, shader_crt_easymode_post_frag_spv_len,
+			shader_crt_easymode_post_frag_msl, shader_crt_easymode_post_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_lottes_frag_spv;
-	shInfo.code_size = shader_crt_lottes_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuCrtLottesFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuSharpFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_sharp_bilinear_frag_spv, shader_sharp_bilinear_frag_spv_len,
+			shader_sharp_bilinear_frag_msl, shader_sharp_bilinear_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_fsr_easu_frag_spv;
-	shInfo.code_size = shader_fsr_easu_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuEasuFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuCrtLottesFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_lottes_frag_spv, shader_crt_lottes_frag_spv_len,
+			shader_crt_lottes_frag_msl, shader_crt_lottes_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_fsr_rcas_frag_spv;
-	shInfo.code_size = shader_fsr_rcas_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuRcasFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuEasuFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_fsr_easu_frag_spv, shader_fsr_easu_frag_spv_len,
+			shader_fsr_easu_frag_msl, shader_fsr_easu_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_curvature_frag_spv;
-	shInfo.code_size = shader_crt_curvature_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuCurvatureFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRcasFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_fsr_rcas_frag_spv, shader_fsr_rcas_frag_spv_len,
+			shader_fsr_rcas_frag_msl, shader_fsr_rcas_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_final_encode_frag_spv;
-	shInfo.code_size = shader_crt_final_encode_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuFinalEncodeFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuCurvatureFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_curvature_frag_spv, shader_crt_curvature_frag_spv_len,
+			shader_crt_curvature_frag_msl, shader_crt_curvature_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_linearize_frag_spv;
-	shInfo.code_size = shader_crt_royale_linearize_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	gpuRoyaleLinearizeFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuFinalEncodeFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_final_encode_frag_spv, shader_crt_final_encode_frag_spv_len,
+			shader_crt_final_encode_frag_msl, shader_crt_final_encode_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_vscan_frag_spv;
-	shInfo.code_size = shader_crt_royale_vscan_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuRoyaleVscanFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleLinearizeFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_linearize_frag_spv, shader_crt_royale_linearize_frag_spv_len,
+			shader_crt_royale_linearize_frag_msl, shader_crt_royale_linearize_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_bloom_approx_frag_spv;
-	shInfo.code_size = shader_crt_royale_bloom_approx_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	gpuRoyaleBloomApproxFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleVscanFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_vscan_frag_spv, shader_crt_royale_vscan_frag_spv_len,
+			shader_crt_royale_vscan_frag_msl, shader_crt_royale_vscan_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_hscan_mask_frag_spv;
-	shInfo.code_size = shader_crt_royale_hscan_mask_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 2;
-	shInfo.num_uniform_buffers = 1;
-	gpuRoyaleHscanMaskFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleBloomApproxFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_bloom_approx_frag_spv, shader_crt_royale_bloom_approx_frag_spv_len,
+			shader_crt_royale_bloom_approx_frag_msl, shader_crt_royale_bloom_approx_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_brightpass_frag_spv;
-	shInfo.code_size = shader_crt_royale_brightpass_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 2;
-	shInfo.num_uniform_buffers = 1;
-	gpuRoyaleBrightpassFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleHscanMaskFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_hscan_mask_frag_spv, shader_crt_royale_hscan_mask_frag_spv_len,
+			shader_crt_royale_hscan_mask_frag_msl, shader_crt_royale_hscan_mask_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 2, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_bloom_blur_frag_spv;
-	shInfo.code_size = shader_crt_royale_bloom_blur_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 1;
-	shInfo.num_uniform_buffers = 1;
-	gpuRoyaleBloomBlurFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleBrightpassFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_brightpass_frag_spv, shader_crt_royale_brightpass_frag_spv_len,
+			shader_crt_royale_brightpass_frag_msl, shader_crt_royale_brightpass_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 2, 1);
 
-	memset(&shInfo, 0, sizeof(shInfo));
-	shInfo.code = shader_crt_royale_reconstitute_frag_spv;
-	shInfo.code_size = shader_crt_royale_reconstitute_frag_spv_len;
-	shInfo.entrypoint = "main";
-	shInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
-	shInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	shInfo.num_samplers = 3;
-	shInfo.num_uniform_buffers = 1;
-	gpuRoyaleReconstituteFragShader = SDL_CreateGPUShader(gpuDevice, &shInfo);
+		gpuRoyaleBloomBlurFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_bloom_blur_frag_spv, shader_crt_royale_bloom_blur_frag_spv_len,
+			shader_crt_royale_bloom_blur_frag_msl, shader_crt_royale_bloom_blur_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+
+		gpuRoyaleReconstituteFragShader = sysvid_gpu_createShader(gpuDevice, gpuShaderFormats,
+			shader_crt_royale_reconstitute_frag_spv, shader_crt_royale_reconstitute_frag_spv_len,
+			shader_crt_royale_reconstitute_frag_msl, shader_crt_royale_reconstitute_frag_msl_len,
+			SDL_GPU_SHADERSTAGE_FRAGMENT, 3, 1);
+	}
 
 	if (!gpuVertShader || !gpuPassthroughFragShader || !gpuCrtEasymodeFragShader || !gpuCrtEasymodePostFragShader ||
 	    !gpuSharpFragShader || !gpuCrtLottesFragShader || !gpuEasuFragShader || !gpuRcasFragShader ||

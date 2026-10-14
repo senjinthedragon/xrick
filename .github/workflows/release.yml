@@ -185,14 +185,40 @@ jobs:
           cmake --build /tmp/SDL/build
           cmake --install /tmp/SDL/build
 
+      - name: Build SDL_shadercross
+        # Transpiles our SPIR-V shaders to MSL at build time, so macOS gets the real CRT/FSR/bezel
+        # shaders instead of the plain-renderer fallback (see sysvid_gpu.c). Built for the runner's
+        # own arch only -- this is a build-time tool, not something that ships. No tagged releases
+        # exist, so this is pinned to a commit instead. DXC (HLSL/DXIL/DXBC support) is turned off
+        # since we only ever go SPIR-V -> MSL, which needs just SPIRV-Cross -- but the vendored
+        # DirectXShaderCompiler submodule still has to be checked out (even empty of its own
+        # history) because CMakeLists.txt unconditionally asserts the submodule directory isn't
+        # empty, regardless of SDLSHADERCROSS_DXC.
+        env:
+          SHADERCROSS_SHA: 1ff05bec573988a98ef9e0260b4da44f512b8367
+        run: |
+          git clone --depth 1 https://github.com/libsdl-org/SDL_shadercross.git /tmp/SDL_shadercross
+          cd /tmp/SDL_shadercross
+          git fetch --depth 1 origin "$SHADERCROSS_SHA"
+          git checkout "$SHADERCROSS_SHA"
+          git submodule update --init --depth 1 \
+            external/SPIRV-Cross external/SPIRV-Headers external/SPIRV-Tools external/DirectXShaderCompiler
+          cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release \
+            -DSDLSHADERCROSS_VENDORED=ON -DSDLSHADERCROSS_DXC=OFF \
+            -DSDLSHADERCROSS_CLI=ON -DSDLSHADERCROSS_STATIC=ON
+          cmake --build build
+
       - name: Build xrick
         working-directory: xrick
         run: |
           export PKG_CONFIG_PATH="/tmp/sdl3-install/lib/pkgconfig"
+          # the CLI links against libSDL3_shadercross dynamically even with STATIC=ON (that flag
+          # only affects how it links SPIRV-Cross) -- it needs to find that dylib to run at all.
+          export DYLD_LIBRARY_PATH="/tmp/SDL_shadercross/build:$DYLD_LIBRARY_PATH"
           # universal binary; passed via the environment, not as make arguments, so the
           # Makefile's own CFLAGS += (include paths, SDL flags) still get appended
           CFLAGS='-arch arm64 -arch x86_64' CXXFLAGS='-arch arm64 -arch x86_64' LDFLAGS='-arch arm64 -arch x86_64 -Wl,-rpath,@executable_path' \
-            make -j"$(sysctl -n hw.ncpu)"
+            make -j"$(sysctl -n hw.ncpu)" XRICK_MSL_SHADERS=1 SHADERCROSS=/tmp/SDL_shadercross/build/shadercross
           strip -S ../build/wsl/xrick
           file ../build/wsl/xrick
 
