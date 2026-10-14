@@ -54,6 +54,7 @@ Binaries for Linux, Windows, macOS, and the web are on the [Releases](https://gi
   - **Bob 'Goth' Churchill** - level design
   - **Stuart 'Dangerstu' Gregg** - Commodore 64 code
   - **David 'Ken' Pridmore** - Spectrum/Amstrad code, music, the Rick Dangerous 2 editor
+  - **John Kirkland** - PC version code
 - **xrick** by [bigorno](https://github.com/zpqrtbnk/xrick) (Stéphane Gay) - the original reverse-engineered RD1, plus RD2, the real Atari audio engine, the AI solver / attract-mode demos, and the web player
 - **This fork's SDL_GPU renderer, settings menu, gamepad remapping, modern controls, and game-select carousel** by [Senjin the Dragon](https://github.com/senjinthedragon)
 
