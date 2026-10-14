@@ -373,11 +373,13 @@ jobs:
 
   deploy-pages:
     needs: build-web
-    # Pages tracks the branch, not the release tag -- and the github-pages
-    # environment's own protection rules reject tag refs outright anyway
-    # ("Tag v2.0.0 is not allowed to deploy to github-pages", found on the
-    # first real tag-triggered run). Deploy on branch pushes/dispatch only.
-    if: "!startsWith(github.ref, 'refs/tags/')"
+    # Used to be branch-pushes/dispatch only: the github-pages environment's own
+    # deployment-branch-policy allowlist only had `master` on it, so a tag ref got
+    # rejected outright ("Tag v2.0.0 is not allowed to deploy to github-pages") and
+    # every tagged release needed a separate manual `gh workflow run` dispatch
+    # afterward just to redeploy Pages. Fixed 2026-10-14 by adding a `v*` tag policy
+    # to that environment (repo Settings -> Environments -> github-pages -> Deployment
+    # branches and tags) -- tag pushes now deploy directly, no second dispatch needed.
     runs-on: ubuntu-latest
     environment:
       name: github-pages
