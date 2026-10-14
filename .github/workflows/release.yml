@@ -401,3 +401,38 @@ jobs:
         with:
           body_path: release-notes/${{ github.ref_name }}.md
           files: artifacts/*/*.zip
+
+  deploy-itch:
+    needs: [build-linux, build-windows, build-windows-arm64, build-macos, build-web]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    env:
+      ITCH_TARGET: senjinthedragon/rick-dangerous
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: jdno/setup-butler@v2
+
+      # Each artifact is the same zip the GitHub release gets, containing one
+      # top-level folder (xrick-linux-x86_64/, xrick-windows-x64/, etc.) -- unzipped
+      # here so itch.io's own download keeps that same folder structure rather than
+      # a zip-of-a-zip. The web build is the one exception: it's pushed as its own
+      # html5 channel from the unzipped xrick-web/ folder, which already has
+      # index.html at its top level -- required for itch's "play in browser" to work.
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          push() {
+            local artifact="$1" channel="$2"
+            unzip -o "artifacts/$artifact/$artifact.zip" -d "unpacked/$artifact"
+            butler push "unpacked/$artifact/$artifact" "$ITCH_TARGET:$channel" --userversion "$VERSION"
+          }
+          push xrick-linux-x86_64 linux
+          push xrick-windows-x64 windows
+          push xrick-windows-arm64 windows-arm64
+          push xrick-macos mac
+          push xrick-web html5
