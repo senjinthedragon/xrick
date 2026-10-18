@@ -69,6 +69,15 @@ static U8 zoom = 0; /* actual zoom level */
 static U8 wmzoom = SYSVID_ZOOM; /* window mode zoom level */
 static U8 mxzoom = SYSVID_MAXZOOM; /* max zoom level */
 
+/* the last known windowed (non-fullscreen) size in real pixels, kept in sync by
+   sysvid_notifyResized() from SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED (sysevt.c) --
+   covers the window getting resized by anything other than our own zoom keys
+   (a user drag-resize, or a tiling compositor imposing its own geometry), so
+   leaving fullscreen restores to wherever it actually was, not to whatever
+   fb_width*zoom last happened to be. Starts at 0 and gets its first real value
+   from the window's actual size right after creation, in sysvid_init(). */
+static U16 winW, winH;
+
 #ifdef ENABLE_SHADERS
 /* the frame goes through the GL shader chain (sysvid_gl.c) instead of the renderer.
    pixels then holds the whole frame as RGBA bytes, which is what GL uploads */
@@ -215,6 +224,19 @@ IFDEBUG_VIDEO(
 #ifdef BPP8
 	videoFlags |= SDL_HWPALETTE;
 #endif
+	/* RESIZABLE matters beyond letting the user drag-resize: on native Wayland
+	   (confirmed on Hyprland, 2026-10-18), SDL3's SetWindowSize on a window
+	   created WITHOUT this flag takes a different, fixed-size-only path (sets
+	   xdg_toplevel min==max size) -- compositors that treat window geometry as
+	   their own for floating windows (Hyprland) silently ignore that, so F2/F3
+	   zoom and the fullscreen-restore size never actually changed the window.
+	   KWin happened to honour it anyway, which is why this only ever showed up
+	   there. Both render paths already derive their output size freshly every
+	   frame (sysvid_gpu.c's swapchain query, this file's SDL_RenderLogicalPresentation
+	   letterboxing below) rather than caching a size computed at zoom-change time,
+	   so no further per-backend work is needed to scale into whatever size the
+	   window actually ends up at once it can really change size. */
+	videoFlags |= SDL_WINDOW_RESIZABLE;
 	//chkVideo();  /* check video modes */
 
 	/* if a zoom was specified, use it -- but check it is ok. it is the window mode
@@ -261,6 +283,8 @@ IFDEBUG_VIDEO(
 		SDL_SetWindowIcon(screen, s);
 		SDL_DestroySurface(s);
 		sysvid_gl_present((U8 *)pixels);
+		winW = fb_width * zoom;
+		winH = fb_height * zoom;
 		IFDEBUG_VIDEO(sys_printf("xrick/video: ready\n"););
 		return;
 	}
@@ -272,6 +296,8 @@ IFDEBUG_VIDEO(
 	screen = SDL_CreateWindow("xrick", fb_width * zoom, fb_height * zoom, videoFlags);
 	SDL_SetWindowIcon(screen, s);
 	SDL_DestroySurface(s);
+	winW = fb_width * zoom;
+	winH = fb_height * zoom;
 
 	// create renderer -- SDL3 takes a driver name (NULL = default) instead of an index/flags pair
 	renderer = SDL_CreateRenderer(screen, NULL);
@@ -551,6 +577,21 @@ sysvid_updateRGBA(const U32 *rgba)
 
 
 /*
+ * sysvid_getZoom
+ *
+ * the current zoom preset -- for the renderer to size its windowed-mode
+ * content at (see sysvid_gpu.c's computeLetterboxViewport), independent of
+ * whatever the OS window's actual current size happens to be.
+ */
+U8
+sysvid_getZoom(void)
+{
+	return zoom;
+}
+
+
+
+/*
  * sysvid_zoom
  *
  * increases or decreases zoom by <z>, if possible.
@@ -570,6 +611,11 @@ sysvid_zoom(S8 z)
 		);
 
 		SDL_SetWindowSize(screen, fb_width * zoom, fb_height * zoom);
+		if (!(videoFlags & SDL_FULLSCREEN))
+		{
+			winW = fb_width * zoom;
+			winH = fb_height * zoom;
+		}
 
 		sysvid_setDisplayPalette();
 		sysvid_update(&SCREENRECT); /* repaint all */ /* FIXME */
@@ -584,6 +630,29 @@ sysvid_zoom(S8 z)
 }
 
 
+
+/*
+ * sysvid_notifyResized
+ *
+ * called from sysevt.c on SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, i.e. whenever the
+ * window's actual pixel size changes for ANY reason -- a user drag-resize, or a
+ * tiling/floating compositor imposing its own geometry, not just our own zoom
+ * keys (sysvid_zoom already updates winW/winH itself for that case). Both render
+ * paths already pick up the new size on their own on the very next frame (the
+ * GPU path queries the swapchain fresh every present; the SDL_Renderer fallback's
+ * SDL_RenderLogicalPresentation letterboxes to whatever the renderer's current
+ * output size is) -- this function's only job is keeping winW/winH correct so
+ * sysvid_toggleFullscreen() restores to the right place, not to recompute
+ * anything that affects what gets drawn.
+ */
+void
+sysvid_notifyResized(int w, int h)
+{
+	if (w <= 0 || h <= 0 || (videoFlags & SDL_FULLSCREEN))
+		return;
+	winW = (U16)w;
+	winH = (U16)h;
+}
 
 #ifdef __EMSCRIPTEN__
 /*
@@ -657,9 +726,13 @@ sysvid_toggleFullscreen(void)
 	   the pre-fullscreen window size on their own -- found 2026-10-10 not
 	   to happen reliably (KDE/KWin), landing back at 1x instead of whatever
 	   zoom (e.g. 2x/3x) the window was at before. Set it explicitly, same
-	   as sysvid_zoom() does for a normal zoom change. */
+	   as sysvid_zoom() does for a normal zoom change -- to winW/winH (the
+	   last real windowed size, kept current by sysvid_notifyResized() and
+	   by sysvid_zoom() itself) rather than recomputing fb_width*zoom, so a
+	   plain drag-resize the user did (not through the zoom keys) is honoured
+	   too, not just overwritten back to the last integer zoom step. */
 	if (!(videoFlags & SDL_FULLSCREEN))
-		SDL_SetWindowSize(screen, fb_width * zoom, fb_height * zoom);
+		SDL_SetWindowSize(screen, winW, winH);
 
 	sysvid_setDisplayPalette();
 	sysvid_update(&SCREENRECT); /* repaint all */ /* FIXME */

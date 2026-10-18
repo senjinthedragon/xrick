@@ -405,6 +405,13 @@ processEvent()
     SETBIT(control_status, CONTROL_EXIT);
     control_last = CONTROL_EXIT;
     break;
+  case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    /* just keeps sysvid.c's notion of "the real windowed size" current -- both
+       render paths already redraw at whatever size the window actually is on
+       their own, every frame, with no help needed from this event. See
+       sysvid_notifyResized()'s own comment. */
+    sysvid_notifyResized(event.window.data1, event.window.data2);
+    break;
 #ifdef ENABLE_FOCUS
   case SDL_EVENT_WINDOW_FOCUS_GAINED:
     control_active = TRUE;

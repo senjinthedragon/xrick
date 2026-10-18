@@ -196,11 +196,43 @@ computeLetterboxViewportFor(Uint32 srcW, Uint32 srcH, Uint32 winW, Uint32 winH, 
 /*
  * computeLetterboxViewport
  *
- * the no-bezel case: fits fb_width:fb_height into winW x winH.
+ * the no-bezel case. Fullscreen: fits fb_width:fb_height (or 4:3) into
+ * winW x winH, as before -- there's no such thing as a "zoom level" once
+ * the window IS the whole screen.
+ *
+ * Windowed: renders at a fixed size (fb_height * the current zoom preset,
+ * widened to whichever aspect computeLetterboxViewportFor would have used),
+ * centered in the window -- letterboxed if the window is bigger than that,
+ * centre-cropped by the viewport's own bounds if it's smaller. This is what
+ * makes F2/F3 (sysvid_zoom) do something *visible* even when the window
+ * manager silently ignores the resize request that goes with it: Wayland's
+ * xdg-shell has no protocol message for "resize me to WxH" at all outside of
+ * an interactive drag grab (confirmed 2026-10-18 against Hyprland -- see
+ * sysvid_notifyResized()'s comment, sysvid.c) -- some compositors (KWin)
+ * honour the resize anyway as a courtesy, in which case this ends up
+ * identical to the old fit-to-window behaviour since the window really is
+ * zoom-sized; others (this Hyprland config, for floating windows) don't,
+ * and previously that meant zoom had zero visible effect at all.
  */
 static void
 computeLetterboxViewport(Uint32 winW, Uint32 winH, SDL_GPUViewport *vp)
 {
+	Uint32 w, h;
+
+	if (!(SDL_GetWindowFlags(screen) & SDL_WINDOW_FULLSCREEN)) {
+		h = (Uint32)fb_height * sysvid_getZoom();
+		w = (aspectMode == 0) ? (Uint32)((float)h * 4.0f / 3.0f)
+				      : (Uint32)((float)h * (float)fb_width / (float)fb_height);
+
+		vp->x = ((float)winW - (float)w) / 2.0f;
+		vp->y = ((float)winH - (float)h) / 2.0f;
+		vp->w = (float)w;
+		vp->h = (float)h;
+		vp->min_depth = 0.0f;
+		vp->max_depth = 1.0f;
+		return;
+	}
+
 	if (aspectMode == 0)
 		computeLetterboxViewportFor(4, 3, winW, winH, vp);
 	else

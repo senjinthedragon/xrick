@@ -30,7 +30,9 @@ extern void sysvid_update(rect_t*);
 extern void sysvid_updateRGBA(const U32 *rgba);
 extern struct SDL_Window *sysvid_getWindow(void); /* the game window, whichever backend made it */
 extern void sysvid_zoom(S8);
+extern U8 sysvid_getZoom(void); /* current zoom preset, sysvid_gpu.c's computeLetterboxViewport */
 extern void sysvid_toggleFullscreen(void);
+extern void sysvid_notifyResized(int w, int h); /* SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, sysevt.c */
 #ifdef __EMSCRIPTEN__
 extern void sysvid_reassertSize(void); /* mobile web canvas-stays-0x0 workaround, sysvid.c */
 #endif
